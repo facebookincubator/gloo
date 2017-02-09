@@ -1,0 +1,14 @@
+set(FLOO_RENDEZVOUS_SRCS
+  "${CMAKE_CURRENT_SOURCE_DIR}/hash_store.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/prefix_store.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/store.cc"
+  )
+
+if(USE_REDIS)
+  list(APPEND FLOO_RENDEZVOUS_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/redis_store.cc"
+    )
+endif()
+
+list(APPEND FLOO_SRCS ${FLOO_RENDEZVOUS_SRCS})
+set(FLOO_SRCS ${FLOO_SRCS} PARENT_SCOPE)
