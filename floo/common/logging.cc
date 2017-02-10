@@ -10,6 +10,7 @@
 #include "floo/common/logging.h"
 
 #include <algorithm>
+#include <numeric>
 
 namespace floo {
 
