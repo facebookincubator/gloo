@@ -46,7 +46,7 @@ Pair::~Pair() {
   // Needs lock so that this doesn't race with read/write of the
   // underlying file descriptor on the device thread.
   std::lock_guard<std::mutex> lock(m_);
-  changeState(CLOSED);
+  changeState(CLOSED, false); // Pair doesn't have to be in CONNECTED state here
 }
 
 const Address& Pair::address() const {
@@ -495,7 +495,7 @@ void Pair::unregisterBuffer(Buffer* buf) {
 }
 
 // changeState must only be called when holding lock.
-void Pair::changeState(state state) {
+void Pair::changeState(state state, bool enforceConnected) {
   // Ignore nops
   if (state == state_) {
     return;
@@ -506,7 +506,7 @@ void Pair::changeState(state state) {
 
   // Clean up file descriptor when transitioning to CLOSED
   if (state == CLOSED) {
-    GLOO_ENFORCE_EQ(state_, CONNECTED);
+    if (enforceConnected) GLOO_ENFORCE_EQ(state_, CONNECTED);
     if (!sync_) {
       dev_->unregisterDescriptor(fd_);
     }

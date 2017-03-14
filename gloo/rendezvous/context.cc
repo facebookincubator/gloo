@@ -33,8 +33,7 @@ void Context::connectFullMesh(
       continue;
     }
 
-    auto pair = dev->createPair();
-    pairs[i] = std::move(pair);
+    pairs[i] = dev->createPair();
 
     // Store address for pair for this rank
     std::ostringstream key;
