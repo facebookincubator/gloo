@@ -28,7 +28,7 @@ parallel across two or more processes/machines. To be able to execute
 across multiple machines, they first need to find each other. We call
 this _rendezvous_ and it is the first thing to address when
 integrating Gloo into your code base.
-See [rendezvous.md](./rendezvous.md) for more information.
+See [`rendezvous.md`](./rendezvous.md) for more information.
 
 Once rendezvous completes, participating machines have setup
 connections to one another, either in a full mesh (every machine has a
