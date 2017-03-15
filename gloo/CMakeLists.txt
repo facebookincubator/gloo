@@ -20,6 +20,7 @@ file(GLOB GLOO_ROOT_HDRS "*.h")
 list(APPEND GLOO_HDRS ${GLOO_ROOT_HDRS})
 
 add_subdirectory(common)
+add_subdirectory(mpi)
 add_subdirectory(rendezvous)
 add_subdirectory(transport)
 
