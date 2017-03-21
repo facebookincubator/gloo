@@ -115,7 +115,7 @@ class Pair : public ::gloo::transport::Pair {
   void handleConnecting();
   void handleConnected();
 
-  void changeState(state state);
+  void changeState(state state, bool enforceConnected = true);
 };
 
 } // namespace tcp
