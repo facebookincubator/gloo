@@ -18,23 +18,22 @@
 namespace gloo {
 namespace mpi {
 
-static int MPICommSize(const MPI_Comm &comm) {
+static int MPICommSize(const MPI_Comm& comm) {
   int comm_size;
   auto error = MPI_Comm_size(comm, &comm_size);
   GLOO_ENFORCE(error == MPI_SUCCESS, "MPI_Comm_size: ", error);
   return comm_size;
 }
 
-static int MPICommRank(const MPI_Comm &comm) {
+static int MPICommRank(const MPI_Comm& comm) {
   int comm_rank;
   auto error = MPI_Comm_rank(comm, &comm_rank);
   GLOO_ENFORCE(error == MPI_SUCCESS, "MPI_Comm_rank: ", error);
   return comm_rank;
 }
 
-Context::Context(const MPI_Comm &comm)
-    : ::gloo::Context(MPICommRank(comm), MPICommSize(comm)),
-      comm_() {
+Context::Context(const MPI_Comm& comm)
+    : ::gloo::Context(MPICommRank(comm), MPICommSize(comm)) {
   auto error = MPI_Comm_dup(comm, &comm_);
   GLOO_ENFORCE(error == MPI_SUCCESS, "MPI_Comm_dup: ", error);
 }
