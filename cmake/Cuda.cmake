@@ -1,7 +1,7 @@
 # Known NVIDIA GPU achitectures Gloo can be compiled for.
 # This list will be used for CUDA_ARCH_NAME = All option
-set(gloo_known_gpu_archs "20 21(20) 30 35 50 52 60 61")
-set(gloo_known_gpu_archs7 "20 21(20) 30 35 50 52")
+set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
+set(gloo_known_gpu_archs7 "30 35 50 52")
 
 ################################################################################
 # Function for selecting GPU arch flags for nvcc based on CUDA_ARCH_NAME
