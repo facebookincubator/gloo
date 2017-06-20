@@ -6,12 +6,6 @@
 #include <cuda_fp16.h>
 #endif
 
-#define VALUE_TO_STRING(x) #x
-#define VALUE(x)  VALUE_TO_STRING(x)
-#define VAR_NAME_VALUE(var) #var "=" VALUE(var)
-
-#pragma message VAR_NAME_VALUE(CUDA_VERSION)
-
 #include "gloo/common/common.h"
 
 namespace gloo {
@@ -74,7 +68,6 @@ struct __attribute__((__aligned__(2))) float16 {
   // conversion should be fine
   /* implicit */
   operator half() const {
-#pragma message "CUDA_VERSION"
 #if CUDA_VERSION >= 9000
     __half_raw hr;
     hr.x = this->x;
