@@ -2,6 +2,7 @@
 # This list will be used for CUDA_ARCH_NAME = All option
 set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
 set(gloo_known_gpu_archs7 "30 35 50 52")
+set(gloo_known_gpu_archs8 "30 35 50 52 60 61")
 
 ################################################################################
 # Function for selecting GPU arch flags for nvcc based on CUDA_ARCH_NAME
@@ -136,7 +137,11 @@ endif()
 
 set(HAVE_CUDA TRUE)
 message(STATUS "CUDA detected: " ${CUDA_VERSION})
-if (${CUDA_VERSION} LESS 8.0)
+if (${CUDA_VERSION} LESS 9.0)
+  set(gloo_known_gpu_archs ${gloo_known_gpu_archs8})
+  list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
+  list(APPEND CUDA_NVCC_FLAGS "-D__STRICT_ANSI__")
+elseif (${CUDA_VERSION} LESS 8.0)
   set(gloo_known_gpu_archs ${gloo_known_gpu_archs7})
   list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
   list(APPEND CUDA_NVCC_FLAGS "-D__STRICT_ANSI__")
