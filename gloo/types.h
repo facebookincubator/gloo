@@ -56,7 +56,7 @@ struct __attribute__((__aligned__(2))) float16 {
     return x == res.x;
   }
 #ifdef __CUDA_ARCH__
-  float16(__half h) {
+  float16(half h) {
 #if CUDA_VERSION >= 9000
     x = reinterpret_cast<__half_raw*>(&h)->x;
 #else
