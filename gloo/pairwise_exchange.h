@@ -12,6 +12,7 @@
 #include <math.h>
 
 #include "gloo/algorithm.h"
+#include "gloo/common/logging.h"
 #include "gloo/context.h"
 
 namespace gloo {
@@ -26,10 +27,11 @@ class PairwiseExchange: public Algorithm {
         bytesPerMsg_(numBytes / numDestinations_),
         sendBufferData_(new char[numBytes]),
         recvBufferData_(new char[numBytes]) {
-    assert(this->contextSize_ % 2 == 0);
-    assert(bytesPerMsg_ > 0);
-    assert(
-        numDestinations_ > 0 && numDestinations_ <= log2(this->contextSize_));
+    GLOO_ENFORCE_EQ(this->contextSize_ % 2, 0);
+    GLOO_ENFORCE_GT(bytesPerMsg_, 0);
+    GLOO_ENFORCE_GT(numDestinations_, 0);
+    GLOO_ENFORCE_LE(numDestinations_, log2(this->contextSize_));
+
     // Processes communicate bidirectionally in pairs
     size_t bitmask = 1;
     for (int i = 0; i < numDestinations_; i++) {
