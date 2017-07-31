@@ -140,11 +140,15 @@ void Pair::connect(const std::vector<char>& bytes) {
   attr.rq_psn = peer_.addr_.psn;
   attr.max_dest_rd_atomic = 1;
   attr.min_rnr_timer = 20;
+  attr.ah_attr.is_global = 0;
+  attr.ah_attr.dlid = peer_.addr_.lid;
   attr.ah_attr.port_num = dev_->attr_.port;
-  attr.ah_attr.is_global = 1;
-  memcpy(&attr.ah_attr.grh.dgid, &peer_.addr_.ibv_gid, 16);
-  attr.ah_attr.grh.hop_limit = 1;
-  attr.ah_attr.grh.sgid_index = dev_->attr_.index;
+  if (peer_.addr_.ibv_gid.global.interface_id) {
+    attr.ah_attr.is_global = 1;
+    attr.ah_attr.grh.hop_limit = 1;
+    attr.ah_attr.grh.dgid = peer_.addr_.ibv_gid;
+    attr.ah_attr.grh.sgid_index = dev_->attr_.index;
+  }
 
   // Move to Ready To Receive (RTR) state
   rv = ibv_modify_qp(
