@@ -18,20 +18,20 @@
 #include "gloo/rendezvous/context.h"
 #include "gloo/transport/device.h"
 
-#ifdef GLOO_USE_REDIS
+#if GLOO_USE_REDIS
 #include "gloo/rendezvous/prefix_store.h"
 #include "gloo/rendezvous/redis_store.h"
 #endif
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
 #include "gloo/mpi/context.h"
 #endif
 
-#ifdef BENCHMARK_TCP
+#if BENCHMARK_TCP
 #include "gloo/transport/tcp/device.h"
 #endif
 
-#ifdef BENCHMARK_IBVERBS
+#if BENCHMARK_IBVERBS
 #include "gloo/transport/ibverbs/device.h"
 #endif
 
@@ -57,13 +57,13 @@ Runner::Runner(const options& options) : options_(options) {
 #endif
   GLOO_ENFORCE(device_, "Unknown transport: ", options_.transport);
 
-#ifdef GLOO_USE_REDIS
+#if GLOO_USE_REDIS
   if (!contextFactory_) {
     rendezvousRedis();
   }
 #endif
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
   if (!contextFactory_) {
     rendezvousMPI();
   }
@@ -88,14 +88,14 @@ Runner::~Runner() {
   broadcast_.reset();
   contextFactory_.reset();
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
   if (options_.mpi) {
     MPI_Finalize();
   }
 #endif
 }
 
-#ifdef GLOO_USE_REDIS
+#if GLOO_USE_REDIS
 void Runner::rendezvousRedis() {
   // Don't rendezvous through Redis if the host is not set
   if (options_.redisHost.empty()) {
@@ -112,7 +112,7 @@ void Runner::rendezvousRedis() {
 }
 #endif
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
 void Runner::rendezvousMPI() {
   // Don't rendezvous using MPI if not started through mpirun
   if (!options_.mpi) {
