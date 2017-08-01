@@ -16,9 +16,12 @@
 #include "gloo/broadcast_one_to_all.h"
 #include "gloo/common/logging.h"
 #include "gloo/rendezvous/context.h"
+#include "gloo/transport/device.h"
+
+#ifdef GLOO_USE_REDIS
 #include "gloo/rendezvous/prefix_store.h"
 #include "gloo/rendezvous/redis_store.h"
-#include "gloo/transport/device.h"
+#endif
 
 #ifdef GLOO_USE_MPI
 #include "gloo/mpi/context.h"
@@ -54,24 +57,19 @@ Runner::Runner(const options& options) : options_(options) {
 #endif
   GLOO_ENFORCE(device_, "Unknown transport: ", options_.transport);
 
-#ifdef GLOO_USE_MPI
-  if (options_.mpi) {
-    auto rv = MPI_Init(nullptr, nullptr);
-    GLOO_ENFORCE_EQ(rv, MPI_SUCCESS);
-    MPI_Comm_rank(MPI_COMM_WORLD, &options_.contextRank);
-    MPI_Comm_size(MPI_COMM_WORLD, &options_.contextSize);
+#ifdef GLOO_USE_REDIS
+  if (!contextFactory_) {
+    rendezvousRedis();
   }
 #endif
 
-  // Create backing context that allows us to quickly create
-  // other contexts
-  rendezvous::RedisStore redisStore(options_.redisHost, options_.redisPort);
-  rendezvous::PrefixStore prefixStore(options_.prefix, redisStore);
-  auto backingContext = std::make_shared<rendezvous::Context>(
-    options_.contextRank, options_.contextSize);
-  backingContext->connectFullMesh(prefixStore, device_);
-  contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
-    backingContext);
+#ifdef GLOO_USE_MPI
+  if (!contextFactory_) {
+    rendezvousMPI();
+  }
+#endif
+
+  GLOO_ENFORCE(contextFactory_, "No means for rendezvous");
 
   // Create broadcast algorithm to synchronize between participants
   broadcast_.reset(
@@ -82,12 +80,55 @@ Runner::Runner(const options& options) : options_(options) {
 }
 
 Runner::~Runner() {
+  // Reset algorithms and context factory such that all
+  // shared_ptr's to contexts are destructed.
+  // This is necessary so that all MPI common worlds are
+  // destroyed before MPI_Finalize is called.
+  barrier_.reset();
+  broadcast_.reset();
+  contextFactory_.reset();
+
 #ifdef GLOO_USE_MPI
   if (options_.mpi) {
     MPI_Finalize();
   }
 #endif
 }
+
+#ifdef GLOO_USE_REDIS
+void Runner::rendezvousRedis() {
+  // Don't rendezvous through Redis if the host is not set
+  if (options_.redisHost.empty()) {
+    return;
+  }
+
+  rendezvous::RedisStore redisStore(options_.redisHost, options_.redisPort);
+  rendezvous::PrefixStore prefixStore(options_.prefix, redisStore);
+  auto backingContext = std::make_shared<rendezvous::Context>(
+      options_.contextRank, options_.contextSize);
+  backingContext->connectFullMesh(prefixStore, device_);
+  contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
+      backingContext);
+}
+#endif
+
+#ifdef GLOO_USE_MPI
+void Runner::rendezvousMPI() {
+  // Don't rendezvous using MPI if not started through mpirun
+  if (!options_.mpi) {
+    return;
+  }
+
+  auto rv = MPI_Init(nullptr, nullptr);
+  GLOO_ENFORCE_EQ(rv, MPI_SUCCESS);
+  MPI_Comm_rank(MPI_COMM_WORLD, &options_.contextRank);
+  MPI_Comm_size(MPI_COMM_WORLD, &options_.contextSize);
+  auto backingContext = std::make_shared<::gloo::mpi::Context>(MPI_COMM_WORLD);
+  backingContext->connectFullMesh(device_);
+  contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
+      backingContext);
+}
+#endif
 
 long Runner::broadcast(long value) {
   // Set value to broadcast only on root.
@@ -101,14 +142,6 @@ long Runner::broadcast(long value) {
 }
 
 std::shared_ptr<Context> Runner::newContext() {
-#ifdef GLOO_USE_MPI
-  if (options_.mpi) {
-    auto context = std::make_shared<::gloo::mpi::Context>(MPI_COMM_WORLD);
-    context->connectFullMesh(device_);
-    return context;
-  }
-#endif
-
   auto context = contextFactory_->makeContext(device_);
   return context;
 }

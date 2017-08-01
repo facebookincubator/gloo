@@ -17,6 +17,7 @@
 #include "gloo/benchmark/benchmark.h"
 #include "gloo/benchmark/options.h"
 #include "gloo/benchmark/timer.h"
+#include "gloo/config.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/transport/device.h"
 
@@ -39,6 +40,14 @@ class Runner {
   void run(BenchmarkFn<T>& fn, int n);
 
  protected:
+#ifdef GLOO_USE_REDIS
+  void rendezvousRedis();
+#endif
+
+#ifdef GLOO_USE_MPI
+  void rendezvousMPI();
+#endif
+
   long broadcast(long value);
 
   std::shared_ptr<Context> newContext();

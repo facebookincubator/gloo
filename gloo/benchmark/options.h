@@ -11,6 +11,8 @@
 
 #include <string>
 
+#include "gloo/config.h"
+
 namespace gloo {
 namespace benchmark {
 
