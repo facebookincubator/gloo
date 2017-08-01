@@ -9,7 +9,7 @@
 
 #pragma once
 
-#ifdef GLOO_USE_EIGEN
+#if GLOO_USE_EIGEN
 #include <Eigen/Core>
 #endif
 
@@ -17,7 +17,7 @@
 
 namespace gloo {
 
-#ifdef GLOO_USE_EIGEN
+#if GLOO_USE_EIGEN
 
 template <typename T>
 using EigenVectorArrayMap =
@@ -82,7 +82,7 @@ void min(T* x, const T* y, size_t n) {
 
 #endif
 
-#ifdef GLOO_USE_AVX
+#if GLOO_USE_AVX
 
 // Assumes x and y are either both aligned to 32 bytes or unaligned by the same
 // offset, as would happen when reducing at an offset within an aligned buffer

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#ifdef GLOO_USE_AVX
+#if GLOO_USE_AVX
 #include <immintrin.h>
 #endif
 
@@ -13,7 +13,7 @@
 
 namespace gloo {
 
-#ifdef GLOO_USE_AVX
+#if GLOO_USE_AVX
 
 // Assumes x and y are either both aligned to 32 bytes or unaligned by the same
 // offset, as would happen when reducing at an offset within an aligned buffer

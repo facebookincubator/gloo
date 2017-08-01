@@ -214,7 +214,7 @@ struct options parseOptions(int argc, char** argv) {
     }
   }
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
   // Use MPI if started through mpirun
   result.mpi = (getenv("OMPI_UNIVERSE_SIZE") != nullptr);
 #endif

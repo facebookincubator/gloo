@@ -40,11 +40,11 @@ class Runner {
   void run(BenchmarkFn<T>& fn, int n);
 
  protected:
-#ifdef GLOO_USE_REDIS
+#if GLOO_USE_REDIS
   void rendezvousRedis();
 #endif
 
-#ifdef GLOO_USE_MPI
+#if GLOO_USE_MPI
   void rendezvousMPI();
 #endif
 
