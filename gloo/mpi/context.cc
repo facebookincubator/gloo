@@ -102,6 +102,7 @@ void Context::connectFullMesh(std::shared_ptr<transport::Device>& dev) {
     pairs[i]->connect(address);
   }
 
+  device_ = dev;
   pairs_ = std::move(pairs);
 }
 

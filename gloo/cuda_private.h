@@ -9,11 +9,15 @@
 
 #pragma once
 
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 
+#include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
 #include "gloo/cuda.h"
+#include "gloo/transport/device.h"
 
 namespace gloo {
 
@@ -47,6 +51,42 @@ inline int getDeviceCount() {
   int count;
   CUDA_CHECK(cudaGetDeviceCount(&count));
   return count;
+}
+
+const std::string& getCudaPCIBusID(int device);
+
+template<typename T>
+CudaDevicePointer<T>& findCudaDevicePointerClosestToDevice(
+    std::vector<CudaDevicePointer<T> >& ptrs,
+    std::shared_ptr<transport::Device>& dev) {
+  // Compute distance between every pointer
+  auto devBusID = dev->getPCIBusID();
+  std::vector<int> distance(ptrs.size());
+  int minDistance = INT_MAX;
+  int minDistanceCount = 0;
+  for (auto i = 0; i < ptrs.size(); i++) {
+    auto cudaBusID = getCudaPCIBusID(ptrs[i].getDeviceID());
+    distance[i] = pciDistance(devBusID, cudaBusID);
+    if (distance[i] <= minDistance) {
+      if (distance[i] < minDistance) {
+        minDistance = distance[i];
+        minDistanceCount = 0;
+      }
+      minDistanceCount++;
+    }
+  }
+  // Choose random pointer closest to device;
+  auto minOffset = rand() % minDistanceCount;
+  std::reference_wrapper<CudaDevicePointer<T>> closest = ptrs[0];
+  for (auto i = 0; i < ptrs.size(); i++) {
+    if (distance[i] == minDistance) {
+      if (minOffset == 0) {
+        closest = ptrs[i];
+      }
+      minOffset--;
+    }
+  }
+  return closest.get();
 }
 
 class CudaDeviceGuard {

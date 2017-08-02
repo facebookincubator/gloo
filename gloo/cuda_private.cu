@@ -92,4 +92,24 @@ std::unique_ptr<T[]> CudaMemory<T>::copyToHost() const {
 template class CudaMemory<float>;
 template class CudaMemory<float16>;
 
+// Lookup PCI bus IDs for device.
+// As the number of available devices won't change at
+// runtime we can seed this cache on the first call.
+const std::string& getCudaPCIBusID(int device) {
+  static std::once_flag once;
+  static std::vector<std::string> busIDs;
+
+  std::call_once(once, [](){
+    std::array<char, 16> buf;
+    auto count = getDeviceCount();
+    busIDs.resize(count);
+    for (auto i = 0; i < count; i++) {
+      CUDA_CHECK(cudaDeviceGetPCIBusId(buf.data(), buf.size(), i));
+      busIDs[i] = buf.data();
+    }
+  });
+
+  return busIDs[device];
+}
+
 } // namespace gloo

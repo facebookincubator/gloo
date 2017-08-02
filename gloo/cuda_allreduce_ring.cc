@@ -143,9 +143,11 @@ template <typename U>
 void CudaAllreduceRing<T, W>::init(
     typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
                             typename U::Pointer>::type*) {
-  // Since reduction is executed on the GPU, the scratch space
-  // can use an existing input buffer to accumulate.
-  auto& ptr = devicePtrs_[0];
+  // The networking adapter does DMA to/from GPU memory, so we should reduce
+  // onto the device that's closest to the networking adapter bound
+  // to our context. This uses PCI distance to find closest GPU.
+  auto& ptr = findCudaDevicePointerClosestToDevice(
+      devicePtrs_, this->context_->getDevice());
   auto count = ptr.getCount();
   scratch_ = CudaDevicePointer<T>::create(*ptr, count);
 

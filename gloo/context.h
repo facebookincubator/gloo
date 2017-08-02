@@ -12,6 +12,7 @@
 #include <memory>
 #include <vector>
 
+#include "gloo/transport/device.h"
 #include "gloo/transport/pair.h"
 
 namespace gloo {
@@ -24,11 +25,14 @@ class Context {
   const int rank;
   const int size;
 
+  std::shared_ptr<transport::Device>& getDevice();
+
   std::unique_ptr<transport::Pair>& getPair(int i);
 
   int nextSlot(int numToSkip = 1);
 
  protected:
+  std::shared_ptr<transport::Device> device_;
   std::vector<std::unique_ptr<transport::Pair>> pairs_;
   int slot_;
 };
