@@ -66,7 +66,7 @@ void Context::connectFullMesh(std::shared_ptr<transport::Device>& dev) {
 
   // Agree on maximum length so we can prepare buffers
   rv = MPI_Allreduce(
-    &maxLength, &maxLength, 1, MPI_UNSIGNED_LONG, MPI_MAX, comm_);
+    MPI_IN_PLACE, &maxLength, 1, MPI_UNSIGNED_LONG, MPI_MAX, comm_);
   if (rv != MPI_SUCCESS) {
     GLOO_THROW_IO_EXCEPTION("MPI_Allreduce: ", rv);
   }
