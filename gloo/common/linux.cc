@@ -83,10 +83,10 @@ static unsigned int pciGetClass(const std::string& id) {
   return pciClass;
 }
 
-std::vector<std::string> pciDevices(int pciClass) {
+std::vector<std::string> pciDevices(PCIClassMatch match) {
   std::vector<std::string> devices;
   for (const auto& device : listDir(kSysfsPath)) {
-    if (pciClass != pciGetClass(device)) {
+    if (match.value != (pciGetClass(device) & match.mask)) {
       continue;
     }
 
