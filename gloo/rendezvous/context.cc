@@ -71,13 +71,9 @@ void Context::connectFullMesh(
     pairs[i]->connect(addr);
   }
 
+  device_ = dev;
   pairs_ = std::move(pairs);
 }
-
-void Context::setPairs(std::vector<std::unique_ptr<transport::Pair>>&& pairs) {
-  pairs_ = std::move(pairs);
-}
-
 
 ContextFactory::ContextFactory(std::shared_ptr<::gloo::Context> backingContext)
     : backingContext_(backingContext) {
@@ -194,7 +190,8 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
     recvNotificationBuffers_[i]->waitRecv();
   }
 
-  context->setPairs(std::move(pairs));
+  context->device_ = dev;
+  context->pairs_ = std::move(pairs);
   return std::static_pointer_cast<::gloo::Context>(context);
 }
 

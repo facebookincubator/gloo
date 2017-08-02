@@ -25,6 +25,11 @@ Context::Context(int rank, int size)
 Context::~Context() {
 }
 
+std::shared_ptr<transport::Device>& Context::getDevice() {
+  GLOO_ENFORCE(device_, "Device not set!");
+  return device_;
+}
+
 std::unique_ptr<transport::Pair>& Context::getPair(int i) {
   return pairs_.at(i);
 }
