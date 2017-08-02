@@ -17,10 +17,18 @@ namespace gloo {
 
 const std::set<std::string>& kernelModules();
 
-const int kPCIClass3D = 0x030200;
-const int kPCIClassNetwork = 0x020000;
+struct PCIClassMatch {
+  int value;
+  int mask;
+};
 
-std::vector<std::string> pciDevices(int pciBusID);
+// Matches 03 (Display controller), 02 (3D controller)
+const auto kPCIClass3D = PCIClassMatch{0x030200, 0xffff00};
+
+// Matches 02 (Network controller), both Ethernet (00) and InfiniBand (07)
+const auto kPCIClassNetwork = PCIClassMatch{0x020000, 0xff0000};
+
+std::vector<std::string> pciDevices(PCIClassMatch);
 
 int pciDistance(const std::string& a, const std::string& b);
 
