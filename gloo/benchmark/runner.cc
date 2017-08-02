@@ -252,14 +252,14 @@ void Runner::printHeader() {
 
   std::cout << std::right;
   std::cout << std::setw(11) << "elements";
-  std::cout << std::setw(11) << ("minL " + suffix);
-  std::cout << std::setw(11) << ("p50L " + suffix);
-  std::cout << std::setw(11) << ("p99L " + suffix);
-  std::cout << std::setw(11) << ("maxL " + suffix);
-  std::cout << std::setw(15) << ("minBW " + bwSuffix);
-  std::cout << std::setw(15) << ("p50BW " + bwSuffix);
-  std::cout << std::setw(15) << ("p99BW " + bwSuffix);
-  std::cout << std::setw(15) << ("maxBW " + bwSuffix);
+  std::cout << std::setw(11) << ("min " + suffix);
+  std::cout << std::setw(11) << ("p50 " + suffix);
+  std::cout << std::setw(11) << ("p99 " + suffix);
+  std::cout << std::setw(11) << ("max " + suffix);
+  std::cout << std::setw(13) << ("min " + bwSuffix);
+  std::cout << std::setw(13) << ("p50 " + bwSuffix);
+  std::cout << std::setw(13) << ("p99 " + bwSuffix);
+  std::cout << std::setw(13) << ("max " + bwSuffix);
   std::cout << std::setw(11) << "samples";
   std::cout << std::endl;
 }
@@ -274,20 +274,28 @@ void Runner::printDistribution(int elements, int elemSize) {
     div = 1;
   }
 
-  auto dataSize = elements * elemSize * 1e9 / 1024 / 1024 / 1024;
-
   GLOO_ENFORCE_GE(samples_.size(), 1, "No samples found");
   std::cout << std::setw(11) << elements;
-  std::cout << std::setw(11) << samples_.percentile(0.00) / div;
-  std::cout << std::setw(11) << samples_.percentile(0.50) / div;
-  std::cout << std::setw(11) << samples_.percentile(0.99) / div;
-  std::cout << std::setw(11) << samples_.percentile(0.999999) / div;
-  std::cout << std::setw(15) << std::setprecision(4)
-            << (double)dataSize / samples_.percentile(0.999999);
-  std::cout << std::setw(15) << (double)dataSize / samples_.percentile(0.50);
-  std::cout << std::setw(15)
-            << (double)dataSize / samples_.percentile(0.01);
-  std::cout << std::setw(15) << (double)dataSize / samples_.percentile(0.00);
+
+  auto dataSize = elements * elemSize * 1e9 / 1024 / 1024 / 1024;
+  auto pmin = samples_.percentile(0.00);
+  auto p01 = samples_.percentile(0.01);
+  auto p50 = samples_.percentile(0.50);
+  auto p99 = samples_.percentile(0.99);
+  auto pmax = samples_.percentile(0.999999);
+
+  // Latency measurements
+  std::cout << std::setw(11) << (pmin / div);
+  std::cout << std::setw(11) << (p50 / div);
+  std::cout << std::setw(11) << (p99 / div);
+  std::cout << std::setw(11) << (pmax / div);
+
+  // Algorithm bandwidth measurements
+  std::cout << std::fixed << std::setprecision(4);
+  std::cout << std::setw(13) << ((double)dataSize / pmax);
+  std::cout << std::setw(13) << ((double)dataSize / p50);
+  std::cout << std::setw(13) << ((double)dataSize / p01);
+  std::cout << std::setw(13) << ((double)dataSize / pmin);
   std::cout << std::setw(11) << samples_.size();
   std::cout << std::endl;
 }
