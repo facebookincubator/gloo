@@ -14,6 +14,7 @@
 
 #include "gloo/barrier_all_to_one.h"
 #include "gloo/broadcast_one_to_all.h"
+#include "gloo/common/common.h"
 #include "gloo/common/logging.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/transport/device.h"
@@ -56,6 +57,11 @@ Runner::Runner(const options& options) : options_(options) {
   }
 #endif
   GLOO_ENFORCE(device_, "Unknown transport: ", options_.transport);
+
+  // Spawn threads that run the actual benchmark loop
+  for (auto i = 0; i < options_.threads; i++) {
+    threads_.push_back(make_unique<RunnerThread>());
+  }
 
 #if GLOO_USE_REDIS
   if (!contextFactory_) {
@@ -166,6 +172,10 @@ void Runner::run(BenchmarkFn<T>& fn) {
 
 template <typename T>
 void Runner::run(BenchmarkFn<T>& fn, int n) {
+  std::vector<std::unique_ptr<Benchmark<T>>> benchmarks;
+
+  // Initialize one set of objects for every thread
+  for (auto i = 0; i < options_.threads; i++) {
     auto context = newContext();
     auto benchmark = fn(context);
     benchmark->initialize(n);
@@ -187,37 +197,70 @@ void Runner::run(BenchmarkFn<T>& fn, int n) {
       barrier_->run();
     }
 
-    // Switch mode based on iteration count or time spent
-    auto iterations = options_.iterationCount;
-    if (iterations <= 0) {
-      GLOO_ENFORCE_GT(options_.iterationTimeNanos, 0);
+    benchmarks.push_back(std::move(benchmark));
+  }
 
-      Distribution warmup;
-      for (int i = 0; i < options_.warmupIterationCount; i++) {
-        Timer dt;
-        benchmark->run();
-        warmup.add(dt);
-      }
+  // Switch mode based on iteration count or time spent
+  auto iterations = options_.iterationCount;
+  if (iterations <= 0) {
+    GLOO_ENFORCE_GT(options_.iterationTimeNanos, 0);
 
-      // Broadcast duration of fastest iteration during warmup,
-      // so all nodes agree on the number of iterations to run for.
-      auto nanos = broadcast(warmup.min());
-      iterations = std::max(1L, options_.iterationTimeNanos / nanos);
+    // Create warmup jobs for every thread
+    std::vector<std::unique_ptr<RunnerJob>> jobs;
+    for (auto i = 0; i < options_.threads; i++) {
+      auto fn = [&benchmark = benchmarks[i]] { benchmark->run(); };
+      auto job = make_unique<RunnerJob>(fn, options_.warmupIterationCount);
+      jobs.push_back(std::move(job));
     }
 
-    // Main benchmark loop
-    samples_.clear();
-    for (int i = 0; i < iterations; i++) {
-      Timer dt;
-      benchmark->run();
-      samples_.add(dt);
-    }
-
-    printDistribution(n, sizeof(T));
-
-    // Barrier to make sure everybody arrived here and the temporary
-    // context and benchmark can be destructed.
+    // Start jobs on every thread (synchronized across processes)
     barrier_->run();
+    for (auto i = 0; i < options_.threads; i++) {
+      threads_[i]->run(jobs[i].get());
+    }
+
+    // Wait for completion and merge latency distributions
+    Samples samples;
+    for (auto i = 0; i < options_.threads; i++) {
+      jobs[i]->wait();
+      samples.merge(jobs[i]->getSamples());
+    }
+
+    // Broadcast duration of median iteration during warmup,
+    // so all nodes agree on the number of iterations to run for.
+    Distribution warmup(samples);
+    auto nanos = broadcast(warmup.percentile(0.5));
+    iterations = std::max(1L, options_.iterationTimeNanos / nanos);
+  }
+
+  // Create jobs for every thread
+  std::vector<std::unique_ptr<RunnerJob>> jobs;
+  for (auto i = 0; i < options_.threads; i++) {
+    auto fn = [&benchmark = benchmarks[i]] { benchmark->run(); };
+    auto job = make_unique<RunnerJob>(fn, iterations);
+    jobs.push_back(std::move(job));
+  }
+
+  // Start jobs on every thread (synchronized across processes)
+  barrier_->run();
+  for (auto i = 0; i < options_.threads; i++) {
+    threads_[i]->run(jobs[i].get());
+  }
+
+  // Wait for completion
+  for (auto i = 0; i < options_.threads; i++) {
+    jobs[i]->wait();
+  }
+
+  // Merge results
+  Samples samples;
+  for (auto i = 0; i < options_.threads; i++) {
+    samples.merge(jobs[i]->getSamples());
+  }
+
+  // Print results
+  Distribution latency(samples);
+  printDistribution(n, sizeof(T), latency);
 }
 
 void Runner::printHeader() {
@@ -234,6 +277,7 @@ void Runner::printHeader() {
   std::cout << std::left << std::setw(13) << "Options:";
   std::cout << "processes=" << options_.contextSize;
   std::cout << ", inputs=" << options_.inputs;
+  std::cout << ", threads=" << options_.threads;
   if (options_.benchmark.compare(0, 5, "cuda_") == 0) {
     std::cout << ", gpudirect=";
     if (options_.transport == "ibverbs" && options_.gpuDirect) {
@@ -256,15 +300,15 @@ void Runner::printHeader() {
   std::cout << std::setw(11) << ("p50 " + suffix);
   std::cout << std::setw(11) << ("p99 " + suffix);
   std::cout << std::setw(11) << ("max " + suffix);
-  std::cout << std::setw(13) << ("min " + bwSuffix);
-  std::cout << std::setw(13) << ("p50 " + bwSuffix);
-  std::cout << std::setw(13) << ("p99 " + bwSuffix);
-  std::cout << std::setw(13) << ("max " + bwSuffix);
+  std::cout << std::setw(13) << ("avg " + bwSuffix);
   std::cout << std::setw(11) << "samples";
   std::cout << std::endl;
 }
 
-void Runner::printDistribution(int elements, int elemSize) {
+void Runner::printDistribution(
+    int elements,
+    int elementSize,
+    const Distribution& latency) {
   if (options_.contextRank != 0) {
     return;
   }
@@ -274,29 +318,22 @@ void Runner::printDistribution(int elements, int elemSize) {
     div = 1;
   }
 
-  GLOO_ENFORCE_GE(samples_.size(), 1, "No samples found");
+  GLOO_ENFORCE_GE(latency.size(), 1, "No latency samples found");
+
+  auto bytes = elements * elementSize;
+  auto totalBytes = bytes * latency.size();
+  auto totalNanos = latency.sum() / options_.threads;
+  auto totalBytesPerSec = (totalBytes * 1e9f) / totalNanos;
+  auto totalGigaBytesPerSec = totalBytesPerSec / (1024 * 1024 * 1024);
+
   std::cout << std::setw(11) << elements;
-
-  auto dataSize = elements * elemSize * 1e9 / 1024 / 1024 / 1024;
-  auto pmin = samples_.percentile(0.00);
-  auto p01 = samples_.percentile(0.01);
-  auto p50 = samples_.percentile(0.50);
-  auto p99 = samples_.percentile(0.99);
-  auto pmax = samples_.percentile(0.999999);
-
-  // Latency measurements
-  std::cout << std::setw(11) << (pmin / div);
-  std::cout << std::setw(11) << (p50 / div);
-  std::cout << std::setw(11) << (p99 / div);
-  std::cout << std::setw(11) << (pmax / div);
-
-  // Algorithm bandwidth measurements
-  std::cout << std::fixed << std::setprecision(4);
-  std::cout << std::setw(13) << ((double)dataSize / pmax);
-  std::cout << std::setw(13) << ((double)dataSize / p50);
-  std::cout << std::setw(13) << ((double)dataSize / p01);
-  std::cout << std::setw(13) << ((double)dataSize / pmin);
-  std::cout << std::setw(11) << samples_.size();
+  std::cout << std::setw(11) << (latency.min() / div);
+  std::cout << std::setw(11) << (latency.percentile(0.50) / div);
+  std::cout << std::setw(11) << (latency.percentile(0.99) / div);
+  std::cout << std::setw(11) << (latency.max() / div);
+  std::cout << std::fixed << std::setprecision(3);
+  std::cout << std::setw(13) << totalGigaBytesPerSec;
+  std::cout << std::setw(11) << latency.size();
   std::cout << std::endl;
 }
 
@@ -306,6 +343,45 @@ template void Runner::run(BenchmarkFn<float>& fn);
 template void Runner::run(BenchmarkFn<float>& fn, int n);
 template void Runner::run(BenchmarkFn<float16>& fn);
 template void Runner::run(BenchmarkFn<float16>& fn, int n);
+
+RunnerThread::RunnerThread() : stop_(false), job_(nullptr) {
+  thread_ = std::thread(&RunnerThread::spawn, this);
+}
+
+RunnerThread::~RunnerThread() {
+  mutex_.lock();
+  stop_ = true;
+  mutex_.unlock();
+  cond_.notify_one();
+  thread_.join();
+}
+
+void RunnerThread::run(RunnerJob* job) {
+  std::unique_lock<std::mutex> lock(mutex_);
+  job_ = job;
+  cond_.notify_one();
+}
+
+void RunnerThread::spawn() {
+  std::unique_lock<std::mutex> lock(mutex_);
+  while (!stop_) {
+    while (job_ == nullptr) {
+      cond_.wait(lock);
+      if (stop_) {
+        return;
+      }
+    }
+
+    for (auto i = 0; i < job_->iterations_; i++) {
+      Timer dt;
+      job_->fn_();
+      job_->samples_.add(dt);
+    }
+
+    job_->done();
+    job_ = nullptr;
+  }
+}
 
 } // namespace benchmark
 } // namespace gloo

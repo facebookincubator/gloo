@@ -49,6 +49,7 @@ static void usage(int status, const char* argv0) {
   X("      --elements         Number of floats to use per input buffer");
   X("      --iteration-count  Number of iterations to run benchmark for");
   X("      --iteration-time   Time to run benchmark for (default: 2s)");
+  X("      --threads          Number of threads to spawn (default: 1)");
   X("      --nanos            Display timing data in nanos instead of micros");
   X("      --gpudirect        Use GPUDirect (CUDA only)");
   X("      --halfprecision    Use 16-bit floating point values");
@@ -105,6 +106,7 @@ struct options parseOptions(int argc, char** argv) {
       {"gpudirect", no_argument, nullptr, 0x1009},
       {"halfprecision", no_argument, nullptr, 0x100a},
       {"destinations", required_argument, nullptr, 0x100b},
+      {"threads", required_argument, nullptr, 0x100c},
       {"help", no_argument, nullptr, 0xffff},
       {nullptr, 0, nullptr, 0}};
 
@@ -200,6 +202,11 @@ struct options parseOptions(int argc, char** argv) {
       case 0x100b: // --destinations
       {
         result.destinations = atoi(optarg);
+        break;
+      }
+      case 0x100c: // --threads
+      {
+        result.threads = atoi(optarg);
         break;
       }
       case 0xffff: // --help
