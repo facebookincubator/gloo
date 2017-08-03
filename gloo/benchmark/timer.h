@@ -34,54 +34,72 @@ class Timer {
   std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 };
 
-class Distribution {
- public:
-  Distribution() {
+// Forward declaration
+class Distribution;
+
+// Stores latency samples
+class Samples {
+public:
+  Samples() {
     constexpr auto capacity = 100 * 1000;
     samples_.reserve(capacity);
   }
 
-  void clear() {
-    samples_.clear();
-    sorted_.clear();
-  }
-
-  size_t size() const {
-    return samples_.size();
-  }
-
   void add(long ns) {
     samples_.push_back(ns);
-    sorted_.clear();
   }
 
   void add(const Timer& t) {
     add(t.ns());
   }
 
-  long min() {
-    return sorted()[0];
-  }
-
-  long max() {
-    return sorted()[size() - 1];
-  }
-
-  long percentile(float pct) {
-    return sorted()[pct * size()];
-  }
-
-  std::vector<long> sorted() {
-    if (sorted_.size() != samples_.size()) {
-      sorted_ = samples_;
-      std::sort(sorted_.begin(), sorted_.end());
-    }
-    return sorted_;
+  void merge(const Samples& other) {
+    samples_.insert(
+      samples_.end(),
+      other.samples_.begin(),
+      other.samples_.end());
   }
 
  protected:
   std::vector<long> samples_;
-  std::vector<long> sorted_;
+
+  friend class Distribution;
+};
+
+// Stores a sorted list of latency samples
+class Distribution {
+ public:
+  explicit Distribution(const Samples& samples) :
+      samples_(samples.samples_) {
+    std::sort(samples_.begin(), samples_.end());
+  }
+
+  size_t size() const {
+    return samples_.size();
+  }
+
+  long min() const {
+    return samples_[0];
+  }
+
+  long max() const {
+    return samples_[size() - 1];
+  }
+
+  long percentile(float pct) const {
+    return samples_[pct * size()];
+  }
+
+  long sum() const {
+    long result = 0;
+    for (auto& sample : samples_) {
+      result += sample;
+    }
+    return result;
+  }
+
+ protected:
+  std::vector<long> samples_;
 };
 
 } // namespace benchmark

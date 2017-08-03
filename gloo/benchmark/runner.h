@@ -9,8 +9,11 @@
 
 #pragma once
 
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 #include "gloo/algorithm.h"
 #include "gloo/barrier.h"
@@ -23,6 +26,65 @@
 
 namespace gloo {
 namespace benchmark {
+
+// Forward declaration
+class RunnerThread;
+
+// RunnerJob holds the state associated with repetetive calls of an arbitrary
+// function (which is typically equal to the benchmark function).
+class RunnerJob {
+ public:
+  explicit RunnerJob(std::function<void()> fn, int i) :
+    done_(false), fn_(fn), iterations_(i) {}
+
+  const Samples& getSamples() const {
+    return samples_;
+  }
+
+  void wait() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (!done_) {
+      cond_.wait(lock);
+    }
+  }
+
+ protected:
+  void done() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    done_ = true;
+    cond_.notify_all();
+  }
+
+  bool done_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+
+  std::function<void()> fn_;
+  int iterations_;
+  Samples samples_;
+
+  friend class RunnerThread;
+};
+
+// RunnerThread takes a RunnerJob and runs the function a number of times,
+// keeping track of its runtime in the job's member variable `samples_`. Upon
+// completion, it signals the job using the `done()` function.
+class RunnerThread {
+ public:
+  RunnerThread();
+  ~RunnerThread();
+
+  void run(RunnerJob* job);
+
+ protected:
+  void spawn();
+
+  bool stop_;
+  RunnerJob* job_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+  std::thread thread_;
+};
 
 class Runner {
  public:
@@ -53,17 +115,19 @@ class Runner {
   std::shared_ptr<Context> newContext();
 
   void printHeader();
-  void printDistribution(int elements, int elemSize);
+  void printDistribution(
+      int elements,
+      int elementSize,
+      const Distribution& samples);
 
   options options_;
   std::shared_ptr<transport::Device> device_;
   std::shared_ptr<rendezvous::ContextFactory> contextFactory_;
+  std::vector<std::unique_ptr<RunnerThread>> threads_;
 
   long broadcastValue_;
   std::unique_ptr<Algorithm> broadcast_;
   std::unique_ptr<Barrier> barrier_;
-
-  Distribution samples_;
 };
 
 } // namespace benchmark
