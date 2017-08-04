@@ -13,6 +13,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <set>
 
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
@@ -88,6 +89,10 @@ CudaDevicePointer<T>& findCudaDevicePointerClosestToDevice(
   }
   return closest.get();
 }
+
+bool canAccessPeer(int deviceA, int deviceB);
+
+const std::vector<std::vector<int>>& groupFullyConnected();
 
 class CudaDeviceGuard {
  public:
