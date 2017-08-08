@@ -22,18 +22,11 @@ namespace gloo {
 namespace test {
 namespace {
 
-template <typename T>
-struct AlignedBufferReleaser {
-  void operator()(T* buffer) {
-    if (buffer != nullptr) {
-      free(buffer);
-    }
-  }
-};
-
 // RAII handle for aligned buffer
 template <typename T>
-using BufferHandle = std::unique_ptr<T, AlignedBufferReleaser<T>>;
+std::vector<T, aligned_allocator<T, kBufferAlignment>> newBuffer(int size) {
+  return std::vector<T, aligned_allocator<T, kBufferAlignment>>(size);
+}
 
 // Function to instantiate and run algorithm.
 using Func = void(
@@ -150,10 +143,8 @@ TEST_P(AllreduceTest, SinglePointer) {
       std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
     context->connectFullMesh(*store_, device_);
 
-    BufferHandle<float> buffer{
-        (float*)aligned_alloc(kBufferAlignment, dataSize * sizeof(float))};
-
-    float* ptr = buffer.get();
+    auto buffer = newBuffer<float>(dataSize);
+    auto* ptr = buffer.data();
     for (int i = 0; i < dataSize; i++) {
       ptr[i] = contextRank;
     }
@@ -177,10 +168,8 @@ TEST_F(AllreduceTest, MultipleAlgorithms) {
         std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
     context->connectFullMesh(*store_, device_);
 
-    BufferHandle<float> buffer{
-        (float*)aligned_alloc(kBufferAlignment, dataSize * sizeof(float))};
-
-    float* ptr = buffer.get();
+    auto buffer = newBuffer<float>(dataSize);
+    auto* ptr = buffer.data();
     for (const auto& fn : fns) {
       for (int i = 0; i < dataSize; i++) {
         ptr[i] = contextRank;
@@ -218,10 +207,8 @@ TEST_F(AllreduceTestHP, HalfPrecisionTest) {
         std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
     context->connectFullMesh(*store_, device_);
 
-    BufferHandle<float16> buffer{
-        (float16*)aligned_alloc(kBufferAlignment, dataSize * sizeof(float16))};
-
-    float16* ptr = buffer.get();
+    auto buffer = newBuffer<float16>(dataSize);
+    auto* ptr = buffer.data();
     for (const auto& fn : fns) {
       for (int i = 0; i < dataSize; i++) {
         ptr[i] = contextRank;
