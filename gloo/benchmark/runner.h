@@ -121,7 +121,7 @@ class Runner {
       const Distribution& samples);
 
   options options_;
-  std::shared_ptr<transport::Device> device_;
+  std::vector<std::shared_ptr<transport::Device>> transportDevices_;
   std::shared_ptr<rendezvous::ContextFactory> contextFactory_;
   std::vector<std::unique_ptr<RunnerThread>> threads_;
 

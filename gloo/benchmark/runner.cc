@@ -43,20 +43,26 @@ Runner::Runner(const options& options) : options_(options) {
 #ifdef BENCHMARK_TCP
   if (options_.transport == "tcp") {
     transport::tcp::attr attr;
-    device_ = transport::tcp::CreateDevice(attr);
+    transportDevices_.push_back(transport::tcp::CreateDevice(attr));
   }
 #endif
 #ifdef BENCHMARK_IBVERBS
   if (options_.transport == "ibverbs") {
-    transport::ibverbs::attr attr = {
-      .name = options_.ibverbsDevice,
-      .port = options_.ibverbsPort,
-      .index = options_.ibverbsIndex,
-    };
-    device_ = transport::ibverbs::CreateDevice(attr);
+    for (const auto& name : options_.ibverbsDevice) {
+      transport::ibverbs::attr attr = {
+        .name = name,
+        .port = options_.ibverbsPort,
+        .index = options_.ibverbsIndex,
+      };
+      transportDevices_.push_back(transport::ibverbs::CreateDevice(attr));
+    }
   }
 #endif
-  GLOO_ENFORCE(device_, "Unknown transport: ", options_.transport);
+
+  GLOO_ENFORCE(
+      !transportDevices_.empty(),
+      "Unknown transport: ",
+      options_.transport);
 
   // Spawn threads that run the actual benchmark loop
   for (auto i = 0; i < options_.threads; i++) {
@@ -112,7 +118,7 @@ void Runner::rendezvousRedis() {
   rendezvous::PrefixStore prefixStore(options_.prefix, redisStore);
   auto backingContext = std::make_shared<rendezvous::Context>(
       options_.contextRank, options_.contextSize);
-  backingContext->connectFullMesh(prefixStore, device_);
+  backingContext->connectFullMesh(prefixStore, transportDevices_.front());
   contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
       backingContext);
 }
@@ -130,7 +136,7 @@ void Runner::rendezvousMPI() {
   MPI_Comm_rank(MPI_COMM_WORLD, &options_.contextRank);
   MPI_Comm_size(MPI_COMM_WORLD, &options_.contextSize);
   auto backingContext = std::make_shared<::gloo::mpi::Context>(MPI_COMM_WORLD);
-  backingContext->connectFullMesh(device_);
+  backingContext->connectFullMesh(transportDevices_.front());
   contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
       backingContext);
 }
@@ -148,7 +154,7 @@ long Runner::broadcast(long value) {
 }
 
 std::shared_ptr<Context> Runner::newContext() {
-  auto context = contextFactory_->makeContext(device_);
+  auto context = contextFactory_->makeContext(transportDevices_.front());
   return context;
 }
 
@@ -176,7 +182,8 @@ void Runner::run(BenchmarkFn<T>& fn, int n) {
 
   // Initialize one set of objects for every thread
   for (auto i = 0; i < options_.threads; i++) {
-    auto context = newContext();
+    auto context = contextFactory_->makeContext(
+        transportDevices_[i % transportDevices_.size()]);
     auto benchmark = fn(context);
     benchmark->initialize(n);
 
@@ -268,9 +275,15 @@ void Runner::printHeader() {
     return;
   }
 
-  std::cout << std::left << std::setw(13) << "Device:";
-  std::cout << device_->str() << std::endl;
-
+  if (transportDevices_.size() == 1) {
+    std::cout << std::left << std::setw(13) << "Device:";
+    std::cout << transportDevices_.front()->str() << std::endl;
+  } else {
+    std::cout << std::left << std::setw(13) << "Devices:" << std::endl;
+    for (const auto& device : transportDevices_) {
+      std::cout << "  - " << device->str() << std::endl;
+    }
+  }
   std::cout << std::left << std::setw(13) << "Algorithm:";
   std::cout << options_.benchmark << std::endl;
 
