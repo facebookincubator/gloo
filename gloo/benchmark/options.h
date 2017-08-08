@@ -10,6 +10,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "gloo/config.h"
 
@@ -31,9 +32,9 @@ struct options {
 
   // Transport
   std::string transport;
-  std::string ibverbsDevice = "mlx5_0";
+  std::vector<std::string> ibverbsDevice;
   int ibverbsPort = 1;
-  int ibverbsIndex = 1;
+  int ibverbsIndex = 0;
   bool sync = false;
   bool busyPoll = false;
 

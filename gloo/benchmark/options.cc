@@ -43,6 +43,15 @@ static void usage(int status, const char* argv0) {
   X("      --sync=BOOL           Switch pairs to sync mode (default: false)");
   X("      --busy-poll=BOOL      Busy-poll in sync mode (default: false)");
   X("");
+  X("Transport configuration for \"ibverbs\":");
+  X("");
+  X("  Note: the same port and index are used across all devices,");
+  X("  in case multiple are specified.");
+  X("");
+  X("      --ib-device=DEV[,DEV...]  InfiniBand device(s) to use (default: mlx5_0)");
+  X("      --ib-port=PORT            InfiniBand port to use (default: 1)");
+  X("      --ib-index=INDEX          InfiniBand index to use (default: 0)");
+  X("");
   X("Benchmark parameters:");
   X("      --verify           Verify result first iteration (if applicable)");
   X("      --inputs           Number of input buffers");
@@ -107,6 +116,9 @@ struct options parseOptions(int argc, char** argv) {
       {"halfprecision", no_argument, nullptr, 0x100a},
       {"destinations", required_argument, nullptr, 0x100b},
       {"threads", required_argument, nullptr, 0x100c},
+      {"ib-device", required_argument, nullptr, 0x100d},
+      {"ib-index", required_argument, nullptr, 0x100e},
+      {"ib-port", required_argument, nullptr, 0x100f},
       {"help", no_argument, nullptr, 0xffff},
       {nullptr, 0, nullptr, 0}};
 
@@ -209,6 +221,32 @@ struct options parseOptions(int argc, char** argv) {
         result.threads = atoi(optarg);
         break;
       }
+      case 0x100d: // --ib-device
+      {
+        const auto* start = optarg;
+        for (;;) {
+          const auto* pos = strchr(start, ',');
+          if (pos == nullptr) {
+            result.ibverbsDevice.push_back(start);
+            break;
+          }
+          if (pos - start > 1) {
+            result.ibverbsDevice.push_back(std::string(start, pos - start));
+          }
+          start = pos + 1;
+        }
+        break;
+      }
+      case 0x100e: // --ib-index
+      {
+        result.ibverbsIndex = atoi(optarg);
+        break;
+      }
+      case 0x100f: // --ib-port
+      {
+        result.ibverbsPort = atoi(optarg);
+        break;
+      }
       case 0xffff: // --help
       {
         usage(EXIT_SUCCESS, argv[0]);
@@ -225,6 +263,13 @@ struct options parseOptions(int argc, char** argv) {
   // Use MPI if started through mpirun
   result.mpi = (getenv("OMPI_UNIVERSE_SIZE") != nullptr);
 #endif
+
+  // Initialize default ibverbs device
+  if (result.transport == "ibverbs") {
+    if (result.ibverbsDevice.empty()) {
+      result.ibverbsDevice.push_back("mlx5_0");
+    }
+  }
 
   if (result.busyPoll && !result.sync) {
     fprintf(stderr, "%s: busy poll can only be used with sync mode\n", argv[0]);
