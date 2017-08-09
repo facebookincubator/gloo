@@ -189,8 +189,8 @@ void Runner::run(BenchmarkFn<T>& fn, int n) {
 
     // Switch pairs to sync mode if configured to do so
     if (options_.sync) {
-      for (int i = 0; i < context->size; i++) {
-        auto& pair = context->getPair(i);
+      for (int j = 0; j < context->size; j++) {
+        auto& pair = context->getPair(j);
         if (pair) {
           pair->setSync(true, options_.busyPoll);
         }
