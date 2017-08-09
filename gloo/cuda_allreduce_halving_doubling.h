@@ -63,6 +63,7 @@ class CudaAllreduceHalvingDoubling : public Algorithm {
   std::vector<CudaDevicePointer<T> > devicePtrs_;
   std::vector<CudaStream> streams_;
   typename W::Pointer scratch_;
+  CudaStream* scratchStream_;
 
   const int count_;
   const int bytes_;

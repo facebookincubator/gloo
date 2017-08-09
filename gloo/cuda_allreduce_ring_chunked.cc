@@ -127,7 +127,7 @@ CudaAllreduceRingChunked<T, W>::~CudaAllreduceRingChunked() {
 template <typename T, typename W>
 void CudaAllreduceRingChunked<T, W>::run() {
   CudaDeviceGuard guard;
-  CudaStream& stream = streams_[0];
+  CudaStream& stream = *scratchStream_;
 
   // Kick off local reduction for each chunk.
   // The result is stored in scratch_ at the corresponding chunk offset.
@@ -297,6 +297,7 @@ void CudaAllreduceRingChunked<T, W>::init(
   // Since reduction is executed on the CPU, the scratch space
   // where the reduction is accumulated is a new host side buffer.
   scratch_ = W::Pointer::alloc(count_);
+  scratchStream_ = &streams_[0];
 
   // Allocate inboxes
   for (auto i = 0; i < 2; i++) {
@@ -312,12 +313,13 @@ void CudaAllreduceRingChunked<T, W>::init(
   // The networking adapter does DMA to/from GPU memory, so we should reduce
   // onto the device that's closest to the networking adapter bound
   // to our context. This uses PCI distance to find closest GPU.
-  auto& ptr = findCudaDevicePointerClosestToDevice(
+  auto index = findCudaDevicePointerClosestToDevice(
       devicePtrs_, this->context_->getDevice());
-  auto count = ptr.getCount();
-  scratch_ = CudaDevicePointer<T>::create(*ptr, count);
+  scratch_ = CudaDevicePointer<T>::create(devicePtrs_[index]);
+  scratchStream_ = &streams_[index];
 
   // Allocate inboxes
+  CudaDeviceScope scope(scratch_.getDeviceID());
   for (auto i = 0; i < 2; i++) {
     inbox_[i] = W::Pointer::alloc(chunkSize_);
   }
