@@ -43,6 +43,13 @@ static void usage(int status, const char* argv0) {
   X("      --sync=BOOL           Switch pairs to sync mode (default: false)");
   X("      --busy-poll=BOOL      Busy-poll in sync mode (default: false)");
   X("");
+  X("Transport configuration for \"tcp\":");
+  X("");
+  X("  Note: if the device argument is not specified, Gloo uses the");
+  X("  network device associated with the machine's hostname.");
+  X("");
+  X("      --tcp-device=DEV[,DEV...]  Network interface(s) to use (default: empty)");
+  X("");
   X("Transport configuration for \"ibverbs\":");
   X("");
   X("  Note: the same port and index are used across all devices,");
@@ -94,6 +101,24 @@ static long argToNanos(char** argv, const char* arg) {
   return -1;
 }
 
+// Splits a const char* into a vector of strings.
+static std::vector<std::string> split(const char* in, char c) {
+  std::vector<std::string> result;
+  const auto* start = in;
+  for (;;) {
+    const auto* pos = strchr(start, c);
+    if (pos == nullptr) {
+      result.push_back(start);
+      break;
+    }
+    if (pos - start > 1) {
+      result.push_back(std::string(start, pos - start));
+    }
+    start = pos + 1;
+  }
+  return result;
+}
+
 struct options parseOptions(int argc, char** argv) {
   struct options result;
 
@@ -119,6 +144,7 @@ struct options parseOptions(int argc, char** argv) {
       {"ib-device", required_argument, nullptr, 0x100d},
       {"ib-index", required_argument, nullptr, 0x100e},
       {"ib-port", required_argument, nullptr, 0x100f},
+      {"tcp-device", required_argument, nullptr, 0x1010},
       {"help", no_argument, nullptr, 0xffff},
       {nullptr, 0, nullptr, 0}};
 
@@ -223,18 +249,7 @@ struct options parseOptions(int argc, char** argv) {
       }
       case 0x100d: // --ib-device
       {
-        const auto* start = optarg;
-        for (;;) {
-          const auto* pos = strchr(start, ',');
-          if (pos == nullptr) {
-            result.ibverbsDevice.push_back(start);
-            break;
-          }
-          if (pos - start > 1) {
-            result.ibverbsDevice.push_back(std::string(start, pos - start));
-          }
-          start = pos + 1;
-        }
+        result.ibverbsDevice = split(optarg, ',');
         break;
       }
       case 0x100e: // --ib-index
@@ -245,6 +260,11 @@ struct options parseOptions(int argc, char** argv) {
       case 0x100f: // --ib-port
       {
         result.ibverbsPort = atoi(optarg);
+        break;
+      }
+      case 0x1010: // --tcp-device
+      {
+        result.tcpDevice = split(optarg, ',');
         break;
       }
       case 0xffff: // --help

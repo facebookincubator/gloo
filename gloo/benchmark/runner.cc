@@ -42,8 +42,16 @@ namespace benchmark {
 Runner::Runner(const options& options) : options_(options) {
 #ifdef BENCHMARK_TCP
   if (options_.transport == "tcp") {
-    transport::tcp::attr attr;
-    transportDevices_.push_back(transport::tcp::CreateDevice(attr));
+    if (options_.tcpDevice.empty()) {
+      transport::tcp::attr attr;
+      transportDevices_.push_back(transport::tcp::CreateDevice(attr));
+    } else {
+      for (const auto& name : options_.tcpDevice) {
+        transport::tcp::attr attr;
+        attr.iface = name;
+        transportDevices_.push_back(transport::tcp::CreateDevice(attr));
+      }
+    }
   }
 #endif
 #ifdef BENCHMARK_IBVERBS

@@ -30,25 +30,75 @@ namespace tcp {
 
 static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
 
-std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
-  struct attr attr = src;
-  int rv;
+static void lookupAddrForIface(struct attr& attr) {
+  struct ifaddrs* ifap;
+  auto rv = getifaddrs(&ifap);
+  GLOO_ENFORCE_NE(rv, -1, strerror(errno));
+  struct ifaddrs *ifa;
+  for (ifa = ifap; ifa != nullptr; ifa = ifa->ifa_next) {
+    // Skip entry if ifa_addr is NULL (see getifaddrs(3))
+    if (ifa->ifa_addr == nullptr) {
+      continue;
+    }
+    // Skip entry if the name doesn't match
+    if (strcmp(attr.iface.c_str(), ifa->ifa_name) != 0) {
+      continue;
+    }
+    // Match on address family
+    switch (attr.ai_family) {
+      case AF_INET:
+        if (ifa->ifa_addr->sa_family != AF_INET) {
+          continue;
+        }
+        attr.ai_addrlen = sizeof(struct sockaddr_in);
+        memcpy(&attr.ai_addr, ifa->ifa_addr, attr.ai_addrlen);
+        break;
+      case AF_INET6:
+        if (ifa->ifa_addr->sa_family != AF_INET6) {
+          continue;
+        }
+        attr.ai_addrlen = sizeof(struct sockaddr_in6);
+        memcpy(&attr.ai_addr, ifa->ifa_addr, attr.ai_addrlen);
+        break;
+      case AF_UNSPEC:
+        switch (ifa->ifa_addr->sa_family) {
+          case AF_INET:
+            attr.ai_family = AF_INET;
+            attr.ai_addrlen = sizeof(struct sockaddr_in);
+            break;
+          case AF_INET6:
+            attr.ai_family = AF_INET6;
+            attr.ai_addrlen = sizeof(struct sockaddr_in6);
+            break;
+          default:
+            continue;
+        }
+        memcpy(&attr.ai_addr, ifa->ifa_addr, attr.ai_addrlen);
+        break;
+      default:
+        GLOO_ENFORCE(false, "Unknown ai_family: ", attr.ai_family);
+        break;
+    }
 
-  // Initialize hostname to equal this host's name, if not already specified.
-  if (attr.hostname.size() == 0) {
-    std::array<char, HOST_NAME_MAX> hostname;
-    auto rv = gethostname(hostname.data(), hostname.size());
-    GLOO_ENFORCE_EQ(rv, 0);
-    attr.hostname = hostname.data();
+    attr.ai_socktype = SOCK_STREAM;
+    attr.ai_protocol = 0;
+    break;
   }
+  GLOO_ENFORCE(
+    ifa != nullptr,
+    "Unable to find address for: ",
+    attr.iface);
+  freeifaddrs(ifap);
+  return;
+}
 
-  // Lookup address and interface for this hostname.
+static void lookupAddrForHostname(struct attr& attr) {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = attr.ai_family;
   hints.ai_socktype = SOCK_STREAM;
   struct addrinfo* result;
-  rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
+  auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
   GLOO_ENFORCE_NE(rv, -1);
   struct addrinfo* rp;
   for (rp = result; rp != nullptr; rp = rp->ai_next) {
@@ -78,6 +128,26 @@ std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
     "Unable to find address for: ",
     attr.hostname);
   freeaddrinfo(result);
+  return;
+}
+
+std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
+  struct attr attr = src;
+
+  if (attr.iface.size() > 0) {
+    // Initialize attributes using network interface name
+    lookupAddrForIface(attr);
+  } else {
+    // Initialize attributes using hostname/IP address
+    // If not already specified, use this machine's hostname
+    if (attr.hostname.size() == 0) {
+      std::array<char, HOST_NAME_MAX> hostname;
+      auto rv = gethostname(hostname.data(), hostname.size());
+      GLOO_ENFORCE_EQ(rv, 0);
+      attr.hostname = hostname.data();
+    }
+    lookupAddrForHostname(attr);
+  }
 
   auto device = std::make_shared<Device>(attr);
   return std::shared_ptr<transport::Device>(device);

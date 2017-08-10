@@ -32,6 +32,7 @@ struct options {
 
   // Transport
   std::string transport;
+  std::vector<std::string> tcpDevice;
   std::vector<std::string> ibverbsDevice;
   int ibverbsPort = 1;
   int ibverbsIndex = 0;

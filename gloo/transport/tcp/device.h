@@ -29,6 +29,8 @@ struct attr {
 
   std::string hostname;
 
+  std::string iface;
+
   // The address family defaults to AF_UNSPEC such that getaddrinfo(3)
   // will try to find either IPv4 or IPv6 addresses.
   int ai_family = AF_UNSPEC;
