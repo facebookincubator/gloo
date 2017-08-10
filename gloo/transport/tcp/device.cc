@@ -11,6 +11,7 @@
 
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -82,11 +83,23 @@ std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
   return std::shared_ptr<transport::Device>(device);
 }
 
+bool isLocalhostAddr(const struct sockaddr* addr) {
+  if (addr->sa_family == AF_INET) {
+    // Check if the address is in the range '127.x.x.x'
+    auto in = (struct sockaddr_in*)addr;
+    auto mask = htonl(IN_CLASSA_NET);
+    auto subnet = htonl(INADDR_LOOPBACK) & mask;
+    return (in->sin_addr.s_addr & mask) == subnet;
+  }
+  return false;
+}
+
 const std::string sockaddrToInterfaceName(const struct attr& attr) {
   struct ifaddrs* ifap;
   std::string iface;
   auto rv = getifaddrs(&ifap);
   GLOO_ENFORCE_NE(rv, -1, strerror(errno));
+  auto addrIsLocalhost = isLocalhostAddr((struct sockaddr*)&attr.ai_addr);
   struct ifaddrs *ifa;
   for (ifa = ifap; ifa != nullptr; ifa = ifa->ifa_next) {
     // Skip entry if ifa_addr is NULL (see getifaddrs(3))
@@ -95,7 +108,11 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
     }
     if (ifa->ifa_addr->sa_family == AF_INET) {
       auto sz = sizeof(struct sockaddr_in);
-      if (memcmp(&attr.ai_addr, ifa->ifa_addr, sz) == 0) {
+      // Check if this interface address matches the provided address, or if
+      // this is the localhost interface and the provided address is in the
+      // localhost subnet.
+      if ((memcmp(&attr.ai_addr, ifa->ifa_addr, sz) == 0) ||
+          (addrIsLocalhost && isLocalhostAddr(ifa->ifa_addr))) {
         iface = ifa->ifa_name;
         break;
       }
