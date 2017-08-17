@@ -10,6 +10,13 @@
 #pragma once
 
 #if GLOO_USE_EIGEN
+// Eigen still uses the __CUDACC_VER__ macro,
+// which is deprecated in CUDA 9.
+#if __CUDACC_VER_MAJOR__ >= 9
+#undef __CUDACC_VER__
+#define __CUDACC_VER__ \
+  ((__CUDACC_VER_MAJOR__ * 10000) + (__CUDACC_VER_MINOR__ * 100))
+#endif
 #include <Eigen/Core>
 #endif
 
