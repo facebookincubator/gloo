@@ -36,8 +36,12 @@ endif()
 set(GLOO_INSTALL ON CACHE BOOL "")
 mark_as_advanced(GLOO_INSTALL)
 
-# Build static or shared libraries (override from parent project)
-set(GLOO_STATIC_OR_SHARED ${BUILD_SHARED_LIBS} CACHE STRING "")
+# Build shared or static libraries (override from parent project)
+if(BUILD_SHARED_LIBS)
+  set(GLOO_STATIC_OR_SHARED SHARED CACHE STRING "")
+else()
+  set(GLOO_STATIC_OR_SHARED STATIC CACHE STRING "")
+endif()
 mark_as_advanced(GLOO_STATIC_OR_SHARED)
 
 # Process dependencies
