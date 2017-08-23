@@ -284,13 +284,6 @@ struct options parseOptions(int argc, char** argv) {
   result.mpi = (getenv("OMPI_UNIVERSE_SIZE") != nullptr);
 #endif
 
-  // Initialize default ibverbs device
-  if (result.transport == "ibverbs") {
-    if (result.ibverbsDevice.empty()) {
-      result.ibverbsDevice.push_back("mlx5_0");
-    }
-  }
-
   if (result.busyPoll && !result.sync) {
     fprintf(stderr, "%s: busy poll can only be used with sync mode\n", argv[0]);
     usage(EXIT_FAILURE, argv[0]);
