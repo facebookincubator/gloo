@@ -79,6 +79,8 @@ class Pair : public ::gloo::transport::Pair {
 
   void handleEvents(int events);
 
+  void close() override;
+
  protected:
   std::shared_ptr<Device> dev_;
   state state_;

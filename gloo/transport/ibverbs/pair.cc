@@ -109,17 +109,26 @@ Pair::Pair(const std::shared_ptr<Device>& dev)
 }
 
 Pair::~Pair() {
-  int rv;
+  this->close();
+}
 
-  // Acknowledge number of completion events handled by this
-  // pair's completion queue (also see ibv_get_cq_event(3)).
-  ibv_ack_cq_events(cq_, completionEventsHandled_);
+void Pair::close() {
+    if (closed_) {
+      // TODO: add proper handling of duplicate closes T21171834
+      return;
+    }
+    closed_ = true;
+    int rv;
 
-  rv = ibv_destroy_qp(qp_);
-  GLOO_ENFORCE_EQ(rv, 0);
+    // Acknowledge number of completion events handled by this
+    // pair's completion queue (also see ibv_get_cq_event(3)).
+    ibv_ack_cq_events(cq_, completionEventsHandled_);
 
-  rv = ibv_destroy_cq(cq_);
-  GLOO_ENFORCE_EQ(rv, 0);
+    rv = ibv_destroy_qp(qp_);
+    GLOO_ENFORCE_EQ(rv, 0);
+
+    rv = ibv_destroy_cq(cq_);
+    GLOO_ENFORCE_EQ(rv, 0);
 }
 
 const Address& Pair::address() const {

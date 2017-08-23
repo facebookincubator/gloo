@@ -41,4 +41,12 @@ int Context::nextSlot(int numToSkip) {
   return temp;
 }
 
+void Context::closeConnections() {
+  for (auto& pair : pairs_) {
+    if (pair) {
+      pair->close();
+    }
+  }
+}
+
 } // namespace gloo

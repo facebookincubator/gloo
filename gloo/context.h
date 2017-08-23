@@ -31,6 +31,8 @@ class Context {
 
   int nextSlot(int numToSkip = 1);
 
+  void closeConnections();
+
  protected:
   std::shared_ptr<transport::Device> device_;
   std::vector<std::unique_ptr<transport::Pair>> pairs_;

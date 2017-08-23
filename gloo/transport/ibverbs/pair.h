@@ -96,6 +96,8 @@ class Pair : public ::gloo::transport::Pair {
 
   void send(Buffer* buf, size_t offset, size_t length, size_t roffset);
 
+  void close() override;
+
  protected:
   std::shared_ptr<Device> dev_;
 
@@ -161,6 +163,7 @@ class Pair : public ::gloo::transport::Pair {
 
  private:
   std::exception_ptr ex_;
+  bool closed_ = false;
 
   // Used to signal IO exceptions from one thread and propagate onto others.
   void signalIoFailure(const std::string& msg);

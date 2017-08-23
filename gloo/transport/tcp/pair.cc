@@ -49,10 +49,16 @@ Pair::Pair(const std::shared_ptr<Device>& dev)
 }
 
 Pair::~Pair() {
+  this->close();
+}
+
+void Pair::close() {
   // Needs lock so that this doesn't race with read/write of the
   // underlying file descriptor on the device thread.
   std::lock_guard<std::mutex> lock(m_);
-  changeState(CLOSED);
+  if (state_ != CLOSED) {
+    changeState(CLOSED);
+  }
 }
 
 const Address& Pair::address() const {
@@ -123,13 +129,13 @@ void Pair::listen() {
   int on = 1;
   rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   if (rv == -1) {
-    close(fd);
+    ::close(fd);
     signalIoFailure(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
   }
 
   rv = bind(fd, (const sockaddr*)&attr.ai_addr, attr.ai_addrlen);
   if (rv == -1) {
-    close(fd);
+    ::close(fd);
     signalIoFailure(GLOO_ERROR_MSG("bind: ", strerror(errno)));
   }
 
@@ -137,7 +143,7 @@ void Pair::listen() {
   fd_ = fd;
   rv = ::listen(fd_, 1);
   if (rv == -1) {
-    close(fd_);
+    ::close(fd_);
     fd_ = FD_INVALID;
     signalIoFailure(GLOO_ERROR_MSG("listen: ", strerror(errno)));
   }
@@ -198,7 +204,7 @@ void Pair::connect(const Address& peer) {
   // self_ > peer_; we are connecting side.
   // First destroy listening socket.
   dev_->unregisterDescriptor(fd_);
-  close(fd_);
+  ::close(fd_);
 
   // Create new socket to connect to peer.
   fd_ = socket(peer_.ss_.ss_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -210,7 +216,7 @@ void Pair::connect(const Address& peer) {
   int on = 1;
   rv = setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   if (rv == -1) {
-    close(fd_);
+    ::close(fd_);
     fd_ = FD_INVALID;
     signalIoFailure(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
   }
@@ -218,7 +224,7 @@ void Pair::connect(const Address& peer) {
   // Connect to peer
   rv = ::connect(fd_, (struct sockaddr*)&peer_.ss_, addrlen);
   if (rv == -1 && errno != EINPROGRESS) {
-    close(fd_);
+    ::close(fd_);
     fd_ = FD_INVALID;
     signalIoFailure(GLOO_ERROR_MSG("connect: ", strerror(errno)));
   }
@@ -501,7 +507,7 @@ void Pair::handleListening() {
   // Close the listening file descriptor whether we've successfully connected
   // or run into an error and will throw an exception.
   dev_->unregisterDescriptor(fd_);
-  close(fd_);
+  ::close(fd_);
   fd_ = FD_INVALID;
 
   if (rv == -1) {
@@ -613,20 +619,20 @@ void Pair::changeState(state nextState) {
       if (!sync_) {
         dev_->unregisterDescriptor(fd_);
       }
-      close(fd_);
+      ::close(fd_);
       fd_ = FD_INVALID;
     } else if (state_ == LISTENING) {
       // The pair may be in the LISTENING state when it is destructed.
       if (fd_ != FD_INVALID) {
         dev_->unregisterDescriptor(fd_);
-        close(fd_);
+        ::close(fd_);
         fd_ = FD_INVALID;
       }
     } else if (state_ == CONNECTING) {
       // The pair may be in the CONNECTING state when it is destructed.
       if (fd_ != FD_INVALID) {
         dev_->unregisterDescriptor(fd_);
-        close(fd_);
+        ::close(fd_);
         fd_ = FD_INVALID;
       }
     } else {
