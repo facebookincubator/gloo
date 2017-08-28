@@ -12,7 +12,9 @@
 #include <fcntl.h>
 #include <poll.h>
 
+#include <algorithm>
 #include <array>
+#include <vector>
 
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
@@ -54,28 +56,33 @@ class ibv_devices {
   struct ibv_device** list_;
 };
 
-static ibv_context* createContext(const std::string& name) {
+std::shared_ptr<::gloo::transport::Device> CreateDevice(
+    const struct attr& constAttr) {
+  struct attr attr = constAttr;
   ibv_devices devices;
 
+  // Default to using the first device if not specified
+  if (attr.name.empty()) {
+    if (devices.size() == 0) {
+      GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+        "No ibverbs devices present");
+    }
+    std::vector<std::string> names;
+    for (auto i = 0; i < devices.size(); i++) {
+      names.push_back(devices[i]->name);
+    }
+    std::sort(names.begin(), names.end());
+    attr.name = names[0];
+  }
+
   // Look for specified device name
-  struct ibv_device* dev = nullptr;
+  ibv_context* context = nullptr;
   for (int i = 0; i < devices.size(); i++) {
-    if (name == devices[i]->name) {
-      dev = devices[i];
+    if (attr.name == devices[i]->name) {
+      context = ibv_open_device(devices[i]);
       break;
     }
   }
-
-  if (dev == nullptr) {
-    return nullptr;
-  }
-
-  return ibv_open_device(dev);
-}
-
-std::shared_ptr<::gloo::transport::Device> CreateDevice(
-    const struct attr& attr) {
-  auto context = createContext(attr.name);
   if (!context) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION(
         "Unable to find device named: ", attr.name);

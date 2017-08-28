@@ -56,13 +56,19 @@ Runner::Runner(const options& options) : options_(options) {
 #endif
 #ifdef BENCHMARK_IBVERBS
   if (options_.transport == "ibverbs") {
-    for (const auto& name : options_.ibverbsDevice) {
-      transport::ibverbs::attr attr = {
-        .name = name,
-        .port = options_.ibverbsPort,
-        .index = options_.ibverbsIndex,
-      };
+    if (options_.ibverbsDevice.empty()) {
+      transport::ibverbs::attr attr;
+      attr.port = options_.ibverbsPort;
+      attr.index = options_.ibverbsIndex;
       transportDevices_.push_back(transport::ibverbs::CreateDevice(attr));
+    } else {
+      for (const auto& name : options_.ibverbsDevice) {
+        transport::ibverbs::attr attr;
+        attr.name = name;
+        attr.port = options_.ibverbsPort;
+        attr.index = options_.ibverbsIndex;
+        transportDevices_.push_back(transport::ibverbs::CreateDevice(attr));
+      }
     }
   }
 #endif
