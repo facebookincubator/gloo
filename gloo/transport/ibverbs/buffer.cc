@@ -52,6 +52,7 @@ Buffer::Buffer(Pair* pair, int slot, void* ptr, size_t size)
 }
 
 Buffer::~Buffer() {
+  GLOO_ENFORCE_EQ(sendPending_, 0, "Destructing buffer expecting completions");
   ibv_dereg_mr(mr_);
 }
 
