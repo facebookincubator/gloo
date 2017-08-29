@@ -33,32 +33,8 @@ class Buffer;
 
 class Pair : public ::gloo::transport::Pair {
   static constexpr int kMaxBuffers = 8;
-
-  // Use 3x the maximum number of buffers as the capacity
-  // for entries in this pair's completion queue.
-  //
-  // For receive completions, there are a maximum of:
-  //   - MAX_BUFFERS posted receive work requests to receive memory
-  //     regions from the other side of the pair (for send buffers).
-  //   - MAX_BUFFERS posted receive work requests for RDMA writes
-  //     from the other side of the pair.
-  //
-  // For send completions, there are a maximum of:
-  //   - MAX_BUFFERS posted send work requests to send memory
-  //     regions to the other side of the pair (for receive buffers).
-  //   - MAX_BUFFERS posted send work requests for RDMA writes
-  //     to the other side of the pair.
-  //
-  // While this sums up to 4x kMaxBuffers work requests, send work
-  // requests can only be posted after receiving the corresponding
-  // memory region from the other side of the pair. This leads to a
-  // maximum of of 3x kMaxBuffers posted work requests at any given
-  // time. However, since the majority can be made up by either
-  // receive work requests or send work requests, we keep the capacity
-  // at 4x kMaxBuffers and allocate half to each type.
-  //
-  static constexpr auto kRecvCompletionQueueCapacity = 2 * kMaxBuffers;
-  static constexpr auto kSendCompletionQueueCapacity = 2 * kMaxBuffers;
+  static constexpr auto kRecvCompletionQueueCapacity = kMaxBuffers;
+  static constexpr auto kSendCompletionQueueCapacity = kMaxBuffers;
   static constexpr auto kCompletionQueueCapacity =
     kRecvCompletionQueueCapacity + kSendCompletionQueueCapacity;
 
@@ -130,24 +106,28 @@ class Pair : public ::gloo::transport::Pair {
   // These fields store memory regions that the remote side of the pair
   // can send to and that the local side of the pair can send from.
   //
-  // After receiving a memory region from the remote side of the pair,
-  // the memory region is popped off the front of this list and is
-  // destructed, after storing the remote details in
-  // peerMemoryRegions_.
-  //
   // When registering a receive buffer, the local ibv_mr is sent
   // to the remote side of the pair, and the corresponding MemoryRegion
   // instance is kept around in the mappedSendRegions_ list until
   // the send operation complete.
   //
+  // To allow the remote side of the pair to send its memory regions,
+  // we keep a fixed number of MemoryRegion instances in
+  // mappedRecvRegions_. These regions are referenced round-robin for
+  // every posted receive work request.
+  //
   std::map<int, std::unique_ptr<MemoryRegion> > mappedSendRegions_;
-  std::list<std::unique_ptr<MemoryRegion> > mappedRecvRegions_;
+  std::array<std::unique_ptr<MemoryRegion>, kMaxBuffers> mappedRecvRegions_;
+
+  // Keep track of number of request work requests posted and completed.
+  // This is needed to index into the mappedRecvRegions_ array both
+  // when posting the WR and when completing the WR.
+  uint64_t recvPosted_;
 
   // Completions on behalf of buffers need to be forwarded to those buffers.
   std::map<int, Buffer*> sendCompletionHandlers_;
   std::map<int, Buffer*> recvCompletionHandlers_;
 
-  void receiveMemoryRegion();
   void sendMemoryRegion(struct ibv_mr* mr, int slot);
   const struct ibv_mr* getMemoryRegion(int slot);
 
