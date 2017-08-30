@@ -10,11 +10,17 @@
 
 find_path(nccl_INCLUDE_DIR
   NAMES nccl.h
-  HINTS ${NCCL_ROOT_DIR} ${NCCL_ROOT_DIR}/include)
+  HINTS
+  ${NCCL_ROOT_DIR}
+  ${NCCL_ROOT_DIR}/include)
 
 find_library(nccl_LIBRARIES
   NAMES nccl
-  HINTS ${NCCL_ROOT_DIR} ${NCCL_ROOT_DIR}/lib ${NCCL_ROOT_DIR}/lib64)
+  HINTS
+  ${NCCL_ROOT_DIR}
+  ${NCCL_ROOT_DIR}/lib
+  ${NCCL_ROOT_DIR}/lib/x86_64-linux-gnu
+  ${NCCL_ROOT_DIR}/lib64)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(nccl DEFAULT_MSG nccl_INCLUDE_DIR nccl_LIBRARIES)
