@@ -181,13 +181,20 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
     sendNotificationBuffers_[i]->send();
   }
 
-  // Wait for notification from peers
+  // Wait for incoming notification from peers
   for (auto i = 0; i < context->size; i++) {
     if (i == context->rank) {
       continue;
     }
-
     recvNotificationBuffers_[i]->waitRecv();
+  }
+
+  // Wait for outgoing notifications to be flushed
+  for (auto i = 0; i < context->size; i++) {
+    if (i == context->rank) {
+      continue;
+    }
+    sendNotificationBuffers_[i]->waitSend();
   }
 
   context->device_ = dev;
