@@ -120,6 +120,10 @@ class CudaDevicePointer {
 
   static CudaDevicePointer<T> create(T* ptr, size_t count);
 
+  static CudaDevicePointer<T> create(const CudaDevicePointer<T>& ptr) {
+    return CudaDevicePointer<T>::create(*ptr, ptr.getCount());
+  }
+
   CudaDevicePointer(CudaDevicePointer&&) noexcept;
   ~CudaDevicePointer();
 
