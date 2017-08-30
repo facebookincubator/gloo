@@ -69,7 +69,7 @@ CudaAllreduceRing<T, W>::CudaAllreduceRing(
 template <typename T, typename W>
 void CudaAllreduceRing<T, W>::run() {
   CudaDeviceGuard guard;
-  CudaStream& stream = streams_[0];
+  CudaStream& stream = *scratchStream_;
 
   if (localReduceOp_) {
     localReduceOp_->run();
@@ -125,6 +125,7 @@ void CudaAllreduceRing<T, W>::init(
   // Since reduction is executed on the CPU, the scratch space
   // where they are accumulated is a new host side buffer.
   scratch_ = W::Pointer::alloc(count_);
+  scratchStream_ = &streams_[0];
 
   // Execute local reduction and broadcast from host.
   // If devicePtrs_.size() == 1 these functions construct an op that
@@ -146,10 +147,10 @@ void CudaAllreduceRing<T, W>::init(
   // The networking adapter does DMA to/from GPU memory, so we should reduce
   // onto the device that's closest to the networking adapter bound
   // to our context. This uses PCI distance to find closest GPU.
-  auto& ptr = findCudaDevicePointerClosestToDevice(
+  auto index = findCudaDevicePointerClosestToDevice(
       devicePtrs_, this->context_->getDevice());
-  auto count = ptr.getCount();
-  scratch_ = CudaDevicePointer<T>::create(*ptr, count);
+  scratch_ = CudaDevicePointer<T>::create(devicePtrs_[index]);
+  scratchStream_ = &streams_[index];
 
   // Run local reduction and broadcast on device.
   // When running with a device workspace we intend to never leave the device.
@@ -164,8 +165,8 @@ void CudaAllreduceRing<T, W>::init(
   // cross device copies while accumulating the reduction.
   {
     CudaDeviceScope scope(scratch_.getDeviceID());
-    inbox_ = W::Pointer::alloc(count);
-    outbox_ = W::Pointer::alloc(count);
+    inbox_ = W::Pointer::alloc(count_);
+    outbox_ = W::Pointer::alloc(count_);
   }
 }
 

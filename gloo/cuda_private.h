@@ -56,7 +56,7 @@ inline int getDeviceCount() {
 const std::string& getCudaPCIBusID(int device);
 
 template<typename T>
-CudaDevicePointer<T>& findCudaDevicePointerClosestToDevice(
+int findCudaDevicePointerClosestToDevice(
     std::vector<CudaDevicePointer<T> >& ptrs,
     std::shared_ptr<transport::Device>& dev) {
   // Compute distance between every pointer
@@ -77,16 +77,16 @@ CudaDevicePointer<T>& findCudaDevicePointerClosestToDevice(
   }
   // Choose random pointer closest to device;
   auto minOffset = rand() % minDistanceCount;
-  std::reference_wrapper<CudaDevicePointer<T>> closest = ptrs[0];
+  int minIndex = 0;
   for (auto i = 0; i < ptrs.size(); i++) {
     if (distance[i] == minDistance) {
       if (minOffset == 0) {
-        closest = ptrs[i];
+        minIndex = i;
       }
       minOffset--;
     }
   }
-  return closest.get();
+  return minIndex;
 }
 
 class CudaDeviceGuard {
