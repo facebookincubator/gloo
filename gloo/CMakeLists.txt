@@ -39,7 +39,9 @@ endif()
 
 add_subdirectory(common)
 add_subdirectory(mpi)
-add_subdirectory(nccl)
+if(USE_CUDA AND USE_NCCL)
+  add_subdirectory(nccl)
+endif()
 add_subdirectory(rendezvous)
 add_subdirectory(transport)
 
@@ -57,6 +59,7 @@ endif()
 # Write configuration header.
 # Set variables so macros have GLOO_ prefix.
 set(GLOO_USE_CUDA ${USE_CUDA})
+set(GLOO_USE_NCCL ${USE_NCCL})
 set(GLOO_USE_REDIS ${USE_REDIS})
 set(GLOO_USE_IBVERBS ${USE_IBVERBS})
 set(GLOO_USE_AVX ${USE_AVX})
@@ -72,13 +75,6 @@ target_link_libraries(gloo ${gloo_DEPENDENCY_LIBS})
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
-
-  # Add explicit dependency if NCCL is built from third-party.
-  # Without dependency, make -jN with N>1 can fail if the NCCL build
-  # hasn't finished when CUDA targets are linked.
-  if(NCCL_EXTERNAL)
-    add_dependencies(gloo_cuda nccl_external)
-  endif()
 endif()
 
 # Add path to gloo/config.h so it is picked up by parent projects.
