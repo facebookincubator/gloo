@@ -62,6 +62,7 @@ set(GLOO_USE_CUDA ${USE_CUDA})
 set(GLOO_USE_NCCL ${USE_NCCL})
 set(GLOO_USE_REDIS ${USE_REDIS})
 set(GLOO_USE_IBVERBS ${USE_IBVERBS})
+set(GLOO_USE_MPI ${USE_MPI})
 set(GLOO_USE_AVX ${USE_AVX})
 configure_file(config.h.in config.h)
 
