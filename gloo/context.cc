@@ -9,14 +9,19 @@
 
 #include "gloo/context.h"
 
+#include "gloo/common/error.h"
 #include "gloo/common/logging.h"
 
 namespace gloo {
 
+static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
+
 Context::Context(int rank, int size)
     : rank(rank),
       size(size),
-      slot_(0) {
+      slot_(0),
+      timeout_(kTimeoutDefault),
+      timeoutOverride_(false) {
   GLOO_ENFORCE_GE(rank, 0);
   GLOO_ENFORCE_LT(rank, size);
   GLOO_ENFORCE_GE(size, 2);
@@ -48,5 +53,32 @@ void Context::closeConnections() {
     }
   }
 }
+
+void Context::setTimeout(std::chrono::milliseconds timeout) {
+  if (timeout < std::chrono::milliseconds::zero()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
+  }
+
+  timeout_ = timeout;
+  timeoutOverride_ = true;
+}
+
+std::chrono::milliseconds Context::getTimeout() const {
+  return timeout_;
+}
+
+void Context::inheritTimeout(
+    const Context& other,
+    const std::shared_ptr<transport::Device>& dev) {
+  // If the backing context had its timeout explicitly set, inherit it.
+  // If it hasn't fall back to original behavior of using the device timeout.
+  if (other.timeoutOverride_) {
+    timeout_ = other.timeout_;
+    timeoutOverride_ = other.timeoutOverride_;
+  } else {
+    timeout_ = dev->getTimeout();
+  }
+}
+
 
 } // namespace gloo

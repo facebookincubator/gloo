@@ -21,11 +21,13 @@ namespace gloo {
 namespace transport {
 namespace ibverbs {
 
-Pair::Pair(const std::shared_ptr<Device>& dev)
+Pair::Pair(
+    const std::shared_ptr<Device>& dev,
+    std::chrono::milliseconds timeout)
     : dev_(dev),
       sync_(false),
       busyPoll_(false),
-      timeout_(dev->getTimeout()),
+      timeout_(timeout),
       completionEventsHandled_(0),
       recvPosted_(0),
       ex_(nullptr) {

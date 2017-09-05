@@ -36,6 +36,10 @@ class Device {
   virtual void setTimeout(const std::chrono::milliseconds& timeout) = 0;
 
   virtual std::unique_ptr<Pair> createPair() = 0;
+
+  // Create pair with specific timeout
+  virtual std::unique_ptr<Pair> createPair(
+      std::chrono::milliseconds timeout) = 0;
 };
 
 } // namespace transport

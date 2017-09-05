@@ -58,7 +58,10 @@ class Pair : public ::gloo::transport::Pair {
   };
 
  public:
-  explicit Pair(const std::shared_ptr<Device>& dev);
+  explicit Pair(
+      const std::shared_ptr<Device>& dev,
+      std::chrono::milliseconds timeout);
+
   virtual ~Pair();
 
   Pair(const Pair& that) = delete;

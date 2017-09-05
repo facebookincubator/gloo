@@ -155,13 +155,21 @@ void Device::setTimeout(const std::chrono::milliseconds& timeout) {
   timeout_ = timeout;
 }
 
-std::unique_ptr<transport::Pair> Device::createPair() {
-  auto pair = new Pair(shared_from_this());
-  return std::unique_ptr<transport::Pair>(pair);
-}
-
 std::chrono::milliseconds Device::getTimeout() const {
   return timeout_;
+}
+
+std::unique_ptr<transport::Pair> Device::createPair() {
+  return createPair(getTimeout());
+}
+
+std::unique_ptr<transport::Pair> Device::createPair(
+    std::chrono::milliseconds timeout) {
+  if (timeout < std::chrono::milliseconds::zero()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
+  }
+  auto pair = new Pair(shared_from_this(), timeout);
+  return std::unique_ptr<transport::Pair>(pair);
 }
 
 void Device::loop() {

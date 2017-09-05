@@ -37,6 +37,14 @@ void Context::connectFullMesh(
     std::shared_ptr<transport::Device>& dev) {
   std::vector<std::unique_ptr<transport::Pair>> pairs(size);
 
+  // If the new context setTimeout() API was NOT used, fall back to
+  // the original behavior of using the timeout associated with the
+  // device. @pietern is working on removing the timeout value from
+  // the device altogether, so when that's done, this path can be removed.
+  if (!timeoutOverride_) {
+    timeout_ = dev->getTimeout();
+  }
+
   // Create pair to connect to every other node in the collective
   std::vector<char> allBytes;
   for (int i = 0; i < size; i++) {
@@ -44,7 +52,7 @@ void Context::connectFullMesh(
       continue;
     }
 
-    auto pair = dev->createPair();
+    auto pair = dev->createPair(getTimeout());
     pairs[i] = std::move(pair);
     auto addrBytes = pairs[i]->address().bytes();
     allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
@@ -63,7 +71,7 @@ void Context::connectFullMesh(
     // Wait for address of other side of this pair to become available
     std::ostringstream key;
     key << i;
-    store.wait({key.str()}, dev->getTimeout());
+    store.wait({key.str()}, getTimeout());
 
     // Connect to other side of this pair
     auto allAddrs = store.get(key.str());
@@ -146,6 +154,10 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
       backingContext_->size);
   std::vector<std::unique_ptr<transport::Pair>> pairs(context->size);
 
+  // If the backing context had its timeout explicitly set, inherit it.
+  // If it hasn't fall back to original behavior of using the device timeout.
+  context->inheritTimeout(*backingContext_, dev);
+
   // Assume it's the same for all pairs on a device
   size_t addressSize = 0;
 
@@ -155,7 +167,7 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
       continue;
     }
 
-    auto pair = dev->createPair();
+    auto pair = dev->createPair(context->getTimeout());
     auto address = pair->address().bytes();
     addressSize = address.size();
     pairs[i] = std::move(pair);

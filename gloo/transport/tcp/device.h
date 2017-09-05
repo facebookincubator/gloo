@@ -61,10 +61,13 @@ class Device : public ::gloo::transport::Device,
 
   virtual void setTimeout(const std::chrono::milliseconds& timeout) override;
 
+  virtual std::chrono::milliseconds getTimeout() const override;
+
   virtual std::unique_ptr<::gloo::transport::Pair> createPair()
       override;
 
-  virtual std::chrono::milliseconds getTimeout() const override;
+  virtual std::unique_ptr<::gloo::transport::Pair> createPair(
+      std::chrono::milliseconds timeout) override;
 
  protected:
   void loop();

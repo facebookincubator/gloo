@@ -23,8 +23,6 @@ namespace rendezvous {
 class ContextFactory;
 
 class Context : public ::gloo::Context {
-  friend class ContextFactory;
-
  public:
   Context(int rank, int size);
   virtual ~Context();
@@ -35,6 +33,8 @@ class Context : public ::gloo::Context {
 
  protected:
   std::vector<char> extractAddress(std::vector<char>& allAddrs, int i);
+
+  friend class ContextFactory;
 };
 
 class ContextFactory {

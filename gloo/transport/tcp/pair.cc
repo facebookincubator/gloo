@@ -34,11 +34,13 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-Pair::Pair(const std::shared_ptr<Device>& dev)
+Pair::Pair(
+    const std::shared_ptr<Device>& dev,
+    std::chrono::milliseconds timeout)
     : dev_(dev),
       state_(INITIALIZING),
       sync_(false),
-      timeout_(dev_->getTimeout()),
+      timeout_(timeout),
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),

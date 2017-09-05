@@ -58,6 +58,9 @@ class Device : public ::gloo::transport::Device,
   virtual std::unique_ptr<::gloo::transport::Pair> createPair()
       override;
 
+  virtual std::unique_ptr<::gloo::transport::Pair> createPair(
+      std::chrono::milliseconds timeout) override;
+
  protected:
   struct attr attr_;
   const std::string pciBusID_;
