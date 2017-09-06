@@ -37,14 +37,6 @@ void Context::connectFullMesh(
     std::shared_ptr<transport::Device>& dev) {
   std::vector<std::unique_ptr<transport::Pair>> pairs(size);
 
-  // If the new context setTimeout() API was NOT used, fall back to
-  // the original behavior of using the timeout associated with the
-  // device. @pietern is working on removing the timeout value from
-  // the device altogether, so when that's done, this path can be removed.
-  if (!timeoutOverride_) {
-    timeout_ = dev->getTimeout();
-  }
-
   // Create pair to connect to every other node in the collective
   std::vector<char> allBytes;
   for (int i = 0; i < size; i++) {
@@ -152,11 +144,8 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
   auto context = std::make_shared<Context>(
       backingContext_->rank,
       backingContext_->size);
+  context->setTimeout(backingContext_->getTimeout());
   std::vector<std::unique_ptr<transport::Pair>> pairs(context->size);
-
-  // If the backing context had its timeout explicitly set, inherit it.
-  // If it hasn't fall back to original behavior of using the device timeout.
-  context->inheritTimeout(*backingContext_, dev);
 
   // Assume it's the same for all pairs on a device
   size_t addressSize = 0;

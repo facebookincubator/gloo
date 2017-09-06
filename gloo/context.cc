@@ -20,8 +20,7 @@ Context::Context(int rank, int size)
     : rank(rank),
       size(size),
       slot_(0),
-      timeout_(kTimeoutDefault),
-      timeoutOverride_(false) {
+      timeout_(kTimeoutDefault) {
   GLOO_ENFORCE_GE(rank, 0);
   GLOO_ENFORCE_LT(rank, size);
   GLOO_ENFORCE_GE(size, 2);
@@ -60,25 +59,10 @@ void Context::setTimeout(std::chrono::milliseconds timeout) {
   }
 
   timeout_ = timeout;
-  timeoutOverride_ = true;
 }
 
 std::chrono::milliseconds Context::getTimeout() const {
   return timeout_;
 }
-
-void Context::inheritTimeout(
-    const Context& other,
-    const std::shared_ptr<transport::Device>& dev) {
-  // If the backing context had its timeout explicitly set, inherit it.
-  // If it hasn't fall back to original behavior of using the device timeout.
-  if (other.timeoutOverride_) {
-    timeout_ = other.timeout_;
-    timeoutOverride_ = other.timeoutOverride_;
-  } else {
-    timeout_ = dev->getTimeout();
-  }
-}
-
 
 } // namespace gloo

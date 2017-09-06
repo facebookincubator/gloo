@@ -77,7 +77,7 @@ class MultiProcWorker {
       std::function<void(std::shared_ptr<Context>)> fn) {
     auto context =
       std::make_shared<::gloo::rendezvous::Context>(rank, size);
-    device_->setTimeout(std::chrono::milliseconds(300));
+    context->setTimeout(std::chrono::milliseconds(300));
     context->connectFullMesh(*store_, device_);
     sem_post(semaphore_);
     fn(std::move(context));

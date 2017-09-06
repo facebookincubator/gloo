@@ -55,7 +55,7 @@ void Context::connectFullMesh(std::shared_ptr<transport::Device>& dev) {
       continue;
     }
 
-    auto pair = dev->createPair();
+    auto pair = dev->createPair(getTimeout());
     pairs[i] = std::move(pair);
 
     // Store address for pair for this rank

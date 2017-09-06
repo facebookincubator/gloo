@@ -94,8 +94,7 @@ Device::Device(const struct attr& attr, ibv_context* context)
     : attr_(attr),
       pciBusID_(infinibandToBusID(attr.name)),
       hasNvPeerMem_(kernelModules().count("nv_peer_mem") > 0),
-      context_(context),
-      timeout_(kTimeoutDefault) {
+      context_(context) {
   int rv;
 
   pd_ = ibv_alloc_pd(context_);
@@ -145,22 +144,6 @@ std::string Device::str() const {
 
 const std::string& Device::getPCIBusID() const {
   return pciBusID_;
-}
-
-void Device::setTimeout(const std::chrono::milliseconds& timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-
-  timeout_ = timeout;
-}
-
-std::chrono::milliseconds Device::getTimeout() const {
-  return timeout_;
-}
-
-std::unique_ptr<transport::Pair> Device::createPair() {
-  return createPair(getTimeout());
 }
 
 std::unique_ptr<transport::Pair> Device::createPair(

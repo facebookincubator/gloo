@@ -37,19 +37,11 @@ class Context {
 
   std::chrono::milliseconds getTimeout() const;
 
-  // Temporary helper while transitioning timeout state
-  // from device to context.
-  void inheritTimeout(
-      const Context& backingContext_,
-      const std::shared_ptr<transport::Device>& dev);
-
  protected:
   std::shared_ptr<transport::Device> device_;
   std::vector<std::unique_ptr<transport::Pair>> pairs_;
   int slot_;
-
   std::chrono::milliseconds timeout_;
-  bool timeoutOverride_;
 
 };
 

@@ -59,13 +59,6 @@ class Device : public ::gloo::transport::Device,
 
   virtual int getInterfaceSpeed() const override;
 
-  virtual void setTimeout(const std::chrono::milliseconds& timeout) override;
-
-  virtual std::chrono::milliseconds getTimeout() const override;
-
-  virtual std::unique_ptr<::gloo::transport::Pair> createPair()
-      override;
-
   virtual std::unique_ptr<::gloo::transport::Pair> createPair(
       std::chrono::milliseconds timeout) override;
 
@@ -86,7 +79,6 @@ class Device : public ::gloo::transport::Device,
   static constexpr auto capacity_ = 64;
 
   int fd_;
-  std::atomic<std::chrono::milliseconds> timeout_;
   std::string interfaceName_;
   int interfaceSpeedMbps_;
   std::string pciBusID_;

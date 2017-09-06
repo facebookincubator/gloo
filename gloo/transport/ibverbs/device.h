@@ -51,13 +51,6 @@ class Device : public ::gloo::transport::Device,
 
   virtual const std::string& getPCIBusID() const override;
 
-  virtual void setTimeout(const std::chrono::milliseconds& timeout) override;
-
-  virtual std::chrono::milliseconds getTimeout() const override;
-
-  virtual std::unique_ptr<::gloo::transport::Pair> createPair()
-      override;
-
   virtual std::unique_ptr<::gloo::transport::Pair> createPair(
       std::chrono::milliseconds timeout) override;
 
@@ -76,9 +69,6 @@ class Device : public ::gloo::transport::Device,
 
   friend class Pair;
   friend class Buffer;
-
- private:
-  std::atomic<std::chrono::milliseconds> timeout_;
 };
 
 } // namespace ibverbs

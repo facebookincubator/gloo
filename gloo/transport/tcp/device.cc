@@ -28,8 +28,6 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
-
 static void lookupAddrForIface(struct attr& attr) {
   struct ifaddrs* ifap;
   auto rv = getifaddrs(&ifap);
@@ -204,7 +202,6 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
 
 Device::Device(const struct attr& attr)
     : attr_(attr),
-      timeout_(kTimeoutDefault),
       interfaceName_(sockaddrToInterfaceName(attr_)),
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
       pciBusID_(interfaceToBusID(interfaceName_)) {
@@ -238,22 +235,6 @@ const std::string& Device::getPCIBusID() const {
 
 int Device::getInterfaceSpeed() const {
   return interfaceSpeedMbps_;
-}
-
-void Device::setTimeout(const std::chrono::milliseconds& timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-
-  timeout_ = timeout;
-}
-
-std::chrono::milliseconds Device::getTimeout() const {
-  return timeout_.load();
-}
-
-std::unique_ptr<transport::Pair> Device::createPair() {
-  return createPair(getTimeout());
 }
 
 std::unique_ptr<transport::Pair> Device::createPair(
