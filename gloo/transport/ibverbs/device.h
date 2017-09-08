@@ -51,6 +51,8 @@ class Device : public ::gloo::transport::Device,
 
   virtual const std::string& getPCIBusID() const override;
 
+  virtual bool hasGPUDirect() const override;
+
   virtual std::unique_ptr<::gloo::transport::Pair> createPair(
       std::chrono::milliseconds timeout) override;
 
