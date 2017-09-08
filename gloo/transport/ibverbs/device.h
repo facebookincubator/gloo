@@ -59,6 +59,8 @@ class Device : public ::gloo::transport::Device,
   const std::string pciBusID_;
   const bool hasNvPeerMem_;
   ibv_context* context_;
+  ibv_device_attr deviceAttr_;
+  ibv_port_attr portAttr_;
   ibv_pd* pd_;
   ibv_comp_channel* comp_channel_;
 

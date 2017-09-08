@@ -11,6 +11,7 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <string.h>
 
 #include <algorithm>
 #include <array>
@@ -97,6 +98,15 @@ Device::Device(const struct attr& attr, ibv_context* context)
       context_(context) {
   int rv;
 
+  // Query and store device attributes
+  rv = ibv_query_device(context_, &deviceAttr_);
+  GLOO_ENFORCE_EQ(rv, 0, "ibv_query_device: ", strerror(errno));
+
+  // Query and store port attributes
+  rv = ibv_query_port(context_, attr_.port, &portAttr_);
+  GLOO_ENFORCE_EQ(rv, 0, "ibv_query_port: ", strerror(errno));
+
+  // Protection domain
   pd_ = ibv_alloc_pd(context_);
   GLOO_ENFORCE(pd_);
 
