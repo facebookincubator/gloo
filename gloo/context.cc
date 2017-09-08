@@ -23,7 +23,7 @@ Context::Context(int rank, int size)
       timeout_(kTimeoutDefault) {
   GLOO_ENFORCE_GE(rank, 0);
   GLOO_ENFORCE_LT(rank, size);
-  GLOO_ENFORCE_GE(size, 2);
+  GLOO_ENFORCE_GE(size, 1);
 }
 
 Context::~Context() {
