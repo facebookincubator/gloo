@@ -48,6 +48,15 @@ Buffer::Buffer(Pair* pair, int slot, void* ptr, size_t size)
     }
   }
 
+  // Provide hint if the error is ENOMEM
+  if (mr_ == nullptr && errno == ENOMEM) {
+    GLOO_ENFORCE(
+      mr_ != nullptr,
+      "ibv_reg_mr: ",
+      strerror(errno),
+      " (did you run into the locked memory limit?)");
+  }
+
   GLOO_ENFORCE(mr_ != nullptr, "ibv_reg_mr: ", strerror(errno));
 }
 
