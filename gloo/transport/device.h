@@ -31,6 +31,8 @@ class Device {
 
   virtual int getInterfaceSpeed() const { return 0; }
 
+  virtual bool hasGPUDirect() const { return false; }
+
   virtual std::unique_ptr<Pair> createPair(
       std::chrono::milliseconds timeout) = 0;
 };
