@@ -156,6 +156,10 @@ const std::string& Device::getPCIBusID() const {
   return pciBusID_;
 }
 
+bool Device::hasGPUDirect() const {
+  return hasNvPeerMem_;
+}
+
 std::unique_ptr<transport::Pair> Device::createPair(
     std::chrono::milliseconds timeout) {
   if (timeout < std::chrono::milliseconds::zero()) {
