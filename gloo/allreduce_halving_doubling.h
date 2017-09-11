@@ -91,6 +91,10 @@ class AllreduceHalvingDoubling : public Algorithm {
         rankInBinaryBlock_(0),
         nextSmallerBlockSize_(0),
         nextLargerBlockSize_(0) {
+    if (this->contextSize_ == 1) {
+        return;
+    }
+
     initBinaryBlocks();
     sendDataBufs_.reserve(stepsWithinBlock_);
     recvDataBufs_.reserve(stepsWithinBlock_);
@@ -225,6 +229,13 @@ class AllreduceHalvingDoubling : public Algorithm {
 
     for (int i = 1; i < ptrs_.size(); i++) {
       fn_->call(ptrs_[0], ptrs_[i], count_);
+    }
+    if (this->contextSize_ == 1) {
+      // Broadcast ptrs_[0]
+      for (int i = 1; i < ptrs_.size(); i++) {
+        memcpy(ptrs_[i], ptrs_[0], bytes_);
+      }
+      return;
     }
 
     // Reduce-scatter

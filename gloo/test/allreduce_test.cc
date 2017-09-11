@@ -254,7 +254,7 @@ INSTANTIATE_TEST_CASE_P(
     AllreduceTest,
     ::testing::Combine(
         ::testing::ValuesIn(
-          std::vector<int>({2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
+          std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
         ::testing::Values(allreduceHalvingDoubling)));
 
