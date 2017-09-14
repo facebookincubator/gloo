@@ -53,9 +53,6 @@ class CudaAllreduceRingChunked : public Algorithm {
   const bool synchronizeDeviceOutputs_;
   const CudaReductionFunction<T>* fn_;
 
-  std::unique_ptr<transport::Pair>& leftPair_;
-  std::unique_ptr<transport::Pair>& rightPair_;
-
   size_t chunks_;
   size_t chunkSize_;
   size_t chunkBytes_;

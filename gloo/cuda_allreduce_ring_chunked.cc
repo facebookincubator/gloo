@@ -51,9 +51,7 @@ CudaAllreduceRingChunked<T, W>::CudaAllreduceRingChunked(
       count_(count),
       bytes_(count * sizeof(T)),
       synchronizeDeviceOutputs_(streams.size() == 0),
-      fn_(CudaReductionFunction<T>::sum),
-      leftPair_(this->getLeftPair()),
-      rightPair_(this->getRightPair()) {
+      fn_(CudaReductionFunction<T>::sum) {
   auto newStream = true;
   if (streams.size() > 0) {
     GLOO_ENFORCE_EQ(streams.size(), ptrs.size());
@@ -98,15 +96,21 @@ CudaAllreduceRingChunked<T, W>::CudaAllreduceRingChunked(
               streams_, devicePtrs_, scratch_, offset, length)));
   }
 
+  if (this->contextSize_ == 1) {
+    return;
+  }
+
+  auto& leftPair = this->getLeftPair();
+  auto& rightPair = this->getRightPair();
   for (auto i = 0; i < 2; i++) {
     auto slot = this->context_->nextSlot();
 
     // Buffer to send to (rank+1).
     sendDataBuf_[i] =
-      rightPair_->createSendBuffer(slot, *scratch_, bytes_);
+      rightPair->createSendBuffer(slot, *scratch_, bytes_);
     // Buffer that (rank-1) writes to.
     recvDataBuf_[i] =
-      leftPair_->createRecvBuffer(slot, *inbox_[i], chunkBytes_);
+      leftPair->createRecvBuffer(slot, *inbox_[i], chunkBytes_);
   }
 
   // Dummy buffers for localized barrier.
@@ -115,9 +119,9 @@ CudaAllreduceRingChunked<T, W>::CudaAllreduceRingChunked(
   // into. No need for a global barrier.
   auto notificationSlot = this->context_->nextSlot();
   sendNotificationBuf_ =
-    leftPair_->createSendBuffer(notificationSlot, &dummy_, sizeof(dummy_));
+    leftPair->createSendBuffer(notificationSlot, &dummy_, sizeof(dummy_));
   recvNotificationBuf_ =
-    rightPair_->createRecvBuffer(notificationSlot, &dummy_, sizeof(dummy_));
+    rightPair->createRecvBuffer(notificationSlot, &dummy_, sizeof(dummy_));
 }
 
 template <typename T, typename W>
@@ -138,6 +142,29 @@ void CudaAllreduceRingChunked<T, W>::run() {
       auto& context = chunkContext_[chunkOffset];
       context.reduceOp->runAsync();
     }
+  }
+
+  if (this->contextSize_ == 1) {
+
+    // Wait for the local reduction to complete then broadcast chunk to devices
+    for (auto i = 0; i < chunks_; i++) {
+      const auto chunkOffset = getChunkOffset(i);
+      if (chunkOffset < chunkContext_.size()) {
+        auto& context = chunkContext_[chunkOffset];
+        context.reduceOp->wait();
+        context.broadcastOp->runAsync();
+      }
+    }
+
+    // Wait for broadcast to complete
+    for (auto i = 0; i < chunks_; i++) {
+      const auto chunkOffset = getChunkOffset(i);
+      if (chunkOffset < chunkContext_.size()) {
+        auto& context = chunkContext_[chunkOffset];
+        context.broadcastOp->wait();
+      }
+    }
+    return;
   }
 
   // First pass reduces a chunk in each round
