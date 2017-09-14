@@ -31,7 +31,7 @@ In no particular order:
 
 Make sure it is enabled if your NIC supports it. For high bandwidth
 NICs, this is absolutely necessary to achieve line rate on a single
-connection (some anecdotal evindence: 10Gb/s without TSO at 100% CPU
+connection (some anecdotal evidence: 10Gb/s without TSO at 100% CPU
 usage versus 40Gb/s (line rate) with TSO at 30% CPU usage).
 
 ```

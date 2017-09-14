@@ -58,14 +58,14 @@ rendezvous to a particular namespace.
 
 There are many more key/value stores that can be used for rendezvous
 (e.g. [etcd](https://coreos.com/etcd) or [ZooKeeper](https://zookeeper.apache.org/)).
-As long as a C or C++ interface for your store of choice is availabe,
+As long as a C or C++ interface for your store of choice is available,
 is relatively easy to hook it up to the Gloo rendezvous process.
 See the `gloo::rendezvous::Store` abstract base class for the interface to implement.
 
 ## Using MPI
 
 If you are already using MPI to run jobs across machines, getting started with
-Gloo should be staightforward. Instead of using a separate key/value store for
+Gloo should be straightforward. Instead of using a separate key/value store for
 rendezvous, the existing MPI communicator is used to create contexts.
 Make sure to compile Gloo with `USE_MPI=ON`.
 

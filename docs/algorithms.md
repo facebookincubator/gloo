@@ -100,7 +100,7 @@ at each step. At each process and step, the portion of the buffer that was being
 sent in the reduce-scatter is received in the allgather, and the portion that was
 being received in the reduce-scatter is now sent.
 
-Across the steps of the reduce-scatter, data is received intto different buffers
+Across the steps of the reduce-scatter, data is received into different buffers
 and there is no potential for race conditions. However, mirrored steps of the
 reduce-scatter and allgather (e.g. last step of the reduce-scatter and first
 step of the allgather) write into the same buffers. To prevent race conditions,
