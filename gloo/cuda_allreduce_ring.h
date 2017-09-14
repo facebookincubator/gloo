@@ -50,9 +50,6 @@ class CudaAllreduceRing : public Algorithm {
   const bool synchronizeDeviceOutputs_;
   const CudaReductionFunction<T>* fn_;
 
-  std::unique_ptr<transport::Pair>& leftPair_;
-  std::unique_ptr<transport::Pair>& rightPair_;
-
   std::unique_ptr<LocalOp<T> > localReduceOp_;
   std::unique_ptr<LocalOp<T> > localBroadcastOp_;
 

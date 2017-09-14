@@ -283,7 +283,7 @@ INSTANTIATE_TEST_CASE_P(
     AllreduceRing,
     CudaAllreduceTest,
     ::testing::Combine(
-      ::testing::Range(2, 16),
+      ::testing::Range(1, 16),
       ::testing::ValuesIn(genMemorySizes()),
       ::testing::Values(allreduceRing)));
 

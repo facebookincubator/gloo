@@ -25,9 +25,7 @@ CudaAllreduceRing<T, W>::CudaAllreduceRing(
       count_(count),
       bytes_(count_ * sizeof(T)),
       synchronizeDeviceOutputs_(streams.size() == 0),
-      fn_(CudaReductionFunction<T>::sum),
-      leftPair_(this->getLeftPair()),
-      rightPair_(this->getRightPair()) {
+      fn_(CudaReductionFunction<T>::sum) {
   auto newStream = true;
   if (streams.size() > 0) {
     GLOO_ENFORCE_EQ(streams.size(), ptrs.size());
@@ -47,13 +45,19 @@ CudaAllreduceRing<T, W>::CudaAllreduceRing(
   // Workspace specific initialization (see below)
   init();
 
+  if (this->contextSize_ == 1) {
+      return;
+  }
+
+  auto& leftPair = this->getLeftPair();
+  auto& rightPair = this->getRightPair();
   auto slot = this->context_->nextSlot();
 
   // Buffer to send to (rank+1).
-  sendDataBuf_ = rightPair_->createSendBuffer(slot, *outbox_, bytes_);
+  sendDataBuf_ = rightPair->createSendBuffer(slot, *outbox_, bytes_);
 
   // Buffer that (rank-1) writes to.
-  recvDataBuf_ = leftPair_->createRecvBuffer(slot, *inbox_, bytes_);
+  recvDataBuf_ = leftPair->createRecvBuffer(slot, *inbox_, bytes_);
 
   // Dummy buffers for localized barrier.
   // Before sending to the right, we only need to know that the node
@@ -61,9 +65,9 @@ CudaAllreduceRing<T, W>::CudaAllreduceRing(
   // into. No need for a global barrier.
   auto notificationSlot = this->context_->nextSlot();
   sendNotificationBuf_ =
-    leftPair_->createSendBuffer(notificationSlot, &dummy_, sizeof(dummy_));
+    leftPair->createSendBuffer(notificationSlot, &dummy_, sizeof(dummy_));
   recvNotificationBuf_ =
-    rightPair_->createRecvBuffer(notificationSlot, &dummy_, sizeof(dummy_));
+    rightPair->createRecvBuffer(notificationSlot, &dummy_, sizeof(dummy_));
 }
 
 template <typename T, typename W>
