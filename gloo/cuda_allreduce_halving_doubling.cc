@@ -90,13 +90,6 @@ CudaAllreduceHalvingDoubling<T, W>::CudaAllreduceHalvingDoubling(
   initBinaryBlocks();
   sendDataBufs_.reserve(stepsWithinBlock_);
   recvDataBufs_.reserve(stepsWithinBlock_);
-  // Reserve max needed number of context slots. Up to 2 slots per process
-  // pair are needed (one for regular sends and one for notifications). For
-  // simplicity, the same mapping is used on all processes so that the slots
-  // trivially match across processes
-  slotOffset_ = this->context_->nextSlot(
-      2 * this->contextSize_ * (this->contextSize_ - 1));
-
   auto newStream = true;
   if (streams.size() > 0) {
     GLOO_ENFORCE_EQ(streams.size(), ptrs.size());
@@ -115,6 +108,17 @@ CudaAllreduceHalvingDoubling<T, W>::CudaAllreduceHalvingDoubling(
 
   // Workspace-specific initialization
   init();
+
+  if (this->contextSize_ == 1) {
+      return;
+  }
+
+  // Reserve max needed number of context slots. Up to 2 slots per process
+  // pair are needed (one for regular sends and one for notifications). For
+  // simplicity, the same mapping is used on all processes so that the slots
+  // trivially match across processes
+  slotOffset_ = this->context_->nextSlot(
+      2 * this->contextSize_ * (this->contextSize_ - 1));
 
   size_t bitmask = 1;
   size_t stepChunkSize = chunkSize_ << (steps_ - 1);
@@ -250,6 +254,13 @@ void CudaAllreduceHalvingDoubling<T, W>::run() {
     reduceBeforeFirstSend_->run();
   } else if (localReduceOp_) {
     localReduceOp_->run();
+  }
+
+  if (this->contextSize_ == 1) {
+    GLOO_ENFORCE(localBroadcastOp_,
+            "localBroadcastOp must be initialized for single machine");
+    localBroadcastOp_->run();
+    return;
   }
 
   // Reduce-scatter
