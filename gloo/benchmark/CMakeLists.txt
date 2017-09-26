@@ -24,7 +24,7 @@ if(USE_CUDA)
     )
 
   cuda_add_executable(benchmark_cuda ${GLOO_BENCHMARK_CUDA_SRCS})
-  target_link_libraries(benchmark_cuda gloo_cuda)
+  target_link_libraries(benchmark_cuda gloo_builder)
 
   if(GLOO_INSTALL)
     install(TARGETS benchmark_cuda DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
