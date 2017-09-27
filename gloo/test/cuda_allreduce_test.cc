@@ -43,21 +43,8 @@ class CudaAllreduceTest : public CudaBaseTest,
                           public ::testing::WithParamInterface<Param> {
  public:
   void assertResult(CudaFixture<float>& fixture) {
-    // Size is the total number of pointers across the context
-    const auto size = fixture.ptrs.size() * fixture.context->size;
-    // Expected is set to the expected value at ptr[0]
-    const auto expected = (size * (size - 1)) / 2;
-    // The stride between values at subsequent indices is equal to
-    // "size", and we have "size" of them. Therefore, after
-    // allreduce, the stride between expected values is "size^2".
-    const auto stride = size * size;
-    // Verify all buffers passed by this instance
-    for (const auto& ptr : fixture.getHostBuffers()) {
-      for (int i = 0; i < fixture.count; i++) {
-        ASSERT_EQ((i * stride) + expected, ptr[i])
-          << "Mismatch at index " << i;
-      }
-    }
+    fixture.copyToHost();
+    fixture.checkAllreduceResult();
   }
 };
 
@@ -65,21 +52,8 @@ class CudaAllreduceTestHP : public CudaBaseTest,
                             public ::testing::WithParamInterface<ParamHP> {
  public:
   void assertResult(CudaFixture<float16>& fixture) {
-    // Size is the total number of pointers across the context
-    const auto size = fixture.ptrs.size() * fixture.context->size;
-    // Expected is set to the expected value at ptr[0]
-    const auto expected = (size * (size - 1)) / 2;
-    // The stride between values at subsequent indices is equal to
-    // "size", and we have "size" of them. Therefore, after
-    // allreduce, the stride between expected values is "size^2".
-    const auto stride = size * size;
-    // Verify all buffers passed by this instance
-    for (const auto& ptr : fixture.getHostBuffers()) {
-      for (int i = 0; i < fixture.count; i++) {
-        ASSERT_EQ((float16)((i * stride) + expected), ptr[i])
-          << "Mismatch at index " << i;
-      }
-    }
+    fixture.copyToHost();
+    fixture.checkAllreduceResult();
   }
 };
 
@@ -168,7 +142,7 @@ TEST_P(CudaAllreduceTest, SinglePointer) {
   spawn(size, [&](std::shared_ptr<Context> context) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, 1, count);
-      auto ptrs = fixture.getPointers();
+      auto ptrs = fixture.getCudaPointers();
       auto algorithm = fn(context, ptrs, count, {});
       fixture.assignValues();
       algorithm->run();
@@ -186,7 +160,7 @@ TEST_P(CudaAllreduceTest, MultiPointer) {
   spawn(size, [&](std::shared_ptr<Context> context) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, cudaNumDevices(), count);
-      auto ptrs = fixture.getPointers();
+      auto ptrs = fixture.getCudaPointers();
       auto algorithm = fn(context, ptrs, count, {});
       fixture.assignValues();
       algorithm->run();
@@ -204,7 +178,7 @@ TEST_P(CudaAllreduceTest, MultiPointerAsync) {
   spawn(size, [&](std::shared_ptr<Context> context) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, cudaNumDevices(), count);
-      auto ptrs = fixture.getPointers();
+      auto ptrs = fixture.getCudaPointers();
       auto streams = fixture.getCudaStreams();
       auto algorithm = fn(context, ptrs, count, streams);
       fixture.assignValuesAsync();
@@ -228,7 +202,7 @@ TEST_F(CudaAllreduceTest, MultipleAlgorithms) {
     for (const auto& fn : fns) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, 1, count);
-      auto ptrs = fixture.getPointers();
+      auto ptrs = fixture.getCudaPointers();
 
       auto algorithm = fn(context, ptrs, count, {});
       fixture.assignValues();
@@ -258,7 +232,7 @@ TEST_F(CudaAllreduceTestHP, HalfPrecisionTest) {
       for (const auto& fn : fns) {
         // Run algorithm
         auto fixture = CudaFixture<float16>(context, 1, count);
-        auto ptrs = fixture.getPointers();
+        auto ptrs = fixture.getCudaPointers();
 
         auto algorithm = fn(context, ptrs, count, {});
         fixture.assignValues();

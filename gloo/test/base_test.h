@@ -62,7 +62,9 @@ class BaseTest : public ::testing::Test {
     spawnThreads(size, [&](int rank) {
         auto context =
           std::make_shared<::gloo::rendezvous::Context>(rank, size);
-        context->connectFullMesh(*store_, device_);
+        if (size > 1) {
+          context->connectFullMesh(*store_, device_);
+        }
         fn(std::move(context));
       });
   }
@@ -76,6 +78,7 @@ class Fixture {
  public:
   Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
       : context(context),
+        inputs(ptrs),
         count(count) {
     for (int i = 0; i < ptrs; i++) {
       std::unique_ptr<T[]> ptr(new T[count]);
@@ -85,6 +88,7 @@ class Fixture {
 
   Fixture(Fixture&& other) noexcept
     : context(other.context),
+      inputs(other.inputs),
       count(other.count) {
     srcs = std::move(other.srcs);
   }
@@ -99,6 +103,17 @@ class Fixture {
     }
   }
 
+  void checkAllreduceResult() {
+    const auto stride = context->size * srcs.size();
+    for (auto i = 0; i < srcs.size(); i++) {
+      for (auto j = 0; j < count; j++) {
+        auto expected = T((j * stride * stride) + (stride * (stride - 1)) / 2);
+        ASSERT_EQ(expected, srcs[i][j])
+          << "Mismatch in srcs[" << i << "][" << j << "]";
+      }
+    }
+  }
+
   std::vector<T*> getPointers() const {
     std::vector<T*> out;
     for (const auto& src : srcs) {
@@ -108,6 +123,7 @@ class Fixture {
   }
 
   std::shared_ptr<Context> context;
+  const int inputs;
   const int count;
   std::vector<std::unique_ptr<T[]> > srcs;
 };
