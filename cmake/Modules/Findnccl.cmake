@@ -1,33 +1,31 @@
 # Find the nccl libraries
 #
 # The following variables are optionally searched for defaults
-#  NCCL_ROOT_DIR: Base directory where all nccl components are found
+#  NCCL_ROOT_DIR: Base directory where all NCCL components are found
+#  NCCL_INCLUDE_DIR: Directory where NCCL header is found
+#  NCCL_LIB_DIR: Directory where NCCL library is found
 #
 # The following are set after configuration is done:
 #  NCCL_FOUND
-#  nccl_INCLUDE_DIR
-#  nccl_LIBRARIES
+#  NCCL_INCLUDE_DIRS
+#  NCCL_LIBRARIES
 
-find_path(nccl_INCLUDE_DIR
+find_path(NCCL_INCLUDE_DIRS
   NAMES nccl.h
   HINTS
+  ${NCCL_INCLUDE_DIR}
   ${NCCL_ROOT_DIR}
   ${NCCL_ROOT_DIR}/include)
 
-find_library(nccl_LIBRARIES
+find_library(NCCL_LIBRARIES
   NAMES nccl
   HINTS
+  ${NCCL_LIB_DIR}
   ${NCCL_ROOT_DIR}
   ${NCCL_ROOT_DIR}/lib
   ${NCCL_ROOT_DIR}/lib/x86_64-linux-gnu
   ${NCCL_ROOT_DIR}/lib64)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(nccl DEFAULT_MSG nccl_INCLUDE_DIR nccl_LIBRARIES)
-
-if(NCCL_FOUND)
-  set(include_message "include: ${nccl_INCLUDE_DIR}")
-  set(library_message "library: ${nccl_LIBRARIES}")
-  message(STATUS "Found nccl (${include_message}, ${library_message})")
-  mark_as_advanced(nccl_INCLUDE_DIR nccl_LIBRARIES)
-endif()
+find_package_handle_standard_args(nccl DEFAULT_MSG NCCL_INCLUDE_DIRS NCCL_LIBRARIES)
+mark_as_advanced(NCCL_INCLUDE_DIRS NCCL_LIBRARIES)
