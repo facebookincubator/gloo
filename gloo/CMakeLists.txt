@@ -7,6 +7,7 @@ set(GLOO_HDRS)
 # Compiled sources in root directory
 list(APPEND GLOO_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
   )
 
@@ -14,6 +15,7 @@ list(APPEND GLOO_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_ring.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_halving_doubling.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_ring.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_ring_chunked.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier.h"
@@ -36,6 +38,16 @@ if(USE_CUDA)
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda*.h"
     )
 endif()
+
+# The builder links to both the base gloo library and gloo_cuda if
+# USE_CUDA is set. It can therefore not be part of either.
+list(APPEND GLOO_BUILDER_SRCS
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.cc"
+  )
+
+list(APPEND GLOO_BUILDER_HDRS
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.h"
+  )
 
 add_subdirectory(common)
 add_subdirectory(mpi)
@@ -72,14 +84,18 @@ get_filename_component(PARENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR} DIRECTORY)
 include_directories(BEFORE ${PARENT_BINARY_DIR})
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
+add_library(gloo_builder ${GLOO_STATIC_OR_SHARED} ${GLOO_BUILDER_SRCS})
 target_link_libraries(gloo ${gloo_DEPENDENCY_LIBS})
+target_link_libraries(gloo_builder gloo)
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
+  target_link_libraries(gloo_builder gloo_cuda)
 endif()
 
 # Add path to gloo/config.h so it is picked up by parent projects.
 target_include_directories(gloo BEFORE PUBLIC ${PARENT_BINARY_DIR})
+target_include_directories(gloo_builder BEFORE PUBLIC ${PARENT_BINARY_DIR})
 if(USE_CUDA)
   target_include_directories(gloo_cuda BEFORE PUBLIC ${PARENT_BINARY_DIR})
 endif()
@@ -89,12 +105,18 @@ endif()
 # want to statically link with Gloo and not install any artifacts.
 if(GLOO_INSTALL)
   install(TARGETS gloo DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+  install(TARGETS gloo_builder DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   if(USE_CUDA)
     install(TARGETS gloo_cuda DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   endif()
   install(FILES ${CMAKE_BINARY_DIR}/gloo/config.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/gloo)
   foreach(HEADER ${GLOO_HDRS})
+    string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})
+    string(REGEX REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "gloo" DIR ${DIR})
+    install(FILES ${HEADER} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${DIR})
+  endforeach()
+  foreach(HEADER ${GLOO_BUILDER_HDRS})
     string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})
     string(REGEX REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "gloo" DIR ${DIR})
     install(FILES ${HEADER} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${DIR})

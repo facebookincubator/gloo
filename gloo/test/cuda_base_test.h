@@ -23,82 +23,84 @@ int cudaNumDevices();
 class CudaBaseTest : public BaseTest {};
 
 template <typename T>
-class CudaFixture {
+class CudaFixture : public Fixture<T> {
  public:
-  CudaFixture(const std::shared_ptr<Context> context, int devices, int count)
-      : context(context),
-        count(count) {
-    for (int i = 0; i < devices; i++) {
-      CudaDeviceScope scope(i);
-      srcs.push_back(CudaMemory<T>(count));
-      ptrs.push_back(
-        CudaDevicePointer<T>::create(*srcs.back(), count));
-      streams.push_back(CudaStream(i));
+  CudaFixture(const std::shared_ptr<Context> context, int ptrs, int count)
+      : Fixture<T>(context, ptrs, count) {
+    for (int i = 0; i < ptrs; i++) {
+      CudaDeviceScope scope(i % cudaNumDevices());
+      cudaSrcs.push_back(CudaMemory<T>(count));
+      cudaPtrs.push_back(
+        CudaDevicePointer<T>::create(*cudaSrcs.back(), count));
+      cudaStreams.push_back(CudaStream(i));
     }
   }
 
-  CudaFixture(CudaFixture&& other) noexcept
-    : context(other.context),
-      count(other.count) {
-    srcs = std::move(other.srcs);
-    ptrs = std::move(other.ptrs);
-  }
-
   void assignValues() {
-    const auto stride = context->size * srcs.size();
-    for (int i = 0; i < srcs.size(); i++) {
-      srcs[i].set((context->rank * srcs.size()) + i, stride, *streams[i]);
-      CUDA_CHECK(cudaStreamSynchronize(*streams[i]));
+    Fixture<T>::assignValues();
+    for (auto i = 0; i < cudaSrcs.size(); i++) {
+      CUDA_CHECK(cudaMemcpy(
+        *cudaSrcs[i],
+        this->srcs[i].get(),
+        cudaSrcs[i].bytes,
+        cudaMemcpyHostToDevice));
     }
   }
 
   void assignValuesAsync() {
-    const auto stride = context->size * srcs.size();
-    for (int i = 0; i < srcs.size(); i++) {
+    Fixture<T>::assignValues();
+    for (auto i = 0; i < cudaSrcs.size(); i++) {
       // Insert sleep on stream to force to artificially delay the
       // kernel that actually populates the memory to surface
       // synchronization errors.
-      cudaSleep(*streams[i], 100000);
-      srcs[i].set((context->rank * srcs.size()) + i, stride, *streams[i]);
+      cudaSleep(*cudaStreams[i], 100000);
+      CUDA_CHECK(cudaMemcpyAsync(
+        *cudaSrcs[i],
+        this->srcs[i].get(),
+        cudaSrcs[i].bytes,
+        cudaMemcpyHostToDevice,
+        *cudaStreams[i]));
     }
   }
 
-  std::vector<T*> getPointers() const {
+  std::vector<T*> getCudaPointers() const {
     std::vector<T*> out;
-    for (const auto& src : srcs) {
-      out.push_back(*src);
+    for (const auto& ptr : cudaPtrs) {
+      out.push_back(*ptr);
     }
     return out;
   }
 
   std::vector<cudaStream_t> getCudaStreams() const {
     std::vector<cudaStream_t> out;
-    for (const auto& stream : streams) {
+    for (const auto& stream : cudaStreams) {
       out.push_back(stream.getStream());
     }
     return out;
   }
 
-  std::vector<std::unique_ptr<T[]> > getHostBuffers() {
-    std::vector<std::unique_ptr<T[]> > out;
-    for (auto& src : srcs) {
-      out.push_back(src.copyToHost());
+  void copyToHost() {
+    for (auto i = 0; i < cudaSrcs.size(); i++) {
+      CUDA_CHECK(cudaMemcpyAsync(
+        this->srcs[i].get(),
+        *cudaSrcs[i],
+        cudaSrcs[i].bytes,
+        cudaMemcpyDeviceToHost,
+        *cudaStreams[i]));
     }
-    return out;
+    synchronizeCudaStreams();
   }
 
   void synchronizeCudaStreams() {
-    for (const auto& stream : streams) {
+    for (const auto& stream : cudaStreams) {
       CudaDeviceScope scope(stream.getDeviceID());
       CUDA_CHECK(cudaStreamSynchronize(stream.getStream()));
     }
   }
 
-  std::shared_ptr<Context> context;
-  const int count;
-  std::vector<CudaDevicePointer<T> > ptrs;
-  std::vector<CudaStream> streams;
-  std::vector<CudaMemory<T> > srcs;
+  std::vector<CudaMemory<T>> cudaSrcs;
+  std::vector<CudaDevicePointer<T>> cudaPtrs;
+  std::vector<CudaStream> cudaStreams;
 };
 
 } // namespace test
