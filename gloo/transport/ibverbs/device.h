@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <thread>
+#include <vector>
 
 #include <infiniband/verbs.h>
 
@@ -31,6 +32,9 @@ struct attr {
   int port;
   int index;
 };
+
+// Helper function that returns the list of IB device names in sorted order
+std::vector<std::string> getDeviceNames();
 
 std::shared_ptr<::gloo::transport::Device> CreateDevice(
     const struct attr&);
