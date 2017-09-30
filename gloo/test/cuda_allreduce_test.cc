@@ -13,6 +13,7 @@
 
 #include "gloo/cuda_allreduce_halving_doubling.h"
 #include "gloo/cuda_allreduce_halving_doubling_pipelined.h"
+#include "gloo/cuda_allreduce_nccl2.h"
 #include "gloo/cuda_allreduce_ring.h"
 #include "gloo/cuda_allreduce_ring_chunked.h"
 #include "gloo/test/cuda_base_test.h"
@@ -160,6 +161,15 @@ static std::function<Func16> allreduceHalvingDoublingPipelinedHP = [](
           context, ptrs, count, streams));
 };
 
+static std::function<Func> allreduceNccl2 = [](
+    std::shared_ptr<::gloo::Context>& context,
+    std::vector<float*> ptrs,
+    int count,
+    std::vector<cudaStream_t> streams) {
+  return std::unique_ptr<::gloo::Algorithm>(
+    new ::gloo::CudaAllreduceNccl2<float>(context, ptrs, count, streams));
+};
+
 TEST_P(CudaAllreduceTest, SinglePointer) {
   auto size = std::get<0>(GetParam());
   auto count = std::get<1>(GetParam());
@@ -278,6 +288,14 @@ std::vector<int> genMemorySizes() {
   v.push_back(10000);
   return v;
 }
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceNccl2,
+    CudaAllreduceTest,
+    ::testing::Combine(
+      ::testing::Range(1, 16),
+      ::testing::ValuesIn(genMemorySizes()),
+      ::testing::Values(allreduceNccl2)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceRing,

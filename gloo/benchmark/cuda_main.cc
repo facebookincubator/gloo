@@ -15,6 +15,7 @@
 #include "gloo/common/logging.h"
 #include "gloo/cuda_allreduce_halving_doubling.h"
 #include "gloo/cuda_allreduce_halving_doubling_pipelined.h"
+#include "gloo/cuda_allreduce_nccl2.h"
 #include "gloo/cuda_allreduce_ring.h"
 #include "gloo/cuda_allreduce_ring_chunked.h"
 #include "gloo/cuda_broadcast_one_to_all.h"
@@ -151,6 +152,14 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
           },                                                                \
       },                                                                    \
       {                                                                     \
+          "cuda_allreduce_nccl2",                                           \
+          [&](std::shared_ptr<Context>& context) {                          \
+            using Algorithm = CudaAllreduceNccl2<T>;                        \
+            using Benchmark = CudaAllreduceBenchmark<Algorithm, T>;         \
+            return gloo::make_unique<Benchmark>(context, x);                \
+          },                                                                \
+      },                                                                    \
+      {                                                                     \
           "cuda_broadcast_one_to_all",                                      \
           [&](std::shared_ptr<Context>& context) {                          \
             using Algorithm = CudaBroadcastOneToAll<T>;                     \
@@ -193,6 +202,15 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
           [&](std::shared_ptr<Context>& context) {                          \
             using Algorithm =                                               \
                 CudaAllreduceRingChunked<T, CudaDeviceWorkspace<T>>;        \
+            using Benchmark = CudaAllreduceBenchmark<Algorithm, T>;         \
+            return gloo::make_unique<Benchmark>(context, x);                \
+          },                                                                \
+      },                                                                    \
+      {                                                                     \
+          "cuda_allreduce_nccl2",                                           \
+          [&](std::shared_ptr<Context>& context) {                          \
+            using Algorithm = CudaAllreduceNccl2<T,                         \
+                CudaDeviceWorkspace<T>>;                                    \
             using Benchmark = CudaAllreduceBenchmark<Algorithm, T>;         \
             return gloo::make_unique<Benchmark>(context, x);                \
           },                                                                \
