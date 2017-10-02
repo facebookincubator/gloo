@@ -15,7 +15,6 @@
 
 #include <algorithm>
 #include <array>
-#include <vector>
 
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
@@ -29,16 +28,16 @@ namespace ibverbs {
 static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
 
 // Scope guard for ibverbs device list.
-class ibv_devices {
+class IbvDevices {
  public:
-  ibv_devices() {
+  IbvDevices() {
     list_ = ibv_get_device_list(&size_);
     if (list_ == nullptr) {
       size_ = 0;
     }
   }
 
-  ~ibv_devices() {
+  ~IbvDevices() {
     if (list_ != nullptr) {
       ibv_free_device_list(list_);
     }
@@ -57,10 +56,20 @@ class ibv_devices {
   struct ibv_device** list_;
 };
 
+std::vector<std::string> getDeviceNames() {
+  IbvDevices devices;
+  std::vector<std::string> deviceNames;
+  for (auto i = 0; i < devices.size(); ++i) {
+    deviceNames.push_back(devices[i]->name);
+  }
+  std::sort(deviceNames.begin(), deviceNames.end());
+  return deviceNames;
+}
+
 std::shared_ptr<::gloo::transport::Device> CreateDevice(
     const struct attr& constAttr) {
   struct attr attr = constAttr;
-  ibv_devices devices;
+  IbvDevices devices;
 
   // Default to using the first device if not specified
   if (attr.name.empty()) {
