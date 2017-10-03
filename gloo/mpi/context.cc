@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 
 #include "gloo/common/error.h"
 #include "gloo/common/logging.h"
@@ -31,6 +32,48 @@ static int MPICommRank(const MPI_Comm& comm) {
   auto error = MPI_Comm_rank(comm, &comm_rank);
   GLOO_ENFORCE(error == MPI_SUCCESS, "MPI_Comm_rank: ", error);
   return comm_rank;
+}
+
+MPIScope::MPIScope() {
+  auto rv = MPI_Init(nullptr, nullptr);
+  GLOO_ENFORCE_EQ(rv, MPI_SUCCESS);
+}
+
+MPIScope::~MPIScope() {
+  auto rv = MPI_Finalize();
+  GLOO_ENFORCE_EQ(rv, MPI_SUCCESS);
+}
+
+namespace {
+
+std::shared_ptr<MPIScope> getMPIScope() {
+  static std::once_flag once;
+
+  // Use weak pointer so that the initializer is destructed when the
+  // last context referring to it is destructed, not when statics
+  // are destructed on program termination.
+  static std::weak_ptr<MPIScope> wptr;
+  std::shared_ptr<MPIScope> sptr;
+
+  // Create MPIScope only once
+  std::call_once(once, [&]() {
+      sptr = std::make_shared<MPIScope>();
+      wptr = sptr;
+    });
+
+  // Create shared_ptr<MPIScope> from weak_ptr
+  sptr = wptr.lock();
+  GLOO_ENFORCE(sptr, "Cannot create MPI context after MPI_Finalize()");
+  return sptr;
+}
+
+} // namespace
+
+std::shared_ptr<Context> Context::createManaged() {
+  auto mpiScope = getMPIScope();
+  auto context = std::make_shared<Context>(MPI_COMM_WORLD);
+  context->mpiScope_ = std::move(mpiScope);
+  return context;
 }
 
 Context::Context(const MPI_Comm& comm)

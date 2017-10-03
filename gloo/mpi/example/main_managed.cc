@@ -15,16 +15,11 @@
 #include "gloo/allreduce_ring.h"
 
 int main(int argc, char** argv) {
-  int rv;
-
-  rv = MPI_Init(&argc, &argv);
-  assert(rv == MPI_SUCCESS);
-
   // We'll use the TCP transport in this example
   auto dev = gloo::transport::tcp::CreateDevice("localhost");
 
-  // Create Gloo context from MPI communicator
-  auto context = std::make_shared<gloo::mpi::Context>(MPI_COMM_WORLD);
+  // Create Gloo context and delegate management of MPI_Init/MPI_Finalize
+  auto context = gloo::mpi::Context::createManaged();
   context->connectFullMesh(dev);
 
   // Create and run simple allreduce
@@ -33,7 +28,5 @@ int main(int argc, char** argv) {
   allreduce.run();
   std::cout << "Result: " << rank << std::endl;
 
-  rv = MPI_Finalize();
-  assert(rv == MPI_SUCCESS);
   return 0;
 }
