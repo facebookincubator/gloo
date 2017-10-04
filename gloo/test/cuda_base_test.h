@@ -50,6 +50,7 @@ class CudaFixture : public Fixture<T> {
   void assignValuesAsync() {
     Fixture<T>::assignValues();
     for (auto i = 0; i < cudaSrcs.size(); i++) {
+      CudaDeviceScope scope(cudaStreams[i].getDeviceID());
       // Insert sleep on stream to force to artificially delay the
       // kernel that actually populates the memory to surface
       // synchronization errors.
