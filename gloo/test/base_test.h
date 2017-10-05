@@ -24,6 +24,27 @@
 namespace gloo {
 namespace test {
 
+class Barrier {
+ public:
+  explicit Barrier(std::size_t count) : count_(count) {}
+
+  void wait() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (count_ > 0) {
+      if (--count_ == 0) {
+        cv_.notify_all();
+      } else {
+        cv_.wait(lock, [this] { return count_ == 0; });
+      }
+    }
+  }
+
+ private:
+  std::size_t count_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
+};
+
 class BaseTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
@@ -59,13 +80,28 @@ class BaseTest : public ::testing::Test {
   void spawn(
       int size,
       std::function<void(std::shared_ptr<Context>)> fn) {
+    Barrier barrier(size);
     spawnThreads(size, [&](int rank) {
         auto context =
           std::make_shared<::gloo::rendezvous::Context>(rank, size);
         if (size > 1) {
           context->connectFullMesh(*store_, device_);
         }
-        fn(std::move(context));
+        fn(context);
+
+        // Since the test suite only deals with threads within a
+        // process, we can cheat and use an in-process barrier to
+        // ensure all threads have finished before explicitly closing
+        // all pairs. Instead of relying on the pair's destructor
+        // closing the underlying connection, we explicitly call
+        // close(). This sets the SO_LINGER socket option (in case of
+        // the tcp transport) to avoid the TIME_WAIT connection state.
+        // This test suite contains many tests and we risk running out
+        // of ports to bind to otherwise.
+        barrier.wait();
+        if (size > 1) {
+          context->closeConnections();
+        }
       });
   }
 
