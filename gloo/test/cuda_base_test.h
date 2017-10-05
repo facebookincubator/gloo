@@ -36,17 +36,30 @@ class CudaFixture : public Fixture<T> {
     }
   }
 
+  // Upon returning, the memory allocated by this fixture is set. The
+  // fixture data is visible to any kernel launched on any stream.
   void assignValues() {
     Fixture<T>::assignValues();
     for (auto i = 0; i < cudaSrcs.size(); i++) {
-      CUDA_CHECK(cudaMemcpy(
+      CudaDeviceScope scope(cudaStreams[i].getDeviceID());
+      CUDA_CHECK(cudaMemcpyAsync(
         *cudaSrcs[i],
         this->srcs[i].get(),
         cudaSrcs[i].bytes,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        *cudaStreams[i]));
+    }
+    // Synchronize every stream to ensure the memory copies have completed.
+    for (auto i = 0; i < cudaSrcs.size(); i++) {
+      CudaDeviceScope scope(cudaStreams[i].getDeviceID());
+      CUDA_CHECK(cudaStreamSynchronize(*cudaStreams[i]));
     }
   }
 
+  // Upon returning, the memory allocated by this fixture is being
+  // set. The fixture data will be visible to any kernel launched on
+  // the same stream as the memory is being set on. Otherwise,
+  // additional synchronization is required.
   void assignValuesAsync() {
     Fixture<T>::assignValues();
     for (auto i = 0; i < cudaSrcs.size(); i++) {
