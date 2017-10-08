@@ -9,6 +9,21 @@
 
 #pragma once
 
+#define GLOO_VERSION_MAJOR @GLOO_VERSION_MAJOR@
+#define GLOO_VERSION_MINOR @GLOO_VERSION_MINOR@
+#define GLOO_VERSION_PATCH @GLOO_VERSION_PATCH@
+
+static_assert(
+    GLOO_VERSION_MINOR < 100,
+    "Programming error: you set a minor version that is too big.");
+static_assert(
+    GLOO_VERSION_PATCH < 100,
+    "Programming error: you set a patch version that is too big.");
+
+#define GLOO_VERSION                                         \
+  (GLOO_VERSION_MAJOR * 10000 + GLOO_VERSION_MINOR * 100 +   \
+   GLOO_VERSION_PATCH)
+
 #cmakedefine01 GLOO_USE_CUDA
 #cmakedefine01 GLOO_USE_NCCL
 #cmakedefine01 GLOO_USE_REDIS
