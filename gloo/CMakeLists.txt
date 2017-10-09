@@ -78,36 +78,34 @@ set(GLOO_USE_MPI ${USE_MPI})
 set(GLOO_USE_AVX ${USE_AVX})
 configure_file(config.h.in config.h)
 
-# Prepend include path so that generated config.h is picked up.
-# Note that it is included as "gloo/config.h" to add parent directory.
-get_filename_component(PARENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR} DIRECTORY)
-include_directories(BEFORE ${PARENT_BINARY_DIR})
-
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
 add_library(gloo_builder ${GLOO_STATIC_OR_SHARED} ${GLOO_BUILDER_SRCS})
-target_link_libraries(gloo ${gloo_DEPENDENCY_LIBS})
-target_link_libraries(gloo_builder gloo)
+target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
+target_link_libraries(gloo_builder PUBLIC gloo)
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
-  target_link_libraries(gloo_builder gloo_cuda)
+  target_link_libraries(gloo_builder PUBLIC gloo_cuda)
 endif()
 
-# Add path to gloo/config.h so it is picked up by parent projects.
-target_include_directories(gloo BEFORE PUBLIC ${PARENT_BINARY_DIR})
-target_include_directories(gloo_builder BEFORE PUBLIC ${PARENT_BINARY_DIR})
+# Add Interface include directories that are relocatable.
+target_include_directories(gloo INTERFACE $<INSTALL_INTERFACE:include>)
+target_include_directories(gloo_builder INTERFACE $<INSTALL_INTERFACE:include>)
 if(USE_CUDA)
-  target_include_directories(gloo_cuda BEFORE PUBLIC ${PARENT_BINARY_DIR})
+  target_include_directories(gloo_cuda INTERFACE $<INSTALL_INTERFACE:include>)
 endif()
 
 # Install if necessary.
 # If the Gloo build is included from another project's build, it may
 # want to statically link with Gloo and not install any artifacts.
 if(GLOO_INSTALL)
-  install(TARGETS gloo DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-  install(TARGETS gloo_builder DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+  install(TARGETS gloo EXPORT GlooTargets
+      DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+  install(TARGETS gloo_builder EXPORT GlooTargets
+      DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   if(USE_CUDA)
-    install(TARGETS gloo_cuda DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+    install(TARGETS gloo_cuda EXPORT GlooTargets
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   endif()
   install(FILES ${CMAKE_BINARY_DIR}/gloo/config.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/gloo)

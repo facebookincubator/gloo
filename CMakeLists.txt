@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 
 project(gloo CXX C)
 
+set(GLOO_VERSION_MAJOR 0)
+set(GLOO_VERSION_MINOR 5)
+set(GLOO_VERSION_PATCH 0)
+set(GLOO_VERSION
+    "${GLOO_VERSION_MAJOR}.${GLOO_VERSION_MINOR}.${GLOO_VERSION_PATCH}")
+
 # Gloo assumes 64-bit and doesn't run builds/tests for anything else.
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "Gloo can only be built on 64-bit systems.")
@@ -51,9 +57,29 @@ include(cmake/Dependencies.cmake)
 
 # Use project root as default include directory
 include_directories(${PROJECT_SOURCE_DIR})
+include_directories(${PROJECT_BINARY_DIR})
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 
 # Recurse into main project directory
 add_subdirectory(gloo)
+
+
+# Finally, create the cmake configuration files.
+configure_file(
+    ${PROJECT_SOURCE_DIR}/cmake/GlooConfigVersion.cmake.in
+    ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
+    @ONLY)
+configure_file(
+    ${PROJECT_SOURCE_DIR}/cmake/GlooConfig.cmake.in
+    ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
+    @ONLY)
+install(FILES
+    ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
+    ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
+    DESTINATION share/cmake/Gloo
+    COMPONENT dev)
+install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
+    FILE GlooTargets.cmake
+    COMPONENT dev)
