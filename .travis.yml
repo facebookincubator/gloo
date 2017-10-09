@@ -19,3 +19,6 @@ install:
 
 script:
   - ./.travis/build.sh
+
+notifications:
+  webhooks: https://code.facebook.com/travis/webhook/
