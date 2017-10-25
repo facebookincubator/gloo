@@ -27,6 +27,7 @@ TYPED_TEST_CASE(AllreduceBuilderTest, AllreduceBuilderTypes);
 TYPED_TEST(AllreduceBuilderTest, Test) {
   std::vector<enum ::gloo::AllreduceBuilder<TypeParam>::Implementation> impls =
     {
+      ::gloo::AllreduceBuilder<TypeParam>::Bcube,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoubling,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoublingPipelined,
       ::gloo::AllreduceBuilder<TypeParam>::Ring,

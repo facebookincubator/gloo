@@ -11,6 +11,7 @@
 
 #include <algorithm>
 
+#include "gloo/allreduce_bcube.h"
 #include "gloo/allreduce_halving_doubling.h"
 #include "gloo/allreduce_local.h"
 #include "gloo/allreduce_ring.h"
@@ -182,6 +183,10 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
   }
 
   switch (implementation_) {
+    case Bcube:
+      return std::unique_ptr<::gloo::Algorithm>(
+          new AllreduceBcube<T>(context, inputs_, count_, fn));
+      break;
     case HalvingDoubling:
       return std::unique_ptr<::gloo::Algorithm>(
         new AllreduceHalvingDoubling<T>(context, inputs_, count_, fn));

@@ -11,6 +11,7 @@
 
 #include "gloo/allgather_ring.h"
 #include "gloo/allreduce_halving_doubling.h"
+#include "gloo/allreduce_bcube.h"
 #include "gloo/allreduce_ring.h"
 #include "gloo/allreduce_ring_chunked.h"
 #include "gloo/barrier_all_to_all.h"
@@ -169,6 +170,11 @@ class PairwiseExchangeBenchmark : public Benchmark<T> {
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<                                            \
           AllreduceBenchmark<AllreduceHalvingDoubling<T>, T>>(context, x); \
+    };                                                                     \
+  } else if (x.benchmark == "allreduce_bcube") {                           \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          AllreduceBenchmark<AllreduceBcube<T>, T>>(context, x);           \
     };                                                                     \
   } else if (x.benchmark == "barrier_all_to_all") {                        \
     fn = [&](std::shared_ptr<Context>& context) {                          \

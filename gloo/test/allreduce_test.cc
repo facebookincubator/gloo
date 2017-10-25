@@ -13,9 +13,10 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/allreduce_bcube.h"
+#include "gloo/allreduce_halving_doubling.h"
 #include "gloo/allreduce_ring.h"
 #include "gloo/allreduce_ring_chunked.h"
-#include "gloo/allreduce_halving_doubling.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
@@ -117,6 +118,14 @@ static std::function<Func> allreduceHalvingDoubling = [](
   algorithm.run();
 };
 
+static std::function<Func> allreduceBcube = [](
+    std::shared_ptr<::gloo::Context> context,
+    std::vector<float*> dataPtrs,
+    int dataSize) {
+  ::gloo::AllreduceBcube<float> algorithm(context, dataPtrs, dataSize);
+  algorithm.run();
+};
+
 static std::function<Func16> allreduceHalvingDoublingHP = [](
     std::shared_ptr<::gloo::Context> context,
     std::vector<float16*> dataPtrs,
@@ -161,7 +170,10 @@ TEST_P(AllreduceTest, SinglePointer) {
 TEST_F(AllreduceTest, MultipleAlgorithms) {
   auto contextSize = 4;
   auto dataSize = 1000;
-  auto fns = {allreduceRing, allreduceRingChunked, allreduceHalvingDoubling};
+  auto fns = {allreduceRing,
+              allreduceRingChunked,
+              allreduceHalvingDoubling,
+              allreduceBcube};
 
   spawnThreads(contextSize, [&](int contextRank) {
     auto context =
@@ -257,6 +269,15 @@ INSTANTIATE_TEST_CASE_P(
           std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
         ::testing::Values(allreduceHalvingDoubling)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcube,
+    AllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(
+          std::vector<int>({1, 2, 4, 8, 16})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube)));
 
 } // namespace
 } // namespace test

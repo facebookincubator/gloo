@@ -120,6 +120,28 @@ The halving-doubling / binary-blocks algorithm is described and analyzed in
 (Thakur et al., Optimization of Collective Communication Operations in MPICH,
 IJHPCA, 2005).
 
+### allreducube_bcube
+
+Additional variables used:
+* **B**: Base (maximum number of peers per step)
+
+* Communication steps: 2\*log_B(P)
+* Bytes on the wire: 2\*Sum(S/B^s) {s: 0 to log_B(P) - 1}
+
+This is another allreduce implementation. Bcube is a scheme where nodes are
+divided in groups. In reduce-scatter stage, in each group, a node peers with
+`base - 1` other nodes. In the first step data is reduced between nodes
+within the group. In the next step each node of a group peers with `base - 1`
+nodes from other exclusively different groups. Since each node would start
+with reduced data communicating with it would be like communicating with
+`base` number of nodes/groups from the previous step. This process continues
+until all the groups are covered and to be able to do that the algorithm
+would have log_base(n) number of steps. Each step the node reduces
+totalNumElems / (base^step) amount of elements. At the end of reduce-scatter
+stage each node would have reduced a chunk of elements. Now, in all-gather
+we follow a reverse process of reduce-scatter to communicate the reduced data
+with other nodes.
+
 ### cuda_allreduce_ring
 
 CUDA-aware implementation of `allreduce_ring`. GPU side buffers are

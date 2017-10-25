@@ -29,6 +29,7 @@ class AllreduceBuilder {
     RingChunked = 2,
     HalvingDoubling = 3,
     HalvingDoublingPipelined = 4,
+    Bcube = 5,
   };
 
   // Construct AllreduceBuilder with following defaults:
