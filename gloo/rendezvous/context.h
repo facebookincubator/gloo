@@ -24,7 +24,7 @@ class ContextFactory;
 
 class Context : public ::gloo::Context {
  public:
-  Context(int rank, int size);
+  Context(int rank, int size, int base = 2);
   virtual ~Context();
 
   void connectFullMesh(

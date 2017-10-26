@@ -71,6 +71,8 @@ static void usage(int status, const char* argv0) {
   X("      --halfprecision    Use 16-bit floating point values");
   X("      --destinations     Number of separate destinations per host in "
                               "pairwise exchange benchmark");
+  X("Algorithm parameters:");
+  X("      --base   The base for allreduce_bcube (if applicable)");
   X("");
   X("BENCHMARK is one of:");
   X("  allreduce_ring");
@@ -146,6 +148,7 @@ struct options parseOptions(int argc, char** argv) {
       {"ib-index", required_argument, nullptr, 0x100e},
       {"ib-port", required_argument, nullptr, 0x100f},
       {"tcp-device", required_argument, nullptr, 0x1010},
+      {"base", required_argument, nullptr, 0x1011},
       {"help", no_argument, nullptr, 0xffff},
       {nullptr, 0, nullptr, 0}};
 
@@ -266,6 +269,11 @@ struct options parseOptions(int argc, char** argv) {
       case 0x1010: // --tcp-device
       {
         result.tcpDevice = split(optarg, ',');
+        break;
+      }
+      case 0x1011: // --base
+      {
+        result.base = atoi(optarg);
         break;
       }
       case 0xffff: // --help

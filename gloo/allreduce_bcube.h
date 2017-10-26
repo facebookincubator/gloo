@@ -264,14 +264,14 @@ class AllreduceBcube : public Algorithm {
       const ReductionFunction<T>* fn = ReductionFunction<T>::sum)
       : Algorithm(context),
         myRank_(this->context_->rank),
-        base_(kPeers),
+        base_(this->context_->base),
         nodes_(this->contextSize_),
         ptrs_(ptrs),
         totalNumElems_(count),
         bytes_(totalNumElems_ * sizeof(T)),
         steps_(computeSteps(nodes_, base_)),
         fn_(fn),
-        recvBufs_(steps_ * kPeers) {
+        recvBufs_(steps_ * base_) {
     if (nodes_ == 1) {
       return;
     }
@@ -434,10 +434,6 @@ class AllreduceBcube : public Algorithm {
 
  private:
   /**
-   * Maximum number of peers in a group (base)
-   */
-  static constexpr int kPeers = 2;
-  /**
    * Number of words to be printed per section by printElems
    */
   static constexpr int wordsPerSection = 4;
@@ -452,7 +448,7 @@ class AllreduceBcube : public Algorithm {
   /**
    * Number of nodes in a typical group
    */
-  const int base_{0};
+  const int base_{2};
   /**
    * Total number of nodes
    */

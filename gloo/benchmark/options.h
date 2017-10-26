@@ -52,6 +52,7 @@ struct options {
   bool halfPrecision = false;
   int destinations  = 1;
   int threads = 1;
+  int base = 2;
 };
 
 struct options parseOptions(int argc, char** argv);

@@ -15,8 +15,8 @@
 namespace gloo {
 namespace rendezvous {
 
-Context::Context(int rank, int size)
-    : ::gloo::Context(rank, size) {
+Context::Context(int rank, int size, int base)
+    : ::gloo::Context(rank, size, base) {
 }
 
 Context::~Context() {

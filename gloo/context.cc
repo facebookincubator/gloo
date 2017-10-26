@@ -16,9 +16,10 @@ namespace gloo {
 
 static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
 
-Context::Context(int rank, int size)
+Context::Context(int rank, int size, int base)
     : rank(rank),
       size(size),
+      base(base),
       slot_(0),
       timeout_(kTimeoutDefault) {
   GLOO_ENFORCE_GE(rank, 0);

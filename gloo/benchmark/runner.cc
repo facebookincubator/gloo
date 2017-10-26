@@ -198,6 +198,7 @@ void Runner::run(BenchmarkFn<T>& fn, int n) {
   for (auto i = 0; i < options_.threads; i++) {
     auto context = contextFactory_->makeContext(
         transportDevices_[i % transportDevices_.size()]);
+    context->base = options_.base;
     auto benchmark = fn(context);
     benchmark->initialize(n);
 
@@ -305,6 +306,9 @@ void Runner::printHeader() {
   std::cout << "processes=" << options_.contextSize;
   std::cout << ", inputs=" << options_.inputs;
   std::cout << ", threads=" << options_.threads;
+  if (options_.benchmark == "allreduce_bcube") {
+    std::cout << ", base=" << options_.base;
+  }
   if (options_.benchmark.compare(0, 5, "cuda_") == 0) {
     std::cout << ", gpudirect=";
     if (options_.transport == "ibverbs" && options_.gpuDirect) {

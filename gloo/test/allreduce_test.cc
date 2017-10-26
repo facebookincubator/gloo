@@ -41,7 +41,7 @@ using Func16 = void(
     int dataSize);
 
 // Test parameterization.
-using Param = std::tuple<int, int, std::function<Func>>;
+using Param = std::tuple<int, int, std::function<Func>, int>;
 using ParamHP = std::tuple<int, int, std::function<Func16>>;
 
 template <typename Algorithm>
@@ -146,10 +146,11 @@ TEST_P(AllreduceTest, SinglePointer) {
   auto contextSize = std::get<0>(GetParam());
   auto dataSize = std::get<1>(GetParam());
   auto fn = std::get<2>(GetParam());
+  auto base = std::get<3>(GetParam());
 
   spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-      std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
+    auto context = std::make_shared<::gloo::rendezvous::Context>(
+        contextRank, contextSize, base);
     context->connectFullMesh(*store_, device_);
 
     auto buffer = newBuffer<float>(dataSize);
@@ -251,7 +252,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::Range(1, 16),
         ::testing::ValuesIn(genMemorySizes()),
-        ::testing::Values(allreduceRing)));
+        ::testing::Values(allreduceRing),
+        ::testing::Values(0)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceRingChunked,
@@ -259,7 +261,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::Range(1, 16),
         ::testing::ValuesIn(genMemorySizes()),
-        ::testing::Values(allreduceRingChunked)));
+        ::testing::Values(allreduceRingChunked),
+        ::testing::Values(0)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceHalvingDoubling,
@@ -268,16 +271,37 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(
           std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
-        ::testing::Values(allreduceHalvingDoubling)));
+        ::testing::Values(allreduceHalvingDoubling),
+        ::testing::Values(0)));
 
 INSTANTIATE_TEST_CASE_P(
-    AllreduceBcube,
+    AllreduceBcubeBase2,
     AllreduceTest,
     ::testing::Combine(
         ::testing::ValuesIn(
           std::vector<int>({1, 2, 4, 8, 16})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
-        ::testing::Values(allreduceBcube)));
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(2)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcubeBase3,
+    AllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(std::vector<int>({1, 3, 9, 27})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(3)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcubeBase4,
+    AllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(
+          std::vector<int>({1, 4, 16})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(4)));
 
 } // namespace
 } // namespace test
