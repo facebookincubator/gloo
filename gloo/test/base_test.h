@@ -144,8 +144,19 @@ class Fixture {
     for (auto i = 0; i < srcs.size(); i++) {
       for (auto j = 0; j < count; j++) {
         auto expected = T((j * stride * stride) + (stride * (stride - 1)) / 2);
-        ASSERT_EQ(expected, srcs[i][j])
-          << "Mismatch in srcs[" << i << "][" << j << "]";
+        GLOO_ENFORCE_EQ(
+            expected,
+            srcs[i][j],
+            "Mismatch in srcs[",
+            i,
+            "][",
+            j,
+            "] expected:",
+            expected,
+            " actual: ",
+            srcs[i][j],
+            " difference: ",
+            expected - srcs[i][j]);
       }
     }
   }
@@ -162,6 +173,187 @@ class Fixture {
   const int inputs;
   const int count;
   std::vector<std::unique_ptr<T[]> > srcs;
+};
+
+template <>
+class Fixture<float16> {
+ public:
+  Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
+      : context(context),
+        inputs(ptrs),
+        count(count) {
+    for (int i = 0; i < ptrs; i++) {
+      std::unique_ptr<float16[]> ptr(new float16[count]);
+      srcs.push_back(std::move(ptr));
+    }
+  }
+
+  Fixture(Fixture&& other) noexcept
+    : context(other.context),
+      inputs(other.inputs),
+      count(other.count) {
+    srcs = std::move(other.srcs);
+  }
+
+  void assignValues() {
+    const auto stride = context->size * srcs.size();
+    for (auto i = 0; i < srcs.size(); i++) {
+      auto val = (context->rank * srcs.size()) + i;
+      for (auto j = 0; j < count; j++) {
+        srcs[i][j] = (j * stride) + val;
+      }
+    }
+  }
+
+  void checkAllreduceResult() {
+    // roundoff error for float16 math can be high (> 1 in some cases) so we
+    // will test for relative equality
+
+    // next smallest representable float16 value > 1 is 1.00097625, so we pick
+    // threshold accordingly
+    static float16 floatEqThreshold = static_cast<float16>(0.001);
+    const auto stride = context->size * srcs.size();
+    for (auto i = 0; i < srcs.size(); i++) {
+      for (auto j = 0; j < count; j++) {
+        auto expected =
+            float16((j * stride * stride) + (stride * (stride - 1)) / 2);
+        // use direct comparison for small numbers, where
+        // testing for relative equality can be inaccurate; this also prevents
+        // cases that would lead to division by 0
+        if (expected > float16(-1) && expected < float16(1)) {
+          GLOO_ENFORCE(
+              expected - srcs[i][j] <= floatEqThreshold &&
+                  srcs[i][j] - expected <= floatEqThreshold,
+              "Mismatch in srcs[",
+              i,
+              "][",
+              j,
+              "] expected:",
+              expected,
+              " actual: ",
+              srcs[i][j],
+              " difference: ",
+              expected - srcs[i][j]);
+        } else {
+          GLOO_ENFORCE(
+              (expected - srcs[i][j]) / expected <= floatEqThreshold &&
+                  (srcs[i][j] - expected) / expected <= floatEqThreshold,
+              "Mismatch in srcs[",
+              i,
+              "][",
+              j,
+              "] expected:",
+              expected,
+              " actual: ",
+              srcs[i][j],
+              " difference: ",
+              expected - srcs[i][j]);
+        }
+      }
+    }
+  }
+
+  std::vector<float16*> getPointers() const {
+    std::vector<float16*> out;
+    for (const auto& src : srcs) {
+      out.push_back(src.get());
+    }
+    return out;
+  }
+
+  std::shared_ptr<Context> context;
+  const int inputs;
+  const int count;
+  std::vector<std::unique_ptr<float16[]> > srcs;
+};
+
+template <>
+class Fixture<float> {
+ public:
+  Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
+      : context(context),
+        inputs(ptrs),
+        count(count) {
+    for (int i = 0; i < ptrs; i++) {
+      std::unique_ptr<float[]> ptr(new float[count]);
+      srcs.push_back(std::move(ptr));
+    }
+  }
+
+  Fixture(Fixture&& other) noexcept
+    : context(other.context),
+      inputs(other.inputs),
+      count(other.count) {
+    srcs = std::move(other.srcs);
+  }
+
+  void assignValues() {
+    const auto stride = context->size * srcs.size();
+    for (auto i = 0; i < srcs.size(); i++) {
+      auto val = (context->rank * srcs.size()) + i;
+      for (auto j = 0; j < count; j++) {
+        srcs[i][j] = (j * stride) + val;
+      }
+    }
+  }
+
+  void checkAllreduceResult() {
+    // roundoff error for float math can be high (> 1 in some cases) so we
+    // will test for relative equality
+    static float floatEqThreshold = static_cast<float>(0.0001);
+    const auto stride = context->size * srcs.size();
+    for (auto i = 0; i < srcs.size(); i++) {
+      for (auto j = 0; j < count; j++) {
+        auto expected =
+            float((j * stride * stride) + (stride * (stride - 1)) / 2);
+        // use direct comparison for small numbers, where
+        // testing for relative equality can be inaccurate; this also prevents
+        // cases that would lead to division by 0
+        if (expected > float(-1) && expected < float(1)) {
+          GLOO_ENFORCE(
+              expected - srcs[i][j] <= floatEqThreshold &&
+                  srcs[i][j] - expected <= floatEqThreshold,
+              "Mismatch in srcs[",
+              i,
+              "][",
+              j,
+              "] expected:",
+              expected,
+              " actual: ",
+              srcs[i][j],
+              " difference: ",
+              expected - srcs[i][j]);
+        } else {
+          GLOO_ENFORCE(
+              (expected - srcs[i][j]) / expected <= floatEqThreshold &&
+                  (srcs[i][j] - expected) / expected <= floatEqThreshold,
+              "Mismatch in srcs[",
+              i,
+              "][",
+              j,
+              "] expected:",
+              expected,
+              " actual: ",
+              srcs[i][j],
+              " difference: ",
+              expected - srcs[i][j]);
+        }
+      }
+    }
+  }
+
+  std::vector<float*> getPointers() const {
+    std::vector<float*> out;
+    for (const auto& src : srcs) {
+      out.push_back(src.get());
+    }
+    return out;
+  }
+
+  std::shared_ptr<Context> context;
+  const int inputs;
+  const int count;
+  std::vector<std::unique_ptr<float[]> > srcs;
 };
 
 } // namespace test
