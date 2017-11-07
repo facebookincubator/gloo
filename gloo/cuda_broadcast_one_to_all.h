@@ -15,7 +15,8 @@
 
 namespace gloo {
 
-template <typename T, typename W = CudaHostWorkspace<T> >
+template <typename T, typename W = CudaHostWorkspace<T>>
+
 class CudaBroadcastOneToAll : public Algorithm {
  public:
   CudaBroadcastOneToAll(
@@ -37,10 +38,14 @@ class CudaBroadcastOneToAll : public Algorithm {
       typename std::enable_if<std::is_same<U, CudaHostWorkspace<T> >::value,
                               typename U::Pointer>::type* = 0);
 
+  template <typename U = W>
+  void init(
+      typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
+                              typename U::Pointer>::type* = 0);
+
   std::vector<CudaDevicePointer<T> > devicePtrs_;
   std::vector<CudaStream> streams_;
   typename W::Pointer scratch_;
-
   const int count_;
   const int bytes_;
   const int rootRank_;

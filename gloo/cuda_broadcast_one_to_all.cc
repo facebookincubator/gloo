@@ -170,9 +170,23 @@ void CudaBroadcastOneToAll<T, W>::init(
   }
 }
 
+template <typename T, typename W>
+template <typename U>
+void CudaBroadcastOneToAll<T, W>::init(
+    typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
+                            typename U::Pointer>::type*) {
+  if (contextSize_ > 1) {
+    // For GPUDirect, an additional buffer allocation is unnecessary.
+    // Instead, use the provided input buffer itself as the scratch space.
+    // The caller is the owner_
+    scratch_ = CudaDevicePointer<T>::create(devicePtrs_[0]);
+  }
+}
+
 // Instantiate templates
 #define INSTANTIATE_TEMPLATE(T)                                         \
-template class CudaBroadcastOneToAll<T, CudaHostWorkspace<T> >;
+template class CudaBroadcastOneToAll<T, CudaHostWorkspace<T> >;         \
+template class CudaBroadcastOneToAll<T, CudaDeviceWorkspace<T> >;
 
 
 INSTANTIATE_TEMPLATE(int8_t);

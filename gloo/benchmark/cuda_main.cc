@@ -135,11 +135,20 @@ void runBenchmark(options& x) {
   Runner::BenchmarkFn<T> fn;
 
   if (x.benchmark == "cuda_broadcast_one_to_all") {
-    fn = [&](std::shared_ptr<Context>& context) {
-      using Algorithm = CudaBroadcastOneToAll<T>;
-      using Benchmark = CudaBroadcastOneToAllBenchmark<Algorithm, T>;
-      return gloo::make_unique<Benchmark>(context, x);
-    };
+    if (x.gpuDirect) {
+      fn = [&](std::shared_ptr<Context>& context) {
+            using Algorithm = CudaBroadcastOneToAll<T, CudaDeviceWorkspace<T>>;
+            using Benchmark = CudaBroadcastOneToAllBenchmark<Algorithm, T>;
+            return gloo::make_unique<Benchmark>(context, x);
+      };
+    }
+    else{
+      fn = [&](std::shared_ptr<Context>& context) {
+            using Algorithm = CudaBroadcastOneToAll<T, CudaHostWorkspace<T>>;
+            using Benchmark = CudaBroadcastOneToAllBenchmark<Algorithm, T>;
+            return gloo::make_unique<Benchmark>(context, x);
+      };
+    }
   } else if (beginsWith(x.benchmark, std::string("cuda_allreduce_"))) {
     auto builder = gloo::AllreduceBuilder<T>();
     if (x.gpuDirect) {
