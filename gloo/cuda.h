@@ -114,6 +114,19 @@ class CudaStream {
 };
 
 template<typename T>
+class BuilderHelpers {
+  public:
+    // Checks if all the pointers are GPU pointers.
+    static bool checkAllPointersGPU(std::vector<T*> inputs){
+      return std::all_of(inputs.begin(), inputs.end(), [](const T* ptr) {
+        cudaPointerAttributes attr;
+        auto rv = cudaPointerGetAttributes(&attr, ptr);
+        return rv == cudaSuccess && attr.memoryType == cudaMemoryTypeDevice;
+      });
+    }
+};
+
+template<typename T>
 class CudaDevicePointer {
  public:
   static CudaDevicePointer<T> alloc(size_t count);

@@ -7,11 +7,10 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#include "gloo/allreduce_builder.h"
-
 #include <algorithm>
 
 #include "gloo/allreduce_bcube.h"
+#include "gloo/allreduce_builder.h"
 #include "gloo/allreduce_halving_doubling.h"
 #include "gloo/allreduce_local.h"
 #include "gloo/allreduce_ring.h"
@@ -116,11 +115,7 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
 
 #if GLOO_USE_CUDA
   // Instantiate CUDA algorithm if all pointers are GPU pointers
-  if (std::all_of(inputs_.begin(), inputs_.end(), [](const T* ptr) {
-        cudaPointerAttributes attr;
-        auto rv = cudaPointerGetAttributes(&attr, ptr);
-        return rv == cudaSuccess && attr.memoryType == cudaMemoryTypeDevice;
-      })) {
+  if (gloo::BuilderHelpers<T>::checkAllPointersGPU(inputs_)) {
     // TODO(pietern): Pass through the right reduction function to algorithm.
     // The CUDA algorithms are still hardcoded to use SUM.
     GLOO_ENFORCE_EQ(reductionType_, SUM);

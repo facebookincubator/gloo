@@ -77,32 +77,29 @@ class BaseTest : public ::testing::Test {
     }
   }
 
-  void spawn(
-      int size,
-      std::function<void(std::shared_ptr<Context>)> fn) {
+  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn) {
     Barrier barrier(size);
     spawnThreads(size, [&](int rank) {
-        auto context =
-          std::make_shared<::gloo::rendezvous::Context>(rank, size);
-        if (size > 1) {
-          context->connectFullMesh(*store_, device_);
-        }
-        fn(context);
+      auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
+      if (size > 1) {
+        context->connectFullMesh(*store_, device_);
+      }
+      fn(context);
 
-        // Since the test suite only deals with threads within a
-        // process, we can cheat and use an in-process barrier to
-        // ensure all threads have finished before explicitly closing
-        // all pairs. Instead of relying on the pair's destructor
-        // closing the underlying connection, we explicitly call
-        // close(). This sets the SO_LINGER socket option (in case of
-        // the tcp transport) to avoid the TIME_WAIT connection state.
-        // This test suite contains many tests and we risk running out
-        // of ports to bind to otherwise.
-        barrier.wait();
-        if (size > 1) {
-          context->closeConnections();
-        }
-      });
+      // Since the test suite only deals with threads within a
+      // process, we can cheat and use an in-process barrier to
+      // ensure all threads have finished before explicitly closing
+      // all pairs. Instead of relying on the pair's destructor
+      // closing the underlying connection, we explicitly call
+      // close(). This sets the SO_LINGER socket option (in case of
+      // the tcp transport) to avoid the TIME_WAIT connection state.
+      // This test suite contains many tests and we risk running out
+      // of ports to bind to otherwise.
+      barrier.wait();
+      if (size > 1) {
+        context->closeConnections();
+      }
+    });
   }
 
   std::shared_ptr<::gloo::transport::Device> device_;
@@ -113,9 +110,7 @@ template <typename T>
 class Fixture {
  public:
   Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
-      : context(context),
-        inputs(ptrs),
-        count(count) {
+      : context(context), inputs(ptrs), count(count) {
     for (int i = 0; i < ptrs; i++) {
       std::unique_ptr<T[]> ptr(new T[count]);
       srcs.push_back(std::move(ptr));
@@ -123,9 +118,7 @@ class Fixture {
   }
 
   Fixture(Fixture&& other) noexcept
-    : context(other.context),
-      inputs(other.inputs),
-      count(other.count) {
+      : context(other.context), inputs(other.inputs), count(other.count) {
     srcs = std::move(other.srcs);
   }
 
@@ -135,6 +128,20 @@ class Fixture {
       auto val = (context->rank * srcs.size()) + i;
       for (auto j = 0; j < count; j++) {
         srcs[i][j] = (j * stride) + val;
+      }
+    }
+  }
+
+  void checkBroadcastResult(Fixture<T>& fixture, int root, int rootPointer) {
+    // Expected is set to the expected value at ptr[0]
+    const auto expected = root * fixture.srcs.size() + rootPointer;
+    // Stride is difference between values at subsequent indices
+    const auto stride = fixture.srcs.size() * fixture.context->size;
+    // Verify all buffers passed by this instance
+    for (const auto& ptr : fixture.getPointers()) {
+      for (auto i = 0; i < fixture.count; i++) {
+        ASSERT_EQ(T((i * stride) + expected), ptr[i])
+            << "Mismatch at index " << i;
       }
     }
   }
@@ -172,16 +179,14 @@ class Fixture {
   std::shared_ptr<Context> context;
   const int inputs;
   const int count;
-  std::vector<std::unique_ptr<T[]> > srcs;
+  std::vector<std::unique_ptr<T[]>> srcs;
 };
 
 template <>
 class Fixture<float16> {
  public:
   Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
-      : context(context),
-        inputs(ptrs),
-        count(count) {
+      : context(context), inputs(ptrs), count(count) {
     for (int i = 0; i < ptrs; i++) {
       std::unique_ptr<float16[]> ptr(new float16[count]);
       srcs.push_back(std::move(ptr));
@@ -189,9 +194,7 @@ class Fixture<float16> {
   }
 
   Fixture(Fixture&& other) noexcept
-    : context(other.context),
-      inputs(other.inputs),
-      count(other.count) {
+      : context(other.context), inputs(other.inputs), count(other.count) {
     srcs = std::move(other.srcs);
   }
 
@@ -201,6 +204,21 @@ class Fixture<float16> {
       auto val = (context->rank * srcs.size()) + i;
       for (auto j = 0; j < count; j++) {
         srcs[i][j] = (j * stride) + val;
+      }
+    }
+  }
+
+  void
+  checkBroadcastResult(Fixture<float16>& fixture, int root, int rootPointer) {
+    // Expected is set to the expected value at ptr[0]
+    const auto expected = root * fixture.srcs.size() + rootPointer;
+    // Stride is difference between values at subsequent indices
+    const auto stride = fixture.srcs.size() * fixture.context->size;
+    // Verify all buffers passed by this instance
+    for (const auto& ptr : fixture.getPointers()) {
+      for (auto i = 0; i < fixture.count; i++) {
+        ASSERT_EQ(float16((i * stride) + expected), ptr[i])
+            << "Mismatch at index " << i;
       }
     }
   }
@@ -264,16 +282,14 @@ class Fixture<float16> {
   std::shared_ptr<Context> context;
   const int inputs;
   const int count;
-  std::vector<std::unique_ptr<float16[]> > srcs;
+  std::vector<std::unique_ptr<float16[]>> srcs;
 };
 
 template <>
 class Fixture<float> {
  public:
   Fixture(const std::shared_ptr<Context> context, int ptrs, int count)
-      : context(context),
-        inputs(ptrs),
-        count(count) {
+      : context(context), inputs(ptrs), count(count) {
     for (int i = 0; i < ptrs; i++) {
       std::unique_ptr<float[]> ptr(new float[count]);
       srcs.push_back(std::move(ptr));
@@ -281,9 +297,7 @@ class Fixture<float> {
   }
 
   Fixture(Fixture&& other) noexcept
-    : context(other.context),
-      inputs(other.inputs),
-      count(other.count) {
+      : context(other.context), inputs(other.inputs), count(other.count) {
     srcs = std::move(other.srcs);
   }
 
@@ -293,6 +307,21 @@ class Fixture<float> {
       auto val = (context->rank * srcs.size()) + i;
       for (auto j = 0; j < count; j++) {
         srcs[i][j] = (j * stride) + val;
+      }
+    }
+  }
+
+  void
+  checkBroadcastResult(Fixture<float>& fixture, int root, int rootPointer) {
+    // Expected is set to the expected value at ptr[0]
+    const auto expected = root * fixture.srcs.size() + rootPointer;
+    // Stride is difference between values at subsequent indices
+    const auto stride = fixture.srcs.size() * fixture.context->size;
+    // Verify all buffers passed by this instance
+    for (const auto& ptr : fixture.getPointers()) {
+      for (auto i = 0; i < fixture.count; i++) {
+        ASSERT_EQ(float((i * stride) + expected), ptr[i])
+            << "Mismatch at index " << i;
       }
     }
   }
@@ -353,7 +382,7 @@ class Fixture<float> {
   std::shared_ptr<Context> context;
   const int inputs;
   const int count;
-  std::vector<std::unique_ptr<float[]> > srcs;
+  std::vector<std::unique_ptr<float[]>> srcs;
 };
 
 } // namespace test

@@ -13,6 +13,7 @@
 #include "gloo/allreduce_builder.h"
 #include "gloo/benchmark/benchmark.h"
 #include "gloo/benchmark/runner.h"
+#include "gloo/broadcast_builder.h"
 #include "gloo/common/logging.h"
 #include "gloo/cuda_broadcast_one_to_all.h"
 #include "gloo/cuda_private.h"
@@ -95,14 +96,29 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
   ::gloo::AllreduceBuilder<T> builder_;
 };
 
-template <class A, typename T>
+template <typename T>
 class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
   using CudaBenchmark<T>::CudaBenchmark;
  public:
+   CudaBroadcastOneToAllBenchmark(
+     std::shared_ptr<::gloo::Context>& context,
+     struct options& options,
+     ::gloo::BroadcastBuilder<T> builder)
+       : CudaBenchmark<T>(context, options),
+         builder_(builder) {
+   }
+
+ public:
   virtual void initialize(int elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
-    this->algorithm_.reset(new A(this->context_, ptrs, elements));
-  }
+    this->algorithm_ = builder_.
+      setInputs(ptrs).
+      setCount(elements).
+      setRootRank(rootRank_).
+      setRootPointerRank(rootPointerRank_).
+      setStreams({}).
+      getAlgorithm(this->context_);
+    }
 
   virtual void verify() override {
     const auto rootOffset = rootRank_ * this->inputs_.size() + rootPointerRank_;
@@ -120,6 +136,7 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
  protected:
   const int rootRank_ = 0;
   const int rootPointerRank_ = 0;
+  ::gloo::BroadcastBuilder<T> builder_;
 };
 
 } // namespace
@@ -135,20 +152,15 @@ void runBenchmark(options& x) {
   Runner::BenchmarkFn<T> fn;
 
   if (x.benchmark == "cuda_broadcast_one_to_all") {
+    auto builder = gloo::BroadcastBuilder<T>();
     if (x.gpuDirect) {
-      fn = [&](std::shared_ptr<Context>& context) {
-            using Algorithm = CudaBroadcastOneToAll<T, CudaDeviceWorkspace<T>>;
-            using Benchmark = CudaBroadcastOneToAllBenchmark<Algorithm, T>;
-            return gloo::make_unique<Benchmark>(context, x);
-      };
+      builder.setGPUDirect(true);
     }
-    else{
-      fn = [&](std::shared_ptr<Context>& context) {
-            using Algorithm = CudaBroadcastOneToAll<T, CudaHostWorkspace<T>>;
-            using Benchmark = CudaBroadcastOneToAllBenchmark<Algorithm, T>;
-            return gloo::make_unique<Benchmark>(context, x);
-      };
-    }
+
+    fn = [&, builder](std::shared_ptr<Context>& context) {
+      return std::unique_ptr<Benchmark<T>>(
+        new CudaBroadcastOneToAllBenchmark<T>(context, x, builder));
+    };
   } else if (beginsWith(x.benchmark, std::string("cuda_allreduce_"))) {
     auto builder = gloo::AllreduceBuilder<T>();
     if (x.gpuDirect) {

@@ -2,6 +2,7 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier_test.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/linux_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
@@ -15,6 +16,7 @@ if(USE_CUDA)
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_allreduce_builder_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_allreduce_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_base_test.cu"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cuda_broadcast_builder_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_broadcast_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
