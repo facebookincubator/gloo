@@ -43,13 +43,13 @@ endif()
 # The builder links to both the base gloo library and gloo_cuda if
 # USE_CUDA is set. It can therefore not be part of either.
 list(APPEND GLOO_BUILDER_SRCS
-  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.cc",
-  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.cc",
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.cc"
   )
 
 list(APPEND GLOO_BUILDER_HDRS
-  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.h",
-  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.h",
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.h"
   )
 
 add_subdirectory(common)
