@@ -49,7 +49,7 @@ list(APPEND GLOO_BUILDER_SRCS
 
 list(APPEND GLOO_BUILDER_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.h",
-  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.h",
   )
 
 add_subdirectory(common)
