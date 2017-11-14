@@ -65,7 +65,7 @@ class CudaLocalNCCLReduce<T, CudaDevicePointer<T> > : public LocalOp<T> {
       reduceOp_ = make_unique<nccl::ReduceOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           fn,
-          devicePtrs[root].getDeviceID());
+          root);
     }
   }
 
@@ -106,7 +106,7 @@ class CudaLocalNCCLReduce<T, CudaHostPointer<T> > : public LocalOp<T> {
       reduceOp_ = make_unique<nccl::ReduceOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           fn,
-          devicePtrs[root_].getDeviceID());
+          root_);
     }
   }
 
@@ -166,7 +166,7 @@ class CudaLocalNCCLBroadcast<T, CudaDevicePointer<T> > : public LocalOp<T> {
     if (devicePtrs.size() > 1) {
       broadcastOp_ = make_unique<nccl::BroadcastOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
-          devicePtrs[root].getDeviceID());
+          root);
     }
   }
 
@@ -205,7 +205,7 @@ class CudaLocalNCCLBroadcast<T, CudaHostPointer<T> > : public LocalOp<T> {
     if (devicePtrs.size() > 1) {
       broadcastOp_ = make_unique<nccl::BroadcastOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
-          devicePtrs[root_].getDeviceID());
+          root_);
     }
   }
 
