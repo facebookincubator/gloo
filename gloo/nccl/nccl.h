@@ -41,6 +41,51 @@ namespace nccl {
       ((NCCL_MINOR == minor) && (NCCL_PATCH >= patch)) )))
 
 template <typename T>
+class ncclTypeWrapper;
+
+template <>
+class ncclTypeWrapper<int8_t> {
+ public:
+  static const ncclDataType_t type = ncclChar;
+};
+
+template <>
+class ncclTypeWrapper<int32_t> {
+ public:
+  static const ncclDataType_t type = ncclInt;
+};
+
+template <>
+class ncclTypeWrapper<int64_t> {
+ public:
+  static const ncclDataType_t type = ncclInt64;
+};
+
+template <>
+class ncclTypeWrapper<uint64_t> {
+ public:
+  static const ncclDataType_t type = ncclUint64;
+};
+
+template <>
+class ncclTypeWrapper<float16> {
+ public:
+  static const ncclDataType_t type = ncclHalf;
+};
+
+template <>
+class ncclTypeWrapper<float> {
+ public:
+  static const ncclDataType_t type = ncclFloat;
+};
+
+template <>
+class ncclTypeWrapper<double> {
+ public:
+  static const ncclDataType_t type = ncclDouble;
+};
+
+template <typename T>
 struct NCCLElement {
   NCCLElement(
       CudaDevicePointer<T> srcParam,

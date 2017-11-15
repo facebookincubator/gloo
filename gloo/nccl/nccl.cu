@@ -119,52 +119,6 @@ std::string NCCLExecution<T>::getKey() const {
   }
   return result;
 }
-
-template <typename T>
-class ncclTypeWrapper;
-
-template <>
-class ncclTypeWrapper<int8_t> {
- public:
-  static const ncclDataType_t type = ncclChar;
-};
-
-template <>
-class ncclTypeWrapper<int32_t> {
- public:
-  static const ncclDataType_t type = ncclInt;
-};
-
-template <>
-class ncclTypeWrapper<int64_t> {
- public:
-  static const ncclDataType_t type = ncclInt64;
-};
-
-template <>
-class ncclTypeWrapper<uint64_t> {
- public:
-  static const ncclDataType_t type = ncclUint64;
-};
-
-template <>
-class ncclTypeWrapper<float16> {
- public:
-  static const ncclDataType_t type = ncclHalf;
-};
-
-template <>
-class ncclTypeWrapper<float> {
- public:
-  static const ncclDataType_t type = ncclFloat;
-};
-
-template <>
-class ncclTypeWrapper<double> {
- public:
-  static const ncclDataType_t type = ncclDouble;
-};
-
 template <typename T>
 NCCLOp<T>::NCCLOp(NCCLExecution<T>&& execution)
     : execution_(std::move(execution)), context_(getNcclContext(execution_)) {}
