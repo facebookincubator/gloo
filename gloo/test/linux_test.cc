@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "gloo/common/linux.h"
+#include "gloo/common/linux_devices.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
