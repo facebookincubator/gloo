@@ -51,7 +51,6 @@ class CudaAllreduceNccl2 : public Algorithm {
  protected:
   std::vector<CudaDevicePointer<T> > devicePtrs_;
   std::vector<CudaStream> streams_;
-  CudaStream* scratchStream_;
 
   std::shared_ptr<NCCLCommList> commList_;
   std::shared_ptr<NCCLStreamList> streamList_;
@@ -60,16 +59,6 @@ class CudaAllreduceNccl2 : public Algorithm {
   const int bytes_;
   const bool synchronizeDeviceOutputs_;
   const CudaReductionFunction<T>* fn_;
-
-  std::unique_ptr<LocalOp<T> > localReduceOp_;
-  std::unique_ptr<LocalOp<T> > localBroadcastOp_;
-
-  std::unique_ptr<transport::Buffer> sendDataBuf_;
-  std::unique_ptr<transport::Buffer> recvDataBuf_;
-
-  int dummy_;
-  std::unique_ptr<transport::Buffer> sendNotificationBuf_;
-  std::unique_ptr<transport::Buffer> recvNotificationBuf_;
 
   int rank_;
   std::unique_ptr<gloo::BarrierAllToAll> barrier_;

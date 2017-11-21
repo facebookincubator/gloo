@@ -20,6 +20,17 @@ namespace gloo {
 
 namespace {
 
+// Build a key of ' ' + device_i
+std::string buildDevicesKey(const std::vector<int>& localDevices) {
+  std::string s;
+
+  for (const auto& dev : localDevices) {
+    s += ' ' + std::to_string(dev);
+  }
+
+  return s;
+}
+
 // Creating NCCL communicators is expensive. So we cache and reuse them.
 static std::shared_ptr<NCCLCommList> getCachedCommList(
     const std::shared_ptr<Context>& context,
@@ -32,10 +43,7 @@ static std::shared_ptr<NCCLCommList> getCachedCommList(
   // generate key
   const int numDevices = localDevices.size();
   std::string key = std::to_string(context->size) + ' ' +
-    std::to_string(context->rank);
-  for (auto i = 0; i < numDevices; ++i) {
-    key += ' ' + std::to_string(localDevices[i]);
-  }
+    std::to_string(context->rank) + buildDevicesKey(localDevices);
 
   // globally lock here for 2 reasons:
   // 1. Only one set of communicators should be created, make sure we
@@ -55,7 +63,6 @@ static std::shared_ptr<NCCLCommList> getCachedCommList(
   return commList;
 }
 
-
 // Cache streams across algorithms unless user passes streams
 //  - this enforces an ordering on NCCL calls from within gloo
 //    and should reduce possbility of deadlocks
@@ -69,10 +76,7 @@ static std::shared_ptr<NCCLStreamList> getCachedStreamList(
   // generate key
   const int numDevices = localDevices.size();
   std::string key = std::to_string(context->size) + ' ' +
-    std::to_string(context->rank);
-  for (auto i = 0; i < numDevices; ++i) {
-    key += ' ' + std::to_string(localDevices[i]);
-  }
+    std::to_string(context->rank) + buildDevicesKey(localDevices);
 
   // globally lock here
   // Only one set of streams should be created, make sure we
@@ -111,7 +115,7 @@ NCCLCommList::NCCLCommList(const std::shared_ptr<Context>& context,
   // create comms
   // FIXME currently, we assume all ranks use the same number of devices
   const int numDevices = localDevices.size();
-	// num_ranks * num_devices_per_rank
+  // num_ranks * num_devices_per_rank
   const int ncclSize = context->size * numDevices;
   // rank_id * num_devices_per_rank
   const int ncclRankStart = context->rank * numDevices;
@@ -128,9 +132,9 @@ NCCLCommList::NCCLCommList(const std::shared_ptr<Context>& context,
 }
 
 NCCLCommList::~NCCLCommList() {
+  std::lock_guard<std::mutex> lock(CudaShared::getMutex());
   for (auto i = 0; i < comms.size(); ++i) {
     // Shouldn't be necessary, perhaps overly cautious
-    std::lock_guard<std::mutex> lock(CudaShared::getMutex());
     ncclCommDestroy(comms[i]);
   }
 }
@@ -142,7 +146,7 @@ NCCLStreamList::NCCLStreamList(const std::shared_ptr<Context>& context,
 
   streams.clear();
 
-  for (auto i=0; i<size; ++i) {
+  for (auto i = 0; i<size; ++i) {
     streams.push_back(CudaStream(localDevices[i]));
   }
 }
@@ -180,7 +184,7 @@ CudaAllreduceNccl2<T>::CudaAllreduceNccl2(
   streams_.reserve(ptrs.size());
 
   if (!newStream) {
-    for (auto i=0; i< devicePtrs_.size(); ++i) {
+    for (auto i = 0; i< devicePtrs_.size(); ++i) {
       streams_.push_back(CudaStream(devicePtrs_[i].getDeviceID(), streams[i]));
     }
   } else {
@@ -188,7 +192,7 @@ CudaAllreduceNccl2<T>::CudaAllreduceNccl2(
     streamList_ = getCachedStreamList(context, localDevices);
 
     // convert cached streams to local streams
-    for (auto i=0; i < devicePtrs_.size(); ++i) {
+    for (auto i = 0; i < devicePtrs_.size(); ++i) {
       streams_.push_back(CudaStream(devicePtrs_[i].getDeviceID(), *streamList_->streams[i]));
     }
   }
@@ -206,7 +210,7 @@ void CudaAllreduceNccl2<T>::run() {
       // cause deadlocks.
       std::lock_guard<std::mutex> lock(CudaShared::getMutex());
       NCCL_CHECK(ncclGroupStart());
-      for (int i=0; i<devicePtrs_.size(); i++) {
+      for (int i = 0; i<devicePtrs_.size(); i++) {
         NCCL_CHECK(ncclAllReduce(
               (const void*)(*devicePtrs_[i]), (void*)(*devicePtrs_[i]),
               count_, nccl::ncclTypeWrapper<T>::type, ncclSum, commList_->comms[i],
@@ -216,8 +220,10 @@ void CudaAllreduceNccl2<T>::run() {
     }
 
   // Now that we've returned from NCCL, perform stream syncs
-  for (int i=0; i<devicePtrs_.size(); i++) {
-    CUDA_CHECK(cudaStreamSynchronize(*streams_[i]));
+  if (synchronizeDeviceOutputs_) {
+    for (int i = 0; i<devicePtrs_.size(); i++) {
+      CUDA_CHECK(cudaStreamSynchronize(*streams_[i]));
+    }
   }
 }
 
