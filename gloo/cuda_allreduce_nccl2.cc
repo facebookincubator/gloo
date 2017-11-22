@@ -14,7 +14,7 @@
 #include "gloo/broadcast_one_to_all.h"
 #include "gloo/cuda_private.h"
 
-#include <unordered_map>
+#include <map>
 
 namespace gloo {
 
@@ -37,13 +37,14 @@ static std::shared_ptr<NCCLCommList> getCachedCommList(
     const std::vector<int> localDevices)
 {
   // per-process cache of communicators
-  static std::unordered_map<std::string, std::shared_ptr<NCCLCommList> >
-    commLists;
+  static std::map<std::pair<Context*, std::string>,
+                  std::shared_ptr<NCCLCommList> > commLists;
 
   // generate key
   const int numDevices = localDevices.size();
   std::string key = std::to_string(context->size) + ' ' +
     std::to_string(context->rank) + buildDevicesKey(localDevices);
+  auto key_pair = std::make_pair(context.get(), key);
 
   // globally lock here for 2 reasons:
   // 1. Only one set of communicators should be created, make sure we
@@ -53,12 +54,12 @@ static std::shared_ptr<NCCLCommList> getCachedCommList(
   {
     std::lock_guard<std::mutex> lock(CudaShared::getMutex());
 
-    if (!commLists[key]) {
-      commLists[key] = std::make_shared<NCCLCommList>(context, localDevices);
+    if (!commLists[key_pair]) {
+      commLists[key_pair] = std::make_shared<NCCLCommList>(context, localDevices);
     }
   }
 
-  const auto commList = commLists[key];
+  const auto commList = commLists[key_pair];
   GLOO_ENFORCE_NE(commList.get(), (void*)nullptr);
   return commList;
 }
@@ -70,13 +71,14 @@ static std::shared_ptr<NCCLStreamList> getCachedStreamList(
     const std::shared_ptr<Context>& context,
     const std::vector<int> localDevices) {
   // per-process cache of streams
-  static std::unordered_map<std::string, std::shared_ptr<NCCLStreamList> >
-    streamLists;
+  static std::map<std::pair<Context*, std::string>,
+                  std::shared_ptr<NCCLStreamList> > streamLists;
 
   // generate key
   const int numDevices = localDevices.size();
   std::string key = std::to_string(context->size) + ' ' +
     std::to_string(context->rank) + buildDevicesKey(localDevices);
+  auto key_pair = std::make_pair(context.get(), key);
 
   // globally lock here
   // Only one set of streams should be created, make sure we
@@ -84,12 +86,12 @@ static std::shared_ptr<NCCLStreamList> getCachedStreamList(
   {
     std::lock_guard<std::mutex> lock(CudaShared::getMutex());
 
-    if (!streamLists[key]) {
-      streamLists[key] = std::make_shared<NCCLStreamList>(context, localDevices);
+    if (!streamLists[key_pair]) {
+      streamLists[key_pair] = std::make_shared<NCCLStreamList>(context, localDevices);
     }
   }
 
-  const auto streamList = streamLists[key];
+  const auto streamList = streamLists[key_pair];
   GLOO_ENFORCE_NE(streamList.get(), (void*)nullptr);
   return streamList;
 }
