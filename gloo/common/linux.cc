@@ -8,6 +8,7 @@
  */
 
 #include "gloo/common/linux.h"
+#include "gloo/common/linux_devices.h"
 
 #include <dirent.h>
 #include <errno.h>
