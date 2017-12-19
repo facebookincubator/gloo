@@ -110,6 +110,8 @@ class Runner {
   void rendezvousMPI();
 #endif
 
+  void rendezvousFileSystem();
+
   long broadcast(long value);
 
   std::shared_ptr<Context> newContext();

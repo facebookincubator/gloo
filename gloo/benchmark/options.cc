@@ -37,6 +37,7 @@ static void usage(int status, const char* argv0) {
   X("  -h, --redis-host=HOST  Host name of Redis server");
   X("  -p, --redis-port=PORT  Port number of Redis server");
   X("  -x, --prefix=PREFIX    Rendezvous prefix (unique for this run)");
+  X("      --shared-path=PATH File system rendezvous with this shared path");
   X("");
   X("Transport:");
   X("  -t, --transport=TRANSPORT Transport to use (tcp, ibverbs, ...)");
@@ -131,6 +132,7 @@ struct options parseOptions(int argc, char** argv) {
       {"redis-host", required_argument, nullptr, 'h'},
       {"redis-port", required_argument, nullptr, 'p'},
       {"prefix", required_argument, nullptr, 'x'},
+      {"shared-path", required_argument, nullptr, 0x1012},
       {"transport", required_argument, nullptr, 't'},
       {"verify", no_argument, nullptr, 0x1001},
       {"elements", required_argument, nullptr, 0x1002},
@@ -274,6 +276,11 @@ struct options parseOptions(int argc, char** argv) {
       case 0x1011: // --base
       {
         result.base = atoi(optarg);
+        break;
+      }
+      case 0x1012: // --shared-path
+      {
+        result.sharedPath = std::string(optarg, strlen(optarg));
         break;
       }
       case 0xffff: // --help

@@ -21,14 +21,18 @@ struct options {
   int contextRank = 0;
   int contextSize = 0;
 
-  // Rendezvous
+  // Rendezvous using Redis
   std::string redisHost;
   int redisPort = 6379;
   std::string prefix = "prefix";
 
+  // Rendezvous using MPI
 #if GLOO_USE_MPI
   bool mpi = false;
 #endif
+
+  // Rendezvous using file system
+  std::string sharedPath;
 
   // Transport
   std::string transport;

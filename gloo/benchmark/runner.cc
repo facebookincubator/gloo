@@ -17,6 +17,7 @@
 #include "gloo/common/common.h"
 #include "gloo/common/logging.h"
 #include "gloo/rendezvous/context.h"
+#include "gloo/rendezvous/file_store.h"
 #include "gloo/transport/device.h"
 
 #if GLOO_USE_REDIS
@@ -95,6 +96,10 @@ Runner::Runner(const options& options) : options_(options) {
   }
 #endif
 
+  if (!contextFactory_) {
+    rendezvousFileSystem();
+  }
+
   GLOO_ENFORCE(contextFactory_, "No means for rendezvous");
 
   // Create broadcast algorithm to synchronize between participants
@@ -155,6 +160,21 @@ void Runner::rendezvousMPI() {
       backingContext);
 }
 #endif
+
+void Runner::rendezvousFileSystem() {
+  // Don't rendezvous using the file system if the shared path is not set
+  if (options_.sharedPath.empty()) {
+    return;
+  }
+
+  rendezvous::FileStore fileStore(options_.sharedPath);
+  rendezvous::PrefixStore prefixStore(options_.prefix, fileStore);
+  auto backingContext = std::make_shared<rendezvous::Context>(
+    options_.contextRank, options_.contextSize);
+  backingContext->connectFullMesh(prefixStore, transportDevices_.front());
+  contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
+    backingContext);
+}
 
 long Runner::broadcast(long value) {
   // Set value to broadcast only on root.
