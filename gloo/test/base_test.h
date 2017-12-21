@@ -176,6 +176,14 @@ class Fixture {
     return out;
   }
 
+  std::vector<const T*> getConstPointers() const {
+    std::vector<const T*> out;
+    for (const auto& src : srcs) {
+      out.push_back(src.get());
+    }
+    return out;
+  }
+
   std::shared_ptr<Context> context;
   const int inputs;
   const int count;
@@ -279,6 +287,14 @@ class Fixture<float16> {
     return out;
   }
 
+  std::vector<const float16*> getConstPointers() const {
+    std::vector<const float16*> out;
+    for (const auto& src : srcs) {
+      out.push_back(src.get());
+    }
+    return out;
+  }
+
   std::shared_ptr<Context> context;
   const int inputs;
   const int count;
@@ -373,6 +389,14 @@ class Fixture<float> {
 
   std::vector<float*> getPointers() const {
     std::vector<float*> out;
+    for (const auto& src : srcs) {
+      out.push_back(src.get());
+    }
+    return out;
+  }
+
+  std::vector<const float*> getConstPointers() const {
+    std::vector<const float*> out;
     for (const auto& src : srcs) {
       out.push_back(src.get());
     }

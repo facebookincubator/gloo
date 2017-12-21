@@ -28,7 +28,7 @@ class AllgatherRing : public Algorithm {
  public:
   AllgatherRing(
       const std::shared_ptr<Context>& context,
-      const std::vector<T*>& inPtrs,
+      const std::vector<const T*>& inPtrs,
       T* outPtr,
       int count)
       : Algorithm(context),
@@ -89,7 +89,7 @@ class AllgatherRing : public Algorithm {
   }
 
  private:
-  const std::vector<T*> inPtrs_;
+  const std::vector<const T*> inPtrs_;
   T* outPtr_;
   const int count_;
   const int bytes_;

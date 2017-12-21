@@ -39,7 +39,7 @@ TEST_P(AllgatherTest, VarNumPointer) {
         gloo::make_unique<float[]>(numPtrs * dataSize * contextSize);
 
     AllgatherRing<float> algorithm(
-        context, inFixture.getPointers(), outPtr.get(), dataSize);
+        context, inFixture.getConstPointers(), outPtr.get(), dataSize);
 
     algorithm.run();
 
@@ -72,7 +72,7 @@ TEST_F(AllgatherTest, MultipleAlgorithms) {
 
     for (int alg = 0; alg < 2; alg++) {
       AllgatherRing<float> algorithm(
-          context, inFixture.getPointers(), outPtr.get(), dataSize);
+          context, inFixture.getConstPointers(), outPtr.get(), dataSize);
       algorithm.run();
 
       auto stride = contextSize * numPtrs;

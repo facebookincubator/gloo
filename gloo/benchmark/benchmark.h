@@ -66,6 +66,16 @@ class Benchmark {
     return ptrs;
   }
 
+  // Returns immutable input pointers.
+  // Should be called after allocate
+  virtual std::vector<const T*> getInputs() {
+    std::vector<const T*> ptrs;
+    for (const auto& input : inputs_) {
+      ptrs.push_back(input.data());
+    }
+    return ptrs;
+  }
+
   std::shared_ptr<::gloo::Context> context_;
   struct options options_;
   std::unique_ptr<::gloo::Algorithm> algorithm_;

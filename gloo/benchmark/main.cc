@@ -37,9 +37,10 @@ class AllgatherBenchmark : public Benchmark<T> {
  public:
   virtual void initialize(int elements) override {
     auto inPtrs = this->allocate(this->options_.inputs, elements);
+    GLOO_ENFORCE_EQ(inPtrs.size(), this->options_.inputs);
     outputs_.resize(this->options_.inputs * this->context_->size * elements);
     this->algorithm_.reset(new AllgatherRing<T>(
-        this->context_, inPtrs, outputs_.data(), elements));
+        this->context_, this->getInputs(), outputs_.data(), elements));
   }
 
   virtual void verify() override {
