@@ -65,21 +65,23 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 # Recurse into main project directory
 add_subdirectory(gloo)
 
-
 # Finally, create the cmake configuration files.
 configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/GlooConfigVersion.cmake.in
-    ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
-    @ONLY)
+  ${PROJECT_SOURCE_DIR}/cmake/GlooConfigVersion.cmake.in
+  ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
+  @ONLY)
 configure_file(
-    ${PROJECT_SOURCE_DIR}/cmake/GlooConfig.cmake.in
-    ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
-    @ONLY)
-install(FILES
+  ${PROJECT_SOURCE_DIR}/cmake/GlooConfig.cmake.in
+  ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
+  @ONLY)
+
+if(GLOO_INSTALL)
+  install(FILES
     ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
     ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
     DESTINATION share/cmake/Gloo
     COMPONENT dev)
-install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
+  install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
     FILE GlooTargets.cmake
     COMPONENT dev)
+endif()
