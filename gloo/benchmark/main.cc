@@ -18,6 +18,7 @@
 #include "gloo/barrier_all_to_one.h"
 #include "gloo/broadcast_one_to_all.h"
 #include "gloo/pairwise_exchange.h"
+#include "gloo/reduce_scatter.h"
 #include "gloo/common/common.h"
 #include "gloo/common/logging.h"
 #include "gloo/context.h"
@@ -149,6 +150,50 @@ class PairwiseExchangeBenchmark : public Benchmark<T> {
   }
 };
 
+template <typename T>
+class ReduceScatterBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+ public:
+  virtual void initialize(int elements) override {
+    auto ptrs = this->allocate(this->options_.inputs, elements);
+    int rem = elements;
+    int chunkSize =
+        (elements + this->context_->size - 1) / this->context_->size;
+    for (int i = 0; i < this->context_->size; ++i) {
+      recvCounts_.push_back(std::min(chunkSize, rem));
+      rem = rem > chunkSize ? rem - chunkSize : 0;
+    }
+    this->algorithm_.reset(
+        new ReduceScatterHalvingDoubling<T>(
+            this->context_, ptrs, elements, recvCounts_));
+  }
+
+  virtual void verify() override {
+    // Size is the total number of pointers across the context
+    const auto size = this->context_->size * this->inputs_.size();
+    // Expected is set to the expected value at ptr[0]
+    const auto expected = (size * (size - 1)) / 2;
+    // The stride between values at subsequent indices is equal to
+    // "size", and we have "size" of them. Therefore, after
+    // reduce-scatter, the stride between expected values is "size^2".
+    const auto stride = size * size;
+    for (const auto& input : this->inputs_) {
+      int numElemsSoFar = 0;
+      for (int i = 0; i < this->context_->rank; ++i) {
+          numElemsSoFar += recvCounts_[i];
+      }
+      for (int i = 0; i < recvCounts_[this->context_->rank]; ++i) {
+        auto offset = (numElemsSoFar + i) * stride;
+        GLOO_ENFORCE_EQ(
+            T(offset + expected), input[i], "Mismatch at index: ", i);
+      }
+    }
+  }
+
+ protected:
+   std::vector<int> recvCounts_;
+};
+
 } // namespace
 
 #define RUN_BENCHMARK(T)                                                   \
@@ -192,6 +237,10 @@ class PairwiseExchangeBenchmark : public Benchmark<T> {
   } else if (x.benchmark == "pairwise_exchange") {                         \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<PairwiseExchangeBenchmark<T>>(context, x);  \
+    };                                                                     \
+  } else if (x.benchmark == "reduce_scatter") {                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<ReduceScatterBenchmark<T>>(context, x);  \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \
