@@ -19,9 +19,9 @@ Terms used:
 
 ## Allreduce
 
-Compute sum of N arrays per process across P processes. This
-computation happens in place; all input arrays contain the resulting
-sum after the algorithm completes.
+Compute user-specified reduction operation (for e.g. sum) of N arrays per process
+across P processes. This computation happens in place; all input arrays contain
+the resulting reduction after the algorithm completes.
 
 There are 3 phases to each implementation of this algorithm:
 1. Local reduction of N buffers
@@ -173,6 +173,59 @@ between local reduction/broadcast steps and communication. Local reduction step
 is split into two steps (since the first communication step sends half the
 buffer size). Final broadcast is pipelined across lgP steps, with each step
 corresponding to a receive during the allgather phase.
+
+## Reduce-Scatter
+
+Compute user-specified reduction operation (for e.g. sum) of N arrays per process
+across P processes. This computation happens in place. The result is scattered
+to all processes as specified by the user; all input arrays contain the scattered
+result after the algorithm completes.
+
+There are 3 phases to each implementation of this algorithm:
+
+1. Local reduction of N buffers
+
+2. Reduce-Scatter between processes
+
+3. Broadcast result back to N buffers
+
+### reduce_scatter_halving_doubling
+
+* Communication steps: lg(P)
+* Bytes on the wire: S
+(for scattering result evenly among P processes)
+
+Phase 2 is implemented in two sub-phases:
+
+1. First, a reduce-scatter is performed in lg(P) steps using a recursive
+vector-halving, distance-doubling approach. In the first step of this algorithm
+processes communicate in pairs (rank 0 with 1, 2 with 3, etc.), sending and
+receiving for different halves of their input buffer. For example, process 0
+sends the second half of its buffer to process 1 and receives and reduces data
+for the first half of the buffer from process 1. A reduction over the received
+data is performed before proceeding to the next communication step, where the
+distance to the destination rank is doubled while the data sent and received is
+halved.
+
+2. After the reduce-scatter phase is finished, each process in the largest
+binary block has a portion of the final reduced array. Next step is to
+scatter/distribute based on user-specified distribution. Note that, due to
+nature of recursive halving algorithm in the largest binary block, the blocks are
+not ordered in correct order. Enforced correct reorder by exchanging data between
+processes p and p',  where p' is the bit-reverse of p.
+
+When running on non-power-of-two number of processes, the algorithm works by
+breaking up execution into blocks that are powers of two and communicating
+interblock after the intrablock reduce-scatter. Non-power-of-two cases will have
+some degree of load imbalance compared to power-of-two, but cases with close to
+power-of-two (for e.g. 16 + 2) should still perform relatively well.
+
+The halving-doubling / binary-blocks algorithm is described and analyzed in
+(Thakur et al., Optimization of Collective Communication Operations in MPICH,
+IJHPCA, 2005).
+
+Data re-ordering is described in (Sack et al., Faster topology-aware collective
+algorithms through non-minimal communication, PPoPP, 2012).
 
 ## Barrier
 
