@@ -14,7 +14,7 @@
 #include "gloo/transport/tcp/device.h"
 #include "gloo/allreduce_ring.h"
 
-int main(int /*argc*/, char** /*argv*/) {
+int main(int argc, char** argv) {
   // We'll use the TCP transport in this example
   auto dev = gloo::transport::tcp::CreateDevice("localhost");
 

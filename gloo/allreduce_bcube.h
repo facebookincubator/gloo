@@ -523,7 +523,7 @@ class AllreduceBcube : public Algorithm {
    * Basically a gate to make sure only the right node(s) print logs
    * @param rank Rank of the current node
    */
-  static bool printCheck(int /*rank*/) {
+  static bool printCheck(int rank) {
     return false;
   }
   /**
