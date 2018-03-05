@@ -130,6 +130,12 @@ class ncclTypeWrapper<int8_t> {
 };
 
 template <>
+class ncclTypeWrapper<uint8_t> {
+ public:
+  static const ncclDataType_t type = ncclChar;
+};
+
+template <>
 class ncclTypeWrapper<int32_t> {
  public:
   static const ncclDataType_t type = ncclInt;
@@ -332,6 +338,7 @@ template class BroadcastOp<T>;                                          \
 template class AllgatherOp<T>;
 
 DEFINE_NCCL_TYPES_AND_OPS(int8_t);
+DEFINE_NCCL_TYPES_AND_OPS(uint8_t);
 DEFINE_NCCL_TYPES_AND_OPS(int32_t);
 DEFINE_NCCL_TYPES_AND_OPS(int64_t);
 DEFINE_NCCL_TYPES_AND_OPS(uint64_t);

@@ -69,6 +69,7 @@ void CudaAllreduceLocal<T>::run() {
 #define INSTANTIATE_TEMPLATE(T) template class CudaAllreduceLocal<T>;
 
 INSTANTIATE_TEMPLATE(int8_t);
+INSTANTIATE_TEMPLATE(uint8_t);
 INSTANTIATE_TEMPLATE(int32_t);
 INSTANTIATE_TEMPLATE(int64_t);
 INSTANTIATE_TEMPLATE(uint64_t);

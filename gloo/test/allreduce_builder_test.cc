@@ -20,7 +20,9 @@ class AllreduceBuilderTest : public BaseTest {
 };
 
 using AllreduceBuilderTypes =
-  ::testing::Types<int8_t, int32_t, int64_t, uint64_t, float, double, float16>;
+  ::testing::Types<
+    int8_t, uint8_t, int32_t, int64_t, uint64_t, float, double, float16
+  >;
 
 TYPED_TEST_CASE(AllreduceBuilderTest, AllreduceBuilderTypes);
 

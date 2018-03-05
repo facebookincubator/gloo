@@ -19,7 +19,9 @@ class BroadcastBuilderTest : public BaseTest {
 };
 
 using BroadcastBuilderTypes =
-  ::testing::Types<int8_t, int32_t, int64_t, uint64_t, float, double, float16>;
+  ::testing::Types<
+    int8_t, uint8_t, int32_t, int64_t, uint64_t, float, double, float16
+  >;
 
 TYPED_TEST_CASE(BroadcastBuilderTest, BroadcastBuilderTypes);
 
