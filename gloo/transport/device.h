@@ -21,6 +21,15 @@ namespace transport {
 class Pair;
 class Buffer;
 
+// The device abstraction can be considered as a factory for all
+// communication pairs. A communication pair can be associated with
+// send and receive buffers. Send buffers serve as the source for one
+// sided writes and receive buffers serve as the target of one sided
+// writes. Both ends of the pair can create either type of buffer, as
+// long as it is paired with the opposite type on the remote end of
+// the pair; every receive buffer must be paired with a corresponding
+// send buffer and vice versa. The device abstraction may start a
+// background thread to handle I/O multiplexing (not configurable).
 class Device {
  public:
   virtual ~Device() = 0;
