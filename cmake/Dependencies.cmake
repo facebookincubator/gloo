@@ -67,18 +67,16 @@ endif()
 
 # Make sure we can find googletest if building the tests
 if(BUILD_TEST)
-  set(GOOGLETEST_ROOT_DIR "${PROJECT_SOURCE_DIR}/third-party/googletest")
-  if (EXISTS "${GOOGLETEST_ROOT_DIR}")
-    set(BUILD_GTEST ON CACHE INTERNAL "Builds the googletest subproject")
-    set(BUILD_GMOCK OFF CACHE INTERNAL "Builds the googlemock subproject")
-    add_subdirectory(third-party/googletest)
-
-    # Explicitly add googletest include path.
-    # If this is not done, the include path is not passed to
-    # nvcc for CUDA sources for some reason...
-    include_directories(SYSTEM "${GOOGLETEST_ROOT_DIR}/googletest/include")
-  else()
-    message(FATAL_ERROR "Could not find googletest; cannot compile tests")
+  # If the gtest target is already defined, we assume upstream knows
+  # what they are doing and the version is new enough.
+  if(NOT TARGET gtest)
+    find_package(GTest REQUIRED)
+    if(NOT GTEST_FOUND)
+      message(FATAL_ERROR "Could not find googletest; cannot compile tests")
+    endif()
+    add_library(gtest INTERFACE)
+    target_include_directories(gtest INTERFACE ${GTEST_INCLUDE_DIRS})
+    target_link_libraries(gtest INTERFACE ${GTEST_LIBRARIES})
   endif()
 endif()
 

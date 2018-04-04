@@ -8,8 +8,8 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
   )
 
-add_executable(test ${GLOO_TEST_SRCS})
-target_link_libraries(test gloo gloo_builder gtest)
+add_executable(gloo_test ${GLOO_TEST_SRCS})
+target_link_libraries(gloo_test gloo gloo_builder gtest)
 
 if(USE_CUDA)
   set(GLOO_TEST_CUDA_SRCS
@@ -21,6 +21,6 @@ if(USE_CUDA)
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
 
-  cuda_add_executable(test_cuda ${GLOO_TEST_CUDA_SRCS})
-  target_link_libraries(test_cuda gloo_cuda gloo_builder gtest)
+  cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
+  target_link_libraries(gloo_test_cuda gloo_cuda gloo_builder gtest)
 endif()

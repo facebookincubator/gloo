@@ -16,6 +16,7 @@ fi
 
 cmake .. \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
+    -DGTEST_ROOT=/tmp/googletest \
     -DBUILD_TEST=ON \
     -DBUILD_BENCHMARK=ON \
     ${CMAKE_ARGS}
