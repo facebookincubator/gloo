@@ -34,6 +34,15 @@ class Pair {
 
   virtual std::unique_ptr<Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) = 0;
+
+
+  int p2p(void*,size_t,unsigned int, unsigned int);
+
+#if 0
+  bool hasSync;
+  Buffer srcBuf;
+  Buffer dstBuf;
+#endif
 };
 
 } // namespace transport
