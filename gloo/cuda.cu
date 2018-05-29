@@ -9,7 +9,25 @@
 
 #include "gloo/cuda.h"
 #include "gloo/cuda_private.h"
+
+#include <cuda.h>
+// Disable strict aliasing errors for CUDA 9.
+#if CUDA_VERSION >= 9000
+#ifdef __GNUC__
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#endif
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif // __GNUC__
+#endif // CUDA_VERSION >= 9000
 #include <cuda_fp16.h>
+#if CUDA_VERSION >= 9000
+#ifdef __GNUC__
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
+#endif // __GNUC__
+#endif // CUDA_VERSION >= 9000
 
 namespace gloo {
 
