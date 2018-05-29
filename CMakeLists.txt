@@ -22,11 +22,11 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
 # Build target options
 option(BUILD_TEST "Build test binary (requires gtest)" OFF)
-option(BUILD_BENCHMARK "Build benchmark binary (requires hiredis)" OFF)
+option(BUILD_BENCHMARK "Build benchmark binary (requires hiredis)" ON)
 
 # Option defaults (so they can be overwritten before declaring the option)
-set(USE_REDIS_DEFAULT OFF)
-set(USE_IBVERBS_DEFAULT OFF)
+set(USE_REDIS_DEFAULT ON)
+set(USE_IBVERBS_DEFAULT ON)
 set(USE_NCCL_DEFAULT OFF)
 
 # Options

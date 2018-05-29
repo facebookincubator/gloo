@@ -13,6 +13,34 @@ namespace gloo {
 namespace transport {
 
 // Have to provide implementation for pure virtual destructor.
+
+
+#if 0
+//#define SLOT (this->context_->nextSlot())
+#define SLOT (96369)
+
+int Pair::send(void* buf, size_t size){
+  auto slot = SLOT;
+  if (!hasSync){
+    srcBuf = this->createSendBuffer(slot, buf, size);
+    hasSync = size;
+
+    dataBuf->waitSend();
+    dataBuf->waitRecv();
+  }
+  return 1;
+}
+
+int Pair::recv(void* buf, size_t size){ 
+  auto slot = SLOT;
+  if (!hasSync){
+    dstBuf = this->createRecvBuffer(slot, buf, size);
+    hasSync = size;
+  }
+}
+#endif
+
+
 Pair::~Pair() {}
 
 } // namespace transport
