@@ -31,6 +31,11 @@
 
 #include "gloo/common/logging.h"
 
+#ifndef SPEED_UNKNOWN
+/* some platforms doesn't define speed unknown in headers we included. */
+#define SPEED_UNKNOWN 0
+#endif
+
 namespace gloo {
 
 const std::set<std::string>& kernelModules() {
