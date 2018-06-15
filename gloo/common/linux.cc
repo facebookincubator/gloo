@@ -31,6 +31,13 @@
 
 #include "gloo/common/logging.h"
 
+#ifndef SPEED_UNKNOWN
+/* SPEED_UNKOWN is sometimes undefined, c.f.
+ * https://github.com/facebookincubator/gloo/pull/127
+ */
+#define SPEED_UNKNOWN 0
+#endif
+
 namespace gloo {
 
 const std::set<std::string>& kernelModules() {
