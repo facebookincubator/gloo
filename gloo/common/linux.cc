@@ -32,7 +32,9 @@
 #include "gloo/common/logging.h"
 
 #ifndef SPEED_UNKNOWN
-/* some platforms doesn't define speed unknown in headers we included. */
+/* SPEED_UNKOWN is sometimes undefined, c.f.
+ * https://github.com/facebookincubator/gloo/pull/127
+ */
 #define SPEED_UNKNOWN 0
 #endif
 
