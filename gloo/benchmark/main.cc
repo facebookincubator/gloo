@@ -36,7 +36,7 @@ template <typename T>
 class AllgatherBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto inPtrs = this->allocate(this->options_.inputs, elements);
     GLOO_ENFORCE_EQ(inPtrs.size(), this->options_.inputs);
     outputs_.resize(this->options_.inputs * this->context_->size * elements);
@@ -70,7 +70,7 @@ template <class A, typename T>
 class AllreduceBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_.reset(new A(this->context_, ptrs, elements));
   }
@@ -98,7 +98,7 @@ template <typename T>
 class BarrierAllToAllBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int /* unused */) override {
+  virtual void initialize(size_t /* unused */) override {
     this->algorithm_.reset(new BarrierAllToAll(this->context_));
   }
 };
@@ -107,7 +107,7 @@ template <typename T>
 class BarrierAllToOneBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int /* unused */) override {
+  virtual void initialize(size_t /* unused */) override {
     // This tool measures at rank=0, so use root=1 for the all to one
     // barrier to measure the end-to-end latency (otherwise we might
     // not account for the send-to-root part of the algorithm).
@@ -119,7 +119,7 @@ template <typename T>
 class BroadcastOneToAllBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_.reset(
         new BroadcastOneToAll<T>(this->context_, ptrs, elements, rootRank_));
@@ -144,7 +144,7 @@ template <typename T>
 class PairwiseExchangeBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     this->algorithm_.reset(new PairwiseExchange(
         this->context_, elements, this->getOptions().destinations));
   }
@@ -154,10 +154,10 @@ template <typename T>
 class ReduceScatterBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
-    int rem = elements;
-    int chunkSize =
+    auto rem = elements;
+    auto chunkSize =
         (elements + this->context_->size - 1) / this->context_->size;
     for (int i = 0; i < this->context_->size; ++i) {
       recvCounts_.push_back(std::min(chunkSize, rem));

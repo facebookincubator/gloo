@@ -99,7 +99,7 @@ class Runner {
   void run(BenchmarkFn<T>& fn);
 
   template <typename T>
-  void run(BenchmarkFn<T>& fn, int n);
+  void run(BenchmarkFn<T>& fn, size_t n);
 
  protected:
 #if GLOO_USE_REDIS
@@ -118,8 +118,8 @@ class Runner {
 
   void printHeader();
   void printDistribution(
-      int elements,
-      int elementSize,
+      size_t elements,
+      size_t elementSize,
       const Distribution& samples);
 
   options options_;

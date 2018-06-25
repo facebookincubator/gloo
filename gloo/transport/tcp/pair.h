@@ -93,7 +93,7 @@ class Pair : public ::gloo::transport::Pair {
   // Can only be used with sync receive mode.
   bool busyPoll_;
   int fd_;
-  int sendBufferSize_;
+  size_t sendBufferSize_;
 
   Address self_;
   Address peer_;

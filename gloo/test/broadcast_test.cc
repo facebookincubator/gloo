@@ -22,12 +22,12 @@ namespace {
 using Func = std::unique_ptr<::gloo::Algorithm>(
     std::shared_ptr<::gloo::Context>&,
     std::vector<float*> ptrs,
-    int count,
+    size_t count,
     int rootRank,
     int rootPointerRank);
 
 // Test parameterization.
-using Param = std::tuple<int, int, int, std::function<Func>>;
+using Param = std::tuple<int, int, size_t, std::function<Func>>;
 
 // Test fixture.
 class BroadcastTest : public BaseTest,
@@ -82,8 +82,8 @@ TEST_P(BroadcastTest, Default) {
     });
 }
 
-std::vector<int> genMemorySizes() {
-  std::vector<int> v;
+std::vector<size_t> genMemorySizes() {
+  std::vector<size_t> v;
   v.push_back(sizeof(float));
   v.push_back(100);
   v.push_back(1000);
@@ -94,7 +94,7 @@ std::vector<int> genMemorySizes() {
 static std::function<Func> broadcastOneToAll = [](
     std::shared_ptr<::gloo::Context>& context,
     std::vector<float*> ptrs,
-    int count,
+    size_t count,
     int rootProcessRank,
     int rootPointerRank) {
   return std::unique_ptr<::gloo::Algorithm>(
@@ -109,6 +109,15 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(2, 3, 4, 5),
         ::testing::Values(1, 2),
         ::testing::ValuesIn(genMemorySizes()),
+        ::testing::Values(broadcastOneToAll)));
+
+INSTANTIATE_TEST_CASE_P(
+    LargeBroadcast,
+    BroadcastTest,
+    ::testing::Combine(
+        ::testing::Values(2),
+        ::testing::Values(1),
+        ::testing::Values(512 * 1024 * 1024),
         ::testing::Values(broadcastOneToAll)));
 
 } // namespace

@@ -9,6 +9,7 @@
 
 #include "gloo/transport/tcp/pair.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include <errno.h>
@@ -33,6 +34,16 @@
 namespace gloo {
 namespace transport {
 namespace tcp {
+
+namespace {
+
+// This reflects an approximation of /proc/sys/net/core/{r,w}mem_max.
+// It is hard coded because making buffers larger than this would not
+// have much impact. Also see socket(7).
+constexpr size_t kMaxSendBufferSize = 32 * 1024 * 1024;
+constexpr size_t kMaxRecvBufferSize = 32 * 1024 * 1024;
+
+} // namespace
 
 Pair::Pair(
     const std::shared_ptr<Device>& dev,
@@ -264,8 +275,8 @@ void Pair::connect(const Address& peer) {
 bool Pair::write(Op& op) {
   std::array<struct iovec, 2> iov;
   int ioc;
-  int nbytes;
-  int rv;
+  ssize_t nbytes;
+  ssize_t rv;
 
   verifyConnected();
 
@@ -282,8 +293,8 @@ bool Pair::write(Op& op) {
     }
 
     // Include remaining piece of buffer
-    int offset = op.preamble_.offset_;
-    int length = op.preamble_.length_;
+    size_t offset = op.preamble_.offset_;
+    size_t length = op.preamble_.length_;
     if (op.nwritten_ > sizeof(op.preamble_)) {
       offset += op.nwritten_ - sizeof(op.preamble_);
       length -= op.nwritten_ - sizeof(op.preamble_);
@@ -385,7 +396,7 @@ bool Pair::read(Op& op) {
     // flag. This is more efficient in terms of latency than allowing the kernel
     // to de-schedule this thread waiting for IO event to happen. The tradeoff
     // is stealing the CPU core just for busy polling.
-    int rv = 0;
+    ssize_t rv = 0;
     for (;;) {
       // Alas, readv does not support flags, so we need to use recv
       rv = ::recv(fd_, iov.iov_base, iov.iov_len, busyPoll_ ? MSG_DONTWAIT : 0);
@@ -708,10 +719,12 @@ void Pair::send(Op& op) {
 
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
-  auto size = 2 * (sizeof(op.preamble_) + op.preamble_.length_);
+  size_t size = std::min(
+      (sizeof(op.preamble_) + op.preamble_.length_),
+      kMaxSendBufferSize);
   if (sendBufferSize_ < size) {
     int rv;
-    int optval = size;
+    size_t optval = size;
     socklen_t optlen = sizeof(optval);
     rv = setsockopt(fd_, SOL_SOCKET, SO_SNDBUF, &optval, optlen);
     GLOO_ENFORCE_NE(rv, -1);

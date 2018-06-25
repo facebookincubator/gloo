@@ -33,7 +33,7 @@ class Benchmark {
 
   virtual ~Benchmark() {}
 
-  virtual void initialize(int elements) = 0;
+  virtual void initialize(size_t elements) = 0;
 
   virtual void run() {
     algorithm_->run();
@@ -45,7 +45,7 @@ class Benchmark {
     return options_;
   }
  protected:
-  virtual std::vector<T*> allocate(int inputs, int elements) {
+  virtual std::vector<T*> allocate(int inputs, size_t elements) {
     std::vector<T*> ptrs;
 
     // Stride between successive values in any input.
@@ -57,7 +57,7 @@ class Benchmark {
       // This means all values across all inputs and all nodes are
       // different and we can accurately detect correctness errors.
       auto value = (context_->rank * inputs) + i;
-      for (int j = 0; j < elements; j++) {
+      for (size_t j = 0; j < elements; j++) {
         memory[j] = (j * stride) + value;
       }
       ptrs.push_back(memory.data());

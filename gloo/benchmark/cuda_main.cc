@@ -37,7 +37,7 @@ class CudaBenchmark : public Benchmark<T> {
   virtual ~CudaBenchmark() {}
 
  protected:
-  virtual std::vector<T*> allocate(int inputs, int elements) override {
+  virtual std::vector<T*> allocate(int inputs, size_t elements) override {
     GLOO_ENFORCE_LE(inputs, cudaNumDevices());
     std::vector<T*> ptrs;
 
@@ -66,7 +66,7 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
         builder_(builder) {
   }
 
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_ = builder_.
       setInputs(ptrs).
@@ -109,7 +109,7 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
    }
 
  public:
-  virtual void initialize(int elements) override {
+  virtual void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_ = builder_.
       setInputs(ptrs).

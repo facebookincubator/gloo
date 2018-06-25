@@ -211,7 +211,7 @@ void Runner::run(BenchmarkFn<T>& fn) {
 }
 
 template <typename T>
-void Runner::run(BenchmarkFn<T>& fn, int n) {
+void Runner::run(BenchmarkFn<T>& fn, size_t n) {
   std::vector<std::unique_ptr<Benchmark<T>>> benchmarks;
 
   // Initialize one set of objects for every thread
@@ -357,8 +357,8 @@ void Runner::printHeader() {
 }
 
 void Runner::printDistribution(
-    int elements,
-    int elementSize,
+    size_t elements,
+    size_t elementSize,
     const Distribution& latency) {
   if (options_.contextRank != 0) {
     return;
@@ -389,11 +389,11 @@ void Runner::printDistribution(
 }
 
 template void Runner::run(BenchmarkFn<char>& fn);
-template void Runner::run(BenchmarkFn<char>& fn, int n);
+template void Runner::run(BenchmarkFn<char>& fn, size_t n);
 template void Runner::run(BenchmarkFn<float>& fn);
-template void Runner::run(BenchmarkFn<float>& fn, int n);
+template void Runner::run(BenchmarkFn<float>& fn, size_t n);
 template void Runner::run(BenchmarkFn<float16>& fn);
-template void Runner::run(BenchmarkFn<float16>& fn, int n);
+template void Runner::run(BenchmarkFn<float16>& fn, size_t n);
 
 RunnerThread::RunnerThread() : stop_(false), job_(nullptr) {
   thread_ = std::thread(&RunnerThread::spawn, this);
