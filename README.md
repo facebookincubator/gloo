@@ -27,14 +27,12 @@ optional dependencies below.
 Optional dependencies are:
 * [CUDA][cuda] and [NCCL][nccl] -- for CUDA aware algorithms, tests, and benchmark
 * [Google Test][gtest] -- to build and run tests
-* [Eigen][eigen] -- for fast floating point routines
 * [Hiredis][hiredis] -- for coordinating machine rendezvous through Redis
 * [MPI][mpi] -- for coordinating machine rendezvous through MPI
 
 [cuda]: http://www.nvidia.com/object/cuda_home_new.html
 [nccl]: https://github.com/nvidia/nccl
 [gtest]: https://github.com/google/googletest
-[eigen]: http://eigen.tuxfamily.org
 [hiredis]: https://github.com/redis/hiredis
 [mpi]: https://www.open-mpi.org/
 
@@ -76,7 +74,7 @@ First install the dependencies required by the benchmark tool. On
 Ubuntu, you can do so by running:
 
 ``` shell
-sudo apt-get install -y libhiredis-dev libeigen3-dev
+sudo apt-get install -y libhiredis-dev
 ```
 
 Then build the benchmark, run:
@@ -90,8 +88,8 @@ ls -l gloo/benchmark/benchmark
 
 ## Benchmarking
 
-The benchmark tool depends on 1) Eigen for floating point math and 2)
-Redis/Hiredis for rendezvous. The benchmark tool for CUDA algorithms
+The benchmark tool depends on Redis/Hiredis for rendezvous.
+The benchmark tool for CUDA algorithms
 obviously also depends on both CUDA and NCCL.
 
 To run a benchmark:

@@ -79,13 +79,3 @@ if(BUILD_TEST)
     target_link_libraries(gtest INTERFACE ${GTEST_LIBRARIES})
   endif()
 endif()
-
-# Make sure we can find Eigen if building the benchmark tool
-if(BUILD_BENCHMARK)
-  find_package(eigen REQUIRED)
-  if(EIGEN_FOUND)
-    include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
-  else()
-    message(FATAL_ERROR "Could not find eigen headers; cannot compile benchmark")
-  endif()
-endif()

@@ -9,55 +9,9 @@
 
 #pragma once
 
-#if GLOO_USE_EIGEN
-// Eigen still uses the __CUDACC_VER__ macro,
-// which is deprecated in CUDA 9.
-#if __CUDACC_VER_MAJOR__ >= 9
-#undef __CUDACC_VER__
-#define __CUDACC_VER__ \
-  ((__CUDACC_VER_MAJOR__ * 10000) + (__CUDACC_VER_MINOR__ * 100))
-#endif
-#include <Eigen/Core>
-#endif
-
 #include "gloo/types.h"
 
 namespace gloo {
-
-#if GLOO_USE_EIGEN
-
-template <typename T>
-using EigenVectorArrayMap =
-  Eigen::Map<Eigen::Array<T, Eigen::Dynamic, 1> >;
-template <typename T>
-using ConstEigenVectorArrayMap =
-  Eigen::Map<const Eigen::Array<T, Eigen::Dynamic, 1> >;
-
-template <typename T>
-void sum(T* x, const T* y, size_t n) {
-  EigenVectorArrayMap<T>(x, n) =
-    ConstEigenVectorArrayMap<T>(x, n) + ConstEigenVectorArrayMap<T>(y, n);
-};
-
-template <typename T>
-void product(T* x, const T* y, size_t n) {
-  EigenVectorArrayMap<T>(x, n) =
-    ConstEigenVectorArrayMap<T>(x, n) * ConstEigenVectorArrayMap<T>(y, n);
-};
-
-template <typename T>
-void min(T* x, const T* y, size_t n) {
-  EigenVectorArrayMap<T>(x, n) =
-    ConstEigenVectorArrayMap<T>(x, n).min(ConstEigenVectorArrayMap<T>(y, n));
-};
-
-template <typename T>
-void max(T* x, const T* y, size_t n) {
-  EigenVectorArrayMap<T>(x, n) =
-    ConstEigenVectorArrayMap<T>(x, n).max(ConstEigenVectorArrayMap<T>(y, n));
-};
-
-#else
 
 template <typename T>
 void sum(T* x, const T* y, size_t n) {
@@ -86,8 +40,6 @@ void min(T* x, const T* y, size_t n) {
     x[i] = std::min(x[i], y[i]);
   }
 }
-
-#endif
 
 #if GLOO_USE_AVX
 
