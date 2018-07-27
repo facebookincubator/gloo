@@ -77,10 +77,14 @@ class BaseTest : public ::testing::Test {
     }
   }
 
-  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn) {
+  void spawn(
+      int size,
+      std::function<void(std::shared_ptr<Context>)> fn,
+      int base = 2) {
     Barrier barrier(size);
     spawnThreads(size, [&](int rank) {
-      auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
+      auto context =
+          std::make_shared<::gloo::rendezvous::Context>(rank, size, base);
       if (size > 1) {
         context->connectFullMesh(*store_, device_);
       }

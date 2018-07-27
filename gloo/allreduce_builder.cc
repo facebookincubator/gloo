@@ -18,6 +18,7 @@
 #include "gloo/common/logging.h"
 
 #if GLOO_USE_CUDA
+#include "gloo/cuda_allreduce_bcube.h"
 #include "gloo/cuda_allreduce_halving_doubling.h"
 #include "gloo/cuda_allreduce_halving_doubling_pipelined.h"
 #include "gloo/cuda_allreduce_local.h"
@@ -130,6 +131,9 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
     }
 
     switch (implementation_) {
+      case Bcube:
+        return getAlgorithmCuda<CudaAllreduceBcube, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
       case HalvingDoubling:
         return getAlgorithmCuda<CudaAllreduceHalvingDoubling, T>(
           gpuDirect_, context, inputs_, count_, streams_);

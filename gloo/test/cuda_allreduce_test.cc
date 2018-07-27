@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "gloo/cuda_allreduce_bcube.h"
 #include "gloo/cuda_allreduce_halving_doubling.h"
 #include "gloo/cuda_allreduce_halving_doubling_pipelined.h"
 #include "gloo/cuda_allreduce_ring.h"
@@ -35,7 +36,7 @@ using Func16 = std::unique_ptr<::gloo::Algorithm>(
     std::vector<cudaStream_t> streams);
 
 // Test parameterization.
-using Param = std::tuple<int, int, std::function<Func>>;
+using Param = std::tuple<int, int, std::function<Func>, int>;
 using ParamHP = std::tuple<int, int, std::function<Func16>>;
 
 // Test case
@@ -104,6 +105,15 @@ static std::function<Func> allreduceHalvingDoubling = [](
           context, ptrs, count, streams));
 };
 
+static std::function<Func> allreduceBcube =
+    [](std::shared_ptr<::gloo::Context>& context,
+       std::vector<float*> ptrs,
+       int count,
+       std::vector<cudaStream_t> streams) {
+      return std::unique_ptr<::gloo::Algorithm>(
+          new ::gloo::CudaAllreduceBcube<float>(context, ptrs, count, streams));
+    };
+
 static std::function<Func16> allreduceHalvingDoublingHP = [](
     std::shared_ptr<::gloo::Context>& context,
     std::vector<float16*> ptrs,
@@ -138,24 +148,29 @@ TEST_P(CudaAllreduceTest, SinglePointer) {
   auto size = std::get<0>(GetParam());
   auto count = std::get<1>(GetParam());
   auto fn = std::get<2>(GetParam());
+  auto base = std::get<3>(GetParam());
 
-  spawn(size, [&](std::shared_ptr<Context> context) {
-      // Run algorithm
-      auto fixture = CudaFixture<float>(context, 1, count);
-      auto ptrs = fixture.getCudaPointers();
-      auto algorithm = fn(context, ptrs, count, {});
-      fixture.assignValues();
-      algorithm->run();
+  spawn(
+      size,
+      [&](std::shared_ptr<Context> context) {
+        // Run algorithm
+        auto fixture = CudaFixture<float>(context, 1, count);
+        auto ptrs = fixture.getCudaPointers();
+        auto algorithm = fn(context, ptrs, count, {});
+        fixture.assignValues();
+        algorithm->run();
 
-      // Verify result
-      assertResult(fixture);
-    });
+        // Verify result
+        assertResult(fixture);
+      },
+      base);
 }
 
 TEST_P(CudaAllreduceTest, MultiPointer) {
   auto size = std::get<0>(GetParam());
   auto count = std::get<1>(GetParam());
   auto fn = std::get<2>(GetParam());
+  auto base = std::get<3>(GetParam());
 
   spawn(size, [&](std::shared_ptr<Context> context) {
       // Run algorithm
@@ -167,13 +182,14 @@ TEST_P(CudaAllreduceTest, MultiPointer) {
 
       // Verify result
       assertResult(fixture);
-    });
+    }, base);
 }
 
 TEST_P(CudaAllreduceTest, MultiPointerAsync) {
   auto size = std::get<0>(GetParam());
   auto count = std::get<1>(GetParam());
   auto fn = std::get<2>(GetParam());
+  auto base = std::get<3>(GetParam());
 
   spawn(size, [&](std::shared_ptr<Context> context) {
       // Run algorithm
@@ -187,7 +203,7 @@ TEST_P(CudaAllreduceTest, MultiPointerAsync) {
       // Verify result
       fixture.synchronizeCudaStreams();
       assertResult(fixture);
-    });
+    }, base);
 }
 
 TEST_F(CudaAllreduceTest, MultipleAlgorithms) {
@@ -259,7 +275,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
       ::testing::Range(1, 16),
       ::testing::ValuesIn(genMemorySizes()),
-      ::testing::Values(allreduceRing)));
+      ::testing::Values(allreduceRing),
+      ::testing::Values(0)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceRingChunked,
@@ -267,7 +284,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
       ::testing::Range(1, 16),
       ::testing::ValuesIn(genMemorySizes()),
-      ::testing::Values(allreduceRingChunked)));
+      ::testing::Values(allreduceRingChunked),
+      ::testing::Values(0)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceHalvingDoubling,
@@ -276,7 +294,36 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(
           std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
-        ::testing::Values(allreduceHalvingDoubling)));
+        ::testing::Values(allreduceHalvingDoubling),
+        ::testing::Values(0)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcubeBase2,
+    CudaAllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(
+          std::vector<int>({1, 2, 4, 8, 16})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(2)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcubeBase3,
+    CudaAllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(std::vector<int>({1, 3, 9, 27})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(3)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceBcubeBase4,
+    CudaAllreduceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(std::vector<int>({1, 4, 16})),
+        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::Values(allreduceBcube),
+        ::testing::Values(4)));
 
 INSTANTIATE_TEST_CASE_P(
     AllreduceHalvingDoublingPipelined,
@@ -285,7 +332,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(
           std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
-        ::testing::Values(allreduceHalvingDoublingPipelined)));
+        ::testing::Values(allreduceHalvingDoublingPipelined),
+        ::testing::Values(0)));
 
 } // namespace
 } // namespace test

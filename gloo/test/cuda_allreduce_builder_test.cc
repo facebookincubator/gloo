@@ -26,6 +26,7 @@ TYPED_TEST_CASE(CudaAllreduceBuilderTest, CudaAllreduceBuilderTypes);
 TYPED_TEST(CudaAllreduceBuilderTest, Test) {
   std::vector<enum ::gloo::AllreduceBuilder<TypeParam>::Implementation> impls =
     {
+      ::gloo::AllreduceBuilder<TypeParam>::Bcube,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoubling,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoublingPipelined,
       ::gloo::AllreduceBuilder<TypeParam>::Ring,
@@ -66,6 +67,7 @@ TYPED_TEST(CudaAllreduceBuilderTest, Test) {
 TYPED_TEST(CudaAllreduceBuilderTest, TestAsync) {
   std::vector<enum ::gloo::AllreduceBuilder<TypeParam>::Implementation> impls =
     {
+      ::gloo::AllreduceBuilder<TypeParam>::Bcube,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoubling,
       ::gloo::AllreduceBuilder<TypeParam>::HalvingDoublingPipelined,
       ::gloo::AllreduceBuilder<TypeParam>::Ring,
