@@ -8,26 +8,8 @@
  */
 
 #include "gloo/hip_private.h"
-
 #include <hip/hip_runtime.h>
-// Disable strict aliasing errors for HIP 9.
-#if HIP_VERSION >= 9000
-#ifdef __GNUC__
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-#pragma GCC diagnostic push
-#endif
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif // __GNUC__
-#endif // HIP_VERSION >= 9000
 #include <hip/hip_fp16.h>
-#if HIP_VERSION >= 9000
-#ifdef __GNUC__
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-#pragma GCC diagnostic pop
-#endif
-#endif // __GNUC__
-#endif // HIP_VERSION >= 9000
-
 #include "gloo/common/common.h"
 #include "gloo/types.h"
 
@@ -63,7 +45,7 @@ HipMemory<T>::HipMemory(size_t elements)
     : elements(elements),
       bytes(elements * sizeof(T)) {
   HIP_CHECK(hipGetDevice(&device_));
-  // Sychronize memory allocation with NCCL operations
+  // Sychronize memory allocation with RCCL operations
   std::lock_guard<std::mutex> lock(HipShared::getMutex());
   HIP_CHECK(hipMalloc(&ptr_, bytes));
 }
@@ -82,7 +64,7 @@ template<typename T>
 HipMemory<T>::~HipMemory() {
   HipDeviceScope scope(device_);
   if (ptr_ != nullptr) {
-    // Sychronize memory allocation with NCCL operations
+    // Sychronize memory allocation with RCCL operations
     std::lock_guard<std::mutex> lock(HipShared::getMutex());
     HIP_CHECK(hipFree(ptr_));
   }

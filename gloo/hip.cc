@@ -7,34 +7,17 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#include "gloo/hip/hip_runtime.h"
 #include "gloo/hip_private.h"
 
 #include <hip/hip_runtime.h>
-// Disable strict aliasing errors for HIP 9.
-#if HIP_VERSION >= 9000
-#ifdef __GNUC__
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-#pragma GCC diagnostic push
-#endif
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif // __GNUC__
-#endif // HIP_VERSION >= 9000
 #include <hip/hip_fp16.h>
-#if HIP_VERSION >= 9000
-#ifdef __GNUC__
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-#pragma GCC diagnostic pop
-#endif
-#endif // __GNUC__
-#endif // HIP_VERSION >= 9000
 
 namespace gloo {
 
 const hipStream_t kStreamNotSet = (hipStream_t)(-1);
 const int kInvalidDeviceId = -1;
 
-// Default mutex to synchronize contentious HIP and NCCL operations
+// Default mutex to synchronize contentious HIP and RCCL operations
 static std::mutex defaultHipMutex;
 std::atomic<std::mutex*> HipShared::mutex_(&defaultHipMutex);
 
@@ -302,7 +285,7 @@ INSTANTIATE_COPY_ASYNC(double);
 constexpr static int kHipNumThreads = 512;
 constexpr static int kHipMaximumNumBlocks = 4096;
 
-static inline int cudaGetBlocks(const int N) {
+static inline int hipGetBlocks(const int N) {
   return std::min((N + kHipNumThreads - 1) / kHipNumThreads,
                   kHipMaximumNumBlocks);
 }
@@ -323,7 +306,7 @@ static inline int cudaGetBlocks(const int N) {
     size_t n,                                                           \
     const hipStream_t stream) {                                        \
     _Kernel_##T##_#hipLaunchKernelGGL(#Funcname,                                          \
-      cudaGetBlocks(n),                                                 \
+      hipGetBlocks(n),                                                 \
       kHipNumThreads,                                                  \
       0,                                                                \
       stream,                                                         \
@@ -345,26 +328,26 @@ static inline int cudaGetBlocks(const int N) {
       const float16* src,                                                      \
       size_t n,                                                                \
       const hipStream_t stream) {                                             \
-    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(cudaGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
+    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
         (half*)dst, (half*)src, n);                                            \
   }
 
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int8_t, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int8_t, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint8_t, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint8_t, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int32_t, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int32_t, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int64_t, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int64_t, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint64_t, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint64_t, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(float, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(float, cudaProduct, *);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(double, cudaSum, +);
-DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(double, cudaProduct, *);
-DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(cudaSum, +);
-DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(cudaProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int8_t, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int8_t, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint8_t, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint8_t, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int32_t, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int32_t, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int64_t, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(int64_t, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint64_t, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(uint64_t, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(float, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(float, hipProduct, *);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(double, hipSum, +);
+DELEGATE_SIMPLE_HIP_BINARY_OPERATOR(double, hipProduct, *);
+DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(hipSum, +);
+DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(hipProduct, *);
 
 #define DELEGATE_SIMPLE_HIP_BINARY_COMPARE(T, Funcname, op)            \
   __global__                                                            \
@@ -384,7 +367,7 @@ DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(cudaProduct, *);
     size_t n,                                                           \
     const hipStream_t stream) {                                        \
     _Kernel_##T##_#hipLaunchKernelGGL(#Funcname,                                          \
-      cudaGetBlocks(n),                                                 \
+      hipGetBlocks(n),                                                 \
       kHipNumThreads,                                                  \
       0,                                                                \
       stream,                                                         \
@@ -407,25 +390,25 @@ DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(cudaProduct, *);
       const float16* src,                                                      \
       size_t n,                                                                \
       const hipStream_t stream) {                                             \
-    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(cudaGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
+    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
         (half*)dst, (half*)src, n);                                            \
   }
 
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int8_t, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int8_t, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint8_t, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint8_t, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int32_t, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int32_t, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int64_t, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int64_t, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint64_t, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint64_t, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(float, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(float, cudaMax, >);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(double, cudaMin, <);
-DELEGATE_SIMPLE_HIP_BINARY_COMPARE(double, cudaMax, >);
-DELEGATE_HALF_PRECISION_HIP_BINARY_COMPARE(cudaMin, <);
-DELEGATE_HALF_PRECISION_HIP_BINARY_COMPARE(cudaMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int8_t, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int8_t, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint8_t, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint8_t, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int32_t, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int32_t, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int64_t, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(int64_t, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint64_t, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(uint64_t, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(float, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(float, hipMax, >);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(double, hipMin, <);
+DELEGATE_SIMPLE_HIP_BINARY_COMPARE(double, hipMax, >);
+DELEGATE_HALF_PRECISION_HIP_BINARY_COMPARE(hipMin, <);
+DELEGATE_HALF_PRECISION_HIP_BINARY_COMPARE(hipMax, >);
 
 } // namespace gloo
