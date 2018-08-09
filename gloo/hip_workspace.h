@@ -13,21 +13,21 @@
 
 namespace gloo {
 
-// CUDA workspaces
+// HIP workspaces
 //
 // Algorithms take a workspace template argument and if it uses the
-// CudaDeviceWorkspace can be used with a GPUDirect capable transport.
+// HipDeviceWorkspace can be used with a GPUDirect capable transport.
 
 template <typename T>
-class CudaHostWorkspace {
+class HipHostWorkspace {
  public:
-  using Pointer = CudaHostPointer<T>;
+  using Pointer = HipHostPointer<T>;
 };
 
 template <typename T>
-class CudaDeviceWorkspace {
+class HipDeviceWorkspace {
  public:
-  using Pointer = CudaDevicePointer<T>;
+  using Pointer = HipDevicePointer<T>;
 };
 
 } // namespace gloo

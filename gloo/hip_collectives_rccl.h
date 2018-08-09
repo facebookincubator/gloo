@@ -11,21 +11,21 @@
 
 #include "gloo/common/common.h"
 #include "gloo/common/logging.h"
-#include "gloo/nccl/nccl.h"
+#include "gloo/rccl/rccl.h"
 
 namespace gloo {
 
 template <typename T>
-std::vector<nccl::NCCLElement<T> > toDeviceElements(
-    std::vector<CudaStream>& streams,
-    const std::vector<CudaDevicePointer<T> >& ptrs,
+std::vector<rccl::RCCLElement<T> > toDeviceElements(
+    std::vector<HipStream>& streams,
+    const std::vector<HipDevicePointer<T> >& ptrs,
     size_t offset,
     size_t count) {
-  std::vector<nccl::NCCLElement<T> > elements;
+  std::vector<rccl::RCCLElement<T> > elements;
   elements.reserve(ptrs.size());
   for (auto i = 0; i < ptrs.size(); i++) {
     elements.push_back(
-        nccl::NCCLElement<T>(
+        rccl::RCCLElement<T>(
             ptrs[i].range(offset, count),
             streams[i],
             ptrs[i].range(offset, count),
@@ -36,17 +36,17 @@ std::vector<nccl::NCCLElement<T> > toDeviceElements(
 
 // Forward declaration
 template <typename T, typename Dst>
-class CudaLocalNCCLReduce;
+class HipLocalRCCLReduce;
 
 // Partial specialization for device pointer target
 template <typename T>
-class CudaLocalNCCLReduce<T, CudaDevicePointer<T> > : public LocalOp<T> {
+class HipLocalRCCLReduce<T, HipDevicePointer<T> > : public LocalOp<T> {
  public:
-  CudaLocalNCCLReduce(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
-      CudaDevicePointer<T>& targetPtr,
-      const CudaReductionFunction<T>* fn,
+  HipLocalRCCLReduce(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
+      HipDevicePointer<T>& targetPtr,
+      const HipReductionFunction<T>* fn,
       size_t offset,
       size_t count) {
     // The targetPtr must be one of devicePtrs.
@@ -62,14 +62,14 @@ class CudaLocalNCCLReduce<T, CudaDevicePointer<T> > : public LocalOp<T> {
     // Only if we have multiple device pointers does this
     // operation need to execute.
     if (devicePtrs.size() > 1) {
-      reduceOp_ = make_unique<nccl::ReduceOp<T> >(
+      reduceOp_ = make_unique<rccl::ReduceOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           fn,
           root);
     }
   }
 
-  virtual ~CudaLocalNCCLReduce() {}
+  virtual ~HipLocalRCCLReduce() {}
 
   virtual void runAsync() {
     if (reduceOp_) {
@@ -84,18 +84,18 @@ class CudaLocalNCCLReduce<T, CudaDevicePointer<T> > : public LocalOp<T> {
   }
 
  protected:
-  std::unique_ptr<nccl::ReduceOp<T> > reduceOp_;
+  std::unique_ptr<rccl::ReduceOp<T> > reduceOp_;
 };
 
 // Partial specialization for host pointer target
 template <typename T>
-class CudaLocalNCCLReduce<T, CudaHostPointer<T> > : public LocalOp<T> {
+class HipLocalRCCLReduce<T, HipHostPointer<T> > : public LocalOp<T> {
  public:
-  CudaLocalNCCLReduce(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
-      CudaHostPointer<T>& targetPtr,
-      const CudaReductionFunction<T>* fn,
+  HipLocalRCCLReduce(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
+      HipHostPointer<T>& targetPtr,
+      const HipReductionFunction<T>* fn,
       size_t offset,
       size_t count)
       : root_(0),
@@ -103,14 +103,14 @@ class CudaLocalNCCLReduce<T, CudaHostPointer<T> > : public LocalOp<T> {
         devicePtr_(devicePtrs[root_].range(offset, count)),
         hostPtr_(targetPtr.range(offset, count)) {
     if (devicePtrs.size() > 1) {
-      reduceOp_ = make_unique<nccl::ReduceOp<T> >(
+      reduceOp_ = make_unique<rccl::ReduceOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           fn,
           root_);
     }
   }
 
-  virtual ~CudaLocalNCCLReduce() {}
+  virtual ~HipLocalRCCLReduce() {}
 
   virtual void runAsync() {
     if (reduceOp_) {
@@ -131,24 +131,24 @@ class CudaLocalNCCLReduce<T, CudaHostPointer<T> > : public LocalOp<T> {
 
  protected:
   const int root_;
-  CudaStream& stream_;
-  CudaDevicePointer<T> devicePtr_;
-  CudaHostPointer<T> hostPtr_;
-  std::unique_ptr<nccl::ReduceOp<T> > reduceOp_;
+  HipStream& stream_;
+  HipDevicePointer<T> devicePtr_;
+  HipHostPointer<T> hostPtr_;
+  std::unique_ptr<rccl::ReduceOp<T> > reduceOp_;
 };
 
 // Forward declaration
 template <typename T, typename Src>
-class CudaLocalNCCLBroadcast;
+class HipLocalRCCLBroadcast;
 
 // Specialization for device pointer source
 template <typename T>
-class CudaLocalNCCLBroadcast<T, CudaDevicePointer<T> > : public LocalOp<T> {
+class HipLocalRCCLBroadcast<T, HipDevicePointer<T> > : public LocalOp<T> {
  public:
-  CudaLocalNCCLBroadcast(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
-      CudaDevicePointer<T>& sourcePtr,
+  HipLocalRCCLBroadcast(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
+      HipDevicePointer<T>& sourcePtr,
       size_t offset,
       size_t count) {
     // The sourcePtr must be one of devicePtrs.
@@ -164,13 +164,13 @@ class CudaLocalNCCLBroadcast<T, CudaDevicePointer<T> > : public LocalOp<T> {
     // Only if we have multiple device pointers does this
     // operation need to execute.
     if (devicePtrs.size() > 1) {
-      broadcastOp_ = make_unique<nccl::BroadcastOp<T> >(
+      broadcastOp_ = make_unique<rccl::BroadcastOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           root);
     }
   }
 
-  virtual ~CudaLocalNCCLBroadcast() {}
+  virtual ~HipLocalRCCLBroadcast() {}
 
   virtual void runAsync() {
     if (broadcastOp_) {
@@ -185,17 +185,17 @@ class CudaLocalNCCLBroadcast<T, CudaDevicePointer<T> > : public LocalOp<T> {
   }
 
  protected:
-  std::unique_ptr<nccl::BroadcastOp<T> > broadcastOp_;
+  std::unique_ptr<rccl::BroadcastOp<T> > broadcastOp_;
 };
 
 // Specialization for host pointer source
 template <typename T>
-class CudaLocalNCCLBroadcast<T, CudaHostPointer<T> > : public LocalOp<T> {
+class HipLocalRCCLBroadcast<T, HipHostPointer<T> > : public LocalOp<T> {
  public:
-  CudaLocalNCCLBroadcast(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
-      CudaHostPointer<T>& sourcePtr,
+  HipLocalRCCLBroadcast(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
+      HipHostPointer<T>& sourcePtr,
       size_t offset,
       size_t count)
       : root_(0),
@@ -203,13 +203,13 @@ class CudaLocalNCCLBroadcast<T, CudaHostPointer<T> > : public LocalOp<T> {
         devicePtr_(devicePtrs[root_].range(offset, count)),
         sourcePtr_(sourcePtr.range(offset, count)) {
     if (devicePtrs.size() > 1) {
-      broadcastOp_ = make_unique<nccl::BroadcastOp<T> >(
+      broadcastOp_ = make_unique<rccl::BroadcastOp<T> >(
           toDeviceElements(streams, devicePtrs, offset, count),
           root_);
     }
   }
 
-  virtual ~CudaLocalNCCLBroadcast() {}
+  virtual ~HipLocalRCCLBroadcast() {}
 
   virtual void runAsync() {
     // Since we run an asynchronous memcpy to devicePtr_ which is
@@ -230,34 +230,34 @@ class CudaLocalNCCLBroadcast<T, CudaHostPointer<T> > : public LocalOp<T> {
 
  protected:
   const int root_;
-  CudaStream& stream_;
-  CudaDevicePointer<T> devicePtr_;
-  CudaHostPointer<T> sourcePtr_;
-  std::unique_ptr<nccl::BroadcastOp<T> > broadcastOp_;
+  HipStream& stream_;
+  HipDevicePointer<T> devicePtr_;
+  HipHostPointer<T> sourcePtr_;
+  std::unique_ptr<rccl::BroadcastOp<T> > broadcastOp_;
 };
 
 template <typename T, typename Dst>
-std::unique_ptr<LocalOp<T> > cudaNCCLReduce(
-    std::vector<CudaStream>& streams,
-    std::vector<CudaDevicePointer<T> >& devicePtrs,
+std::unique_ptr<LocalOp<T> > hipRCCLReduce(
+    std::vector<HipStream>& streams,
+    std::vector<HipDevicePointer<T> >& devicePtrs,
     Dst& targetPtr,
-    const CudaReductionFunction<T>* fn,
+    const HipReductionFunction<T>* fn,
     size_t offset,
     size_t count) {
   GLOO_ENFORCE_EQ(streams.size(), devicePtrs.size());
-  return make_unique<CudaLocalNCCLReduce<T, Dst> >(
+  return make_unique<HipLocalRCCLReduce<T, Dst> >(
       streams, devicePtrs, targetPtr, fn, offset, count);
 }
 
 template <typename T, typename Src>
-std::unique_ptr<LocalOp<T> > cudaNCCLBroadcast(
-    std::vector<CudaStream>& streams,
-    std::vector<CudaDevicePointer<T> >& devicePtrs,
+std::unique_ptr<LocalOp<T> > hipRCCLBroadcast(
+    std::vector<HipStream>& streams,
+    std::vector<HipDevicePointer<T> >& devicePtrs,
     Src& sourcePtr,
     size_t offset,
     size_t count) {
   GLOO_ENFORCE_EQ(streams.size(), devicePtrs.size());
-  return make_unique<CudaLocalNCCLBroadcast<T, Src> >(
+  return make_unique<HipLocalRCCLBroadcast<T, Src> >(
       streams, devicePtrs, sourcePtr, offset, count);
 }
 

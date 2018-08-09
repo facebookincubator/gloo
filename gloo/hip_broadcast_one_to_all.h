@@ -10,24 +10,24 @@
 #pragma once
 
 #include "gloo/algorithm.h"
-#include "gloo/cuda.h"
-#include "gloo/cuda_workspace.h"
+#include "gloo/hip.h"
+#include "gloo/hip_workspace.h"
 
 namespace gloo {
 
-template <typename T, typename W = CudaHostWorkspace<T>>
+template <typename T, typename W = HipHostWorkspace<T>>
 
-class CudaBroadcastOneToAll : public Algorithm {
+class HipBroadcastOneToAll : public Algorithm {
  public:
-  CudaBroadcastOneToAll(
+  HipBroadcastOneToAll(
       const std::shared_ptr<Context>& context,
       const std::vector<T*>& ptrs,
       int count,
       int rootRank = 0,
       int rootPointerRank = 0,
-      const std::vector<cudaStream_t>& streams = std::vector<cudaStream_t>());
+      const std::vector<hipStream_t>& streams = std::vector<hipStream_t>());
 
-  virtual ~CudaBroadcastOneToAll() = default;
+  virtual ~HipBroadcastOneToAll() = default;
 
   virtual void run() override;
 
@@ -35,16 +35,16 @@ class CudaBroadcastOneToAll : public Algorithm {
   // Both workspace types have their own initialization function.
   template <typename U = W>
   void init(
-      typename std::enable_if<std::is_same<U, CudaHostWorkspace<T> >::value,
+      typename std::enable_if<std::is_same<U, HipHostWorkspace<T> >::value,
                               typename U::Pointer>::type* = 0);
 
   template <typename U = W>
   void init(
-      typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
+      typename std::enable_if<std::is_same<U, HipDeviceWorkspace<T> >::value,
                               typename U::Pointer>::type* = 0);
 
-  std::vector<CudaDevicePointer<T> > devicePtrs_;
-  std::vector<CudaStream> streams_;
+  std::vector<HipDevicePointer<T> > devicePtrs_;
+  std::vector<HipStream> streams_;
   typename W::Pointer scratch_;
   const int count_;
   const int bytes_;

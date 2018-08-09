@@ -7,22 +7,22 @@
  * of patent rights can be found in the PATENTS file in the same directory.
  */
 
-#include "gloo/cuda_broadcast_one_to_all.h"
+#include "gloo/hip_broadcast_one_to_all.h"
 
-#include "gloo/cuda_collectives_device.h"
-#include "gloo/cuda_collectives_host.h"
-#include "gloo/cuda_private.h"
+#include "gloo/hip_collectives_device.h"
+#include "gloo/hip_collectives_host.h"
+#include "gloo/hip_private.h"
 
 namespace gloo {
 
 template <typename T, typename W>
-CudaBroadcastOneToAll<T, W>::CudaBroadcastOneToAll(
+HipBroadcastOneToAll<T, W>::HipBroadcastOneToAll(
     const std::shared_ptr<Context>& context,
     const std::vector<T*>& ptrs,
     int count,
     int rootRank,
     int rootPointerRank,
-    const std::vector<cudaStream_t>& streams)
+    const std::vector<hipStream_t>& streams)
     : Algorithm(context),
       count_(count),
       bytes_(count * sizeof(T)),
@@ -39,11 +39,11 @@ CudaBroadcastOneToAll<T, W>::CudaBroadcastOneToAll(
   }
 
   for (auto i = 0; i < ptrs.size(); i++) {
-    auto ptr = CudaDevicePointer<T>::create(ptrs[i], count_);
+    auto ptr = HipDevicePointer<T>::create(ptrs[i], count_);
     if (newStream) {
-      streams_.push_back(CudaStream(ptr.getDeviceID()));
+      streams_.push_back(HipStream(ptr.getDeviceID()));
     } else {
-      streams_.push_back(CudaStream(ptr.getDeviceID(), streams[i]));
+      streams_.push_back(HipStream(ptr.getDeviceID(), streams[i]));
     }
     devicePtrs_.push_back(std::move(ptr));
   }
@@ -81,7 +81,7 @@ CudaBroadcastOneToAll<T, W>::CudaBroadcastOneToAll(
   // Setup local broadcast if needed
   if (devicePtrs_.size() > 1) {
     localBroadcastOp_ =
-      cudaDeviceBroadcast(
+      hipDeviceBroadcast(
           streams_,
           devicePtrs_,
           devicePtrs_[rootPointerRank],
@@ -91,7 +91,7 @@ CudaBroadcastOneToAll<T, W>::CudaBroadcastOneToAll(
 }
 
 template <typename T, typename W>
-void CudaBroadcastOneToAll<T, W>::run() {
+void HipBroadcastOneToAll<T, W>::run() {
   if (contextSize_ == 1) {
     if (localBroadcastOp_) {
       localBroadcastOp_->runAsync();
@@ -103,7 +103,7 @@ void CudaBroadcastOneToAll<T, W>::run() {
   }
 
   if (contextRank_ == rootRank_) {
-    CudaStream& stream = streams_[rootPointerRank_];
+    HipStream& stream = streams_[rootPointerRank_];
 
     // Copy device buffer to host
     stream.copyAsync(scratch_, devicePtrs_[rootPointerRank_]);
@@ -134,7 +134,7 @@ void CudaBroadcastOneToAll<T, W>::run() {
       sender_[i]->sendBuffer->waitSend();
     }
   } else {
-    CudaStream& stream = streams_[rootPointerRank_];
+    HipStream& stream = streams_[rootPointerRank_];
     // Ensure previous H2D copy is complete before notifying the sender
     // NOTE: this only waits for last copyAsync, not for the whole stream
     stream.wait();
@@ -164,8 +164,8 @@ void CudaBroadcastOneToAll<T, W>::run() {
 
 template <typename T, typename W>
 template <typename U>
-void CudaBroadcastOneToAll<T, W>::init(
-    typename std::enable_if<std::is_same<U, CudaHostWorkspace<T> >::value,
+void HipBroadcastOneToAll<T, W>::init(
+    typename std::enable_if<std::is_same<U, HipHostWorkspace<T> >::value,
                             typename U::Pointer>::type*) {
   // Allocate host side buffer if we need to communicate
   if (contextSize_ > 1) {
@@ -177,21 +177,21 @@ void CudaBroadcastOneToAll<T, W>::init(
 
 template <typename T, typename W>
 template <typename U>
-void CudaBroadcastOneToAll<T, W>::init(
-    typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
+void HipBroadcastOneToAll<T, W>::init(
+    typename std::enable_if<std::is_same<U, HipDeviceWorkspace<T> >::value,
                             typename U::Pointer>::type*) {
   if (contextSize_ > 1) {
     // For GPUDirect, an additional buffer allocation is unnecessary.
     // Instead, use the provided input buffer itself as the scratch space.
     // The caller is the owner_
-    scratch_ = CudaDevicePointer<T>::create(devicePtrs_[0]);
+    scratch_ = HipDevicePointer<T>::create(devicePtrs_[0]);
   }
 }
 
 // Instantiate templates
 #define INSTANTIATE_TEMPLATE(T)                                         \
-template class CudaBroadcastOneToAll<T, CudaHostWorkspace<T> >;         \
-template class CudaBroadcastOneToAll<T, CudaDeviceWorkspace<T> >;
+template class HipBroadcastOneToAll<T, HipHostWorkspace<T> >;         \
+template class HipBroadcastOneToAll<T, HipDeviceWorkspace<T> >;
 
 
 INSTANTIATE_TEMPLATE(int8_t);

@@ -14,20 +14,20 @@
 
 #include "gloo/common/common.h"
 #include "gloo/common/logging.h"
-#include "gloo/cuda.h"
-#include "gloo/cuda_private.h"
+#include "gloo/hip.h"
+#include "gloo/hip_private.h"
 
 namespace gloo {
 
-// Below works both for CudaHostPointer and CudaDevicePointer
+// Below works both for HipHostPointer and HipDevicePointer
 template <typename T, typename Dst>
-class CudaLocalNativeReduce : public LocalOp<T> {
+class HipLocalNativeReduce : public LocalOp<T> {
  public:
-  CudaLocalNativeReduce(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
+  HipLocalNativeReduce(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
       Dst& targetPtr,
-      const CudaReductionFunction<T>* fn,
+      const HipReductionFunction<T>* fn,
       size_t offset,
       size_t count)
       : streams_(streams),
@@ -55,7 +55,7 @@ class CudaLocalNativeReduce : public LocalOp<T> {
     std::random_shuffle(indices_.begin(), indices_.end());
 
     // Initialize
-    CudaDeviceGuard guard;
+    HipDeviceGuard guard;
     for (auto i = 0; i < steps_; i++) {
       auto sz = 1 << i;
       for (auto j = 0; j < numPtrs_; j += sz * 2) {
@@ -71,7 +71,7 @@ class CudaLocalNativeReduce : public LocalOp<T> {
 
         // Devices must be able to access each others memory
         int canAccessPeer = 0;
-        CUDA_CHECK(cudaDeviceCanAccessPeer(&canAccessPeer, devA, devB));
+        HIP_CHECK(hipDeviceCanAccessPeer(&canAccessPeer, devA, devB));
         GLOO_ENFORCE_EQ(
             1,
             canAccessPeer,
@@ -81,20 +81,20 @@ class CudaLocalNativeReduce : public LocalOp<T> {
             devB);
 
         // Enable peer access for devA to memory on devB
-        CUDA_CHECK(cudaSetDevice(devA));
-        cudaDeviceEnablePeerAccess(devB, 0);
+        HIP_CHECK(hipSetDevice(devA));
+        hipDeviceEnablePeerAccess(devB, 0);
 
-        // Use cudaGetLastError so that any error is cleared.
-        auto err = cudaGetLastError();
-        if (err != cudaErrorPeerAccessAlreadyEnabled) {
-          CUDA_CHECK(err);
+        // Use hipGetLastError so that any error is cleared.
+        auto err = hipGetLastError();
+        if (err != hipErrorPeerAccessAlreadyEnabled) {
+          HIP_CHECK(err);
         }
       }
     }
   }
 
   virtual void runAsync() {
-    CudaDeviceGuard guard;
+    HipDeviceGuard guard;
     for (auto i = 0; i < steps_; i++) {
       auto sz = 1 << i;
       for (auto j = 0; j < numPtrs_; j += sz * 2) {
@@ -104,16 +104,16 @@ class CudaLocalNativeReduce : public LocalOp<T> {
         auto& streamB = streams_[indexB];
 
         // Record event on secondary stream
-        CUDA_CHECK(cudaSetDevice(devicePtrs_[indexB].getDeviceID()));
-        CUDA_CHECK(cudaEventRecord(
+        HIP_CHECK(hipSetDevice(devicePtrs_[indexB].getDeviceID()));
+        HIP_CHECK(hipEventRecord(
                        streamB.getEvent(),
                        streamB.getStream()));
 
         // Make primary stream wait for secondary stream.
         // This ensures any operations on the source pointer
         // have finished before we start the reduction.
-        CUDA_CHECK(cudaSetDevice(devicePtrs_[indexA].getDeviceID()));
-        CUDA_CHECK(cudaStreamWaitEvent(
+        HIP_CHECK(hipSetDevice(devicePtrs_[indexA].getDeviceID()));
+        HIP_CHECK(hipStreamWaitEvent(
                        streamA.getStream(),
                        streamB.getEvent(),
                        0));
@@ -139,22 +139,22 @@ class CudaLocalNativeReduce : public LocalOp<T> {
   }
 
  protected:
-  std::vector<CudaStream>& streams_;
-  std::vector<CudaDevicePointer<T> > devicePtrs_;
+  std::vector<HipStream>& streams_;
+  std::vector<HipDevicePointer<T> > devicePtrs_;
   Dst targetPtr_;
-  const CudaReductionFunction<T>* fn_;
+  const HipReductionFunction<T>* fn_;
   const int numPtrs_;
   const int steps_;
   std::vector<int> indices_;
 };
 
-// Below works both for CudaHostPointer and CudaDevicePointer
+// Below works both for HipHostPointer and HipDevicePointer
 template <typename T, typename Src>
-class CudaLocalNativeBroadcast : public LocalOp<T> {
+class HipLocalNativeBroadcast : public LocalOp<T> {
  public:
-  CudaLocalNativeBroadcast(
-      std::vector<CudaStream>& streams,
-      std::vector<CudaDevicePointer<T> >& devicePtrs,
+  HipLocalNativeBroadcast(
+      std::vector<HipStream>& streams,
+      std::vector<HipDevicePointer<T> >& devicePtrs,
       Src& sourcePtr,
       size_t offset,
       size_t count)
@@ -173,7 +173,7 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
     }
 
     // Initialize
-    CudaDeviceGuard guard;
+    HipDeviceGuard guard;
     for (auto i = steps_ - 1; i >= 0; i--) {
       auto sz = 1 << i;
       for (auto j = 0; j < numPtrs_; j += sz * 2) {
@@ -189,7 +189,7 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
 
         // Devices must be able to access each others memory
         int canAccessPeer = 0;
-        CUDA_CHECK(cudaDeviceCanAccessPeer(&canAccessPeer, devA, devB));
+        HIP_CHECK(hipDeviceCanAccessPeer(&canAccessPeer, devA, devB));
         GLOO_ENFORCE_EQ(
             1,
             canAccessPeer,
@@ -199,20 +199,20 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
             devB);
 
         // Enable peer access for devA to memory on devB
-        CUDA_CHECK(cudaSetDevice(devA));
-        cudaDeviceEnablePeerAccess(devB, 0);
+        HIP_CHECK(hipSetDevice(devA));
+        hipDeviceEnablePeerAccess(devB, 0);
 
-        // Use cudaGetLastError so that any error is cleared.
-        auto err = cudaGetLastError();
-        if (err != cudaErrorPeerAccessAlreadyEnabled) {
-          CUDA_CHECK(err);
+        // Use hipGetLastError so that any error is cleared.
+        auto err = hipGetLastError();
+        if (err != hipErrorPeerAccessAlreadyEnabled) {
+          HIP_CHECK(err);
         }
       }
     }
   }
 
   virtual void runAsync() {
-    CudaDeviceGuard guard;
+    HipDeviceGuard guard;
 
     // Copy from source ptr to first device ptr
     streams_[0].copyAsync(devicePtrs_[0], sourcePtr_);
@@ -227,18 +227,18 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
         auto& streamB = streams_[indexB];
 
         // Record event on target stream
-        CUDA_CHECK(cudaSetDevice(
+        HIP_CHECK(hipSetDevice(
                        devicePtrs_[indexB].getDeviceID()));
-        CUDA_CHECK(cudaEventRecord(
+        HIP_CHECK(hipEventRecord(
                        streamB.getEvent(),
                        streamB.getStream()));
 
         // Make source stream wait on target stream.
         // This ensures any operations on the target pointer
         // have finished before we start the copy.
-        CUDA_CHECK(cudaSetDevice(
+        HIP_CHECK(hipSetDevice(
                        devicePtrs_[indexA].getDeviceID()));
-        CUDA_CHECK(cudaStreamWaitEvent(
+        HIP_CHECK(hipStreamWaitEvent(
                        streamA.getStream(),
                        streamB.getEvent(),
                        0));
@@ -247,18 +247,18 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
         // stream. This ensures that in the next iteration of this
         // loop the target can be used as source while knowing the
         // previous copy has completed.
-        CUDA_CHECK(cudaMemcpyAsync(
+        HIP_CHECK(hipMemcpyAsync(
                        *devicePtrs_[indexB],
                        *devicePtrs_[indexA],
                        count_ * sizeof(T),
-                       cudaMemcpyDeviceToDevice,
+                       hipMemcpyDeviceToDevice,
                        streamA.getStream()));
-        CUDA_CHECK(cudaEventRecord(
+        HIP_CHECK(hipEventRecord(
                        streamA.getEvent(),
                        streamA.getStream()));
-        CUDA_CHECK(cudaSetDevice(
+        HIP_CHECK(hipSetDevice(
                        devicePtrs_[indexB].getDeviceID()));
-        CUDA_CHECK(cudaStreamWaitEvent(
+        HIP_CHECK(hipStreamWaitEvent(
                        streamB.getStream(),
                        streamA.getEvent(),
                        0));
@@ -266,7 +266,7 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
         // Emit event on the target stream so we can wait on all
         // events in the wait() function. Otherwise waiting on
         // this event would NOT indicate completion.
-        CUDA_CHECK(cudaEventRecord(
+        HIP_CHECK(hipEventRecord(
                        streamB.getEvent(),
                        streamB.getStream()));
       }
@@ -282,8 +282,8 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
   }
 
  protected:
-  std::vector<CudaStream>& streams_;
-  std::vector<CudaDevicePointer<T> > devicePtrs_;
+  std::vector<HipStream>& streams_;
+  std::vector<HipDevicePointer<T> > devicePtrs_;
   Src sourcePtr_;
   const int count_;
   const int numPtrs_;
