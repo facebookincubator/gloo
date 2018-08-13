@@ -48,6 +48,14 @@ if(USE_CUDA)
   endif()
 endif()
 
+if(USE_HIP)
+  include(cmake/LoadHIP.cmake)
+  if(NOT HAVE_HIP)
+    message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_HIP=OFF.")
+    set(USE_HIP OFF)
+  endif()
+endif()
+
 if(USE_CUDA AND USE_NCCL)
   # NCCL_EXTERNAL is set if using the Caffe2 bundled version of NCCL
   if(NCCL_EXTERNAL)
@@ -63,6 +71,23 @@ if(USE_CUDA AND USE_NCCL)
       set(USE_NCCL OFF)
     endif()
   endif()
+endif()
+
+if(USE_HIP AND USE_RCCL)
+  ## RCCL_EXTERNAL is set if using the Caffe2 bundled version of RCCL
+  #if(RCCL_EXTERNAL)
+  #  include_directories(SYSTEM ${RCCL_INCLUDE_DIRS})
+  #  list(APPEND gloo_hip_DEPENDENCY_LIBS ${RCCL_LIBRARIES} dl rt)
+  #else()
+  #  find_package(rccl REQUIRED)
+  #  if(RCCL_FOUND)
+  #    include_directories(SYSTEM ${RCCL_INCLUDE_DIRS})
+  #    list(APPEND gloo_hip_DEPENDENCY_LIBS ${RCCL_LIBRARIES} dl rt)
+  #  else()
+  #    message(WARNING "Not compiling with RCCL support. Suppress this warning with -DUSE_RCCL=OFF.")
+  #    set(USE_RCCL OFF)
+  #  endif()
+  #endif()
 endif()
 
 # Make sure we can find googletest if building the tests
