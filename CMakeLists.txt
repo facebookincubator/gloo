@@ -24,11 +24,13 @@ option(BUILD_BENCHMARK "Build benchmark binary (requires hiredis)" OFF)
 set(USE_REDIS_DEFAULT OFF)
 set(USE_IBVERBS_DEFAULT OFF)
 set(USE_NCCL_DEFAULT OFF)
+set(USE_RCCL_DEFAULT OFF)
 
 # Options
 option(USE_REDIS "Support using Redis for rendezvous" ${USE_REDIS_DEFAULT})
 option(USE_IBVERBS "Support ibverbs transport" ${USE_IBVERBS_DEFAULT})
 option(USE_NCCL "Support using NCCL for local collectives" ${USE_NCCL_DEFAULT})
+option(USE_RCCL "Support using RCCL for local collectives" ${USE_RCCL_DEFAULT})
 
 # Set default build type
 if(NOT CMAKE_BUILD_TYPE)
