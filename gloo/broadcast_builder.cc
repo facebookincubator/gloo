@@ -17,6 +17,10 @@
 #include "gloo/cuda_broadcast_one_to_all.h"
 #endif
 
+#if GLOO_USE_HIP
+#include "gloo/hip_broadcast_one_to_all.h"
+#endif
+
 namespace gloo {
 
 template <typename T>
@@ -26,7 +30,7 @@ BroadcastBuilder<T>::BroadcastBuilder() :
     rootRank_(0),
     rootPointerRank_(0) {
   // Expect downstream code to set all properties
-#if GLOO_USE_CUDA
+#if GLOO_USE_CUDA || GLOO_USE_HIP
   streams_.clear();
   gpuDirect_ = false;
 #endif
