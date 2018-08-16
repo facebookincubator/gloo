@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "gloo/cuda.h"
+#include "gloo/hip.h"
 
 namespace gloo {
 
