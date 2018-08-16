@@ -74,7 +74,7 @@ template<typename T>
 void HipMemory<T>::set(int val, size_t stride, hipStream_t stream) {
   HipDeviceScope scope(device_);
   if (stream == kStreamNotSet) {
-   hipLaunchKernelGGL( initializeMemory<T>, dim3(1), dim3(3)2, 0, 0, ptr_, val, elements, stride);
+   hipLaunchKernelGGL( initializeMemory<T>, dim3(1), dim3(32), 0, 0, ptr_, val, elements, stride);
   } else {
    hipLaunchKernelGGL( initializeMemory<T>, dim3(1), dim3(32), 0, stream, ptr_, val, elements, stride);
   }
