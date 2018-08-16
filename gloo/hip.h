@@ -13,7 +13,8 @@
 #include <atomic>
 #include <mutex>
 
-#include <hip/hip_runtime.h>
+#include <hip.h>
+#include <hip_runtime.h>
 
 #include "gloo/algorithm.h"
 #include "gloo/config.h"
@@ -21,7 +22,7 @@
 
 // Check that configuration header was properly generated
 #if !GLOO_USE_HIP
-#error "Expected GLOO_USE_HIP to be defined"
+//#error "Expected GLOO_USE_HIP to be defined"
 #endif
 
 namespace gloo {
@@ -39,12 +40,12 @@ class HipReductionFunction;
 
 class HipShared {
  public:
-  // Get the mutex used to synchronize HIP and RCCL operations
+  // Get the mutex used to synchronize HIP and NCCL operations
   static std::mutex& getMutex() {
     return *mutex_;
   }
 
-  // Set the mutex used to synchronize HIP and RCCL operations
+  // Set the mutex used to synchronize HIP and NCCL operations
   static void setMutex(std::mutex* m) {
     mutex_ = m;
   }
@@ -53,14 +54,14 @@ class HipShared {
   static std::atomic<std::mutex*> mutex_;
 };
 
-class HipShared {
+class HipStream {
  public:
-  explicit HipShared(int deviceId, hipStream_t stream = kStreamNotSet);
+  explicit HipStream(int deviceId, hipStream_t stream = kStreamNotSet);
 
   // Move constructor
-  HipShared(HipShared&& other) noexcept;
+  HipStream(HipStream&& other) noexcept;
 
-  ~HipShared();
+  ~HipStream();
 
   hipStream_t operator*() const {
     return stream_;
@@ -93,8 +94,8 @@ class HipShared {
 
  protected:
   // Instances cannot be copied or copy-assigned
-  HipShared(const HipShared&) = delete;
-  HipShared& operator=(const HipShared&) = delete;
+  HipStream(const HipStream&) = delete;
+  HipStream& operator=(const HipStream&) = delete;
 
   // GPU that the stream belongs to.
   int deviceId_;
@@ -107,7 +108,7 @@ class HipShared {
   hipEvent_t event_;
 
   // If no stream is specified at construction time, this class
-  // allocates a new stream for operations against CUDA pointers.
+  // allocates a new stream for operations against HIP pointers.
   // Record whether or not this instance is a stream's owner so that
   // it is destroyed when this instance is destructed.
   bool streamOwner_;
@@ -257,7 +258,7 @@ template <typename T, typename Src, typename Dst>
 class HipLocalMemcpy : public LocalOp<T> {
  public:
   HipLocalMemcpy(
-    HipShared& stream,
+    HipStream& stream,
     Src& src,
     Dst& dst,
     size_t offset,
@@ -275,7 +276,7 @@ class HipLocalMemcpy : public LocalOp<T> {
   }
 
  protected:
-  HipShared& stream_;
+  HipStream& stream_;
   Src src_;
   Dst dst_;
 };
@@ -318,7 +319,7 @@ class HipReductionFunction {
   }
 
   // Backwards compatibility.
-  // Can be removed when all CUDA algorithms use HipHostPointer.
+  // Can be removed when all HIP algorithms use HipHostPointer.
   void call(T* x, const T* y, size_t n) const {
     hostFn_(x, y, n);
   }
@@ -327,9 +328,9 @@ class HipReductionFunction {
       HipHostPointer<T>& dst,
       const HipHostPointer<T>& src,
       size_t n,
-      HipShared& stream) const {
+      HipStream& stream) const {
     // The specified stream may still have a memcpy in flight to
-    // either of the CudaHostPointers. Wait on the stream to make sure
+    // either of the HipHostPointers. Wait on the stream to make sure
     // they have finished before executing the reduction function.
     stream.wait();
     hostFn_(*dst, *src, n);
@@ -339,7 +340,7 @@ class HipReductionFunction {
       HipDevicePointer<T>& dst,
       const HipDevicePointer<T>& src,
       size_t n,
-      HipShared& stream) const {
+      HipStream& stream) const {
     deviceFn_(*dst, *src, n, *stream);
     stream.record();
   }
