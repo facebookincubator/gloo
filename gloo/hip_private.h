@@ -42,7 +42,7 @@ inline int getCurrentGPUID() {
 }
 
 inline int getGPUIDForPointer(const void* ptr) {
-  hipPointerAttributes attr;
+  hipPointerAttribute_t attr;
   HIP_CHECK(hipPointerGetAttributes(&attr, ptr));
   return attr.device;
 }

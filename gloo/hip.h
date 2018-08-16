@@ -119,7 +119,7 @@ class BuilderHelpers {
     // Checks if all the pointers are GPU pointers.
     static bool checkAllPointersGPU(std::vector<T*> inputs){
       return std::all_of(inputs.begin(), inputs.end(), [](const T* ptr) {
-        hipPointerAttributes attr;
+        hipPointerAttribute_t attr;
         auto rv = hipPointerGetAttributes(&attr, ptr);
         return rv == hipSuccess && attr.memoryType == hipMemoryTypeDevice;
       });
