@@ -29,10 +29,11 @@ HipStream::HipStream(int deviceId, hipStream_t stream)
 
   // Create new stream if it wasn't specified
   if (stream_ == kStreamNotSet) {
-    int loPri, hiPri;
-    HIP_CHECK(hipDeviceGetStreamPriorityRange(&loPri, &hiPri));
-    HIP_CHECK(hipStreamCreateWithPriority(
-                 &stream_, hipStreamNonBlocking, hiPri));
+    //int loPri, hiPri;
+    //HIP_CHECK(hipDeviceGetStreamPriorityRange(&loPri, &hiPri));
+    //HIP_CHECK(hipStreamCreateWithPriority(
+    //             &stream_, hipStreamNonBlocking, hiPri));
+    HIP_CHECK(hipStreamCreate(&stream_));
     streamOwner_ = true;
   }
 
