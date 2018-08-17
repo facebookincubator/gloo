@@ -305,7 +305,7 @@ static inline int hipGetBlocks(const int N) {
     const T* src,                                                       \
     size_t n,                                                           \
     const hipStream_t stream) {                                        \
-    _Kernel_##T##_#hipLaunchKernelGGL(#Funcname,                                          \
+    hipLaunchKernelGGL(_Kernel_##T##_##Funcname,                                          \
       hipGetBlocks(n),                                                 \
       kHipNumThreads,                                                  \
       0,                                                                \
@@ -328,7 +328,7 @@ static inline int hipGetBlocks(const int N) {
       const float16* src,                                                      \
       size_t n,                                                                \
       const hipStream_t stream) {                                             \
-    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
+    hipLaunchKernelGGL(_Kernel_half_##Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
         (half*)dst, (half*)src, n);                                            \
   }
 
@@ -366,7 +366,7 @@ DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(hipProduct, *);
     const T* src,                                                       \
     size_t n,                                                           \
     const hipStream_t stream) {                                        \
-    _Kernel_##T##_#hipLaunchKernelGGL(#Funcname,                                          \
+    hipLaunchKernelGGL(_Kernel_##T##_##Funcname,                                          \
       hipGetBlocks(n),                                                 \
       kHipNumThreads,                                                  \
       0,                                                                \
@@ -390,7 +390,7 @@ DELEGATE_HALF_PRECISION_HIP_BINARY_OPERATOR(hipProduct, *);
       const float16* src,                                                      \
       size_t n,                                                                \
       const hipStream_t stream) {                                             \
-    _Kernel_half_#hipLaunchKernelGGL(#Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
+    hipLaunchKernelGGL(_Kernel_half_##Funcname, dim3(hipGetBlocks(n)), dim3(kHipNumThreads), 0, stream,  \
         (half*)dst, (half*)src, n);                                            \
   }
 
