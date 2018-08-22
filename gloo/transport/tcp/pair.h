@@ -136,7 +136,7 @@ class Pair : public ::gloo::transport::Pair {
   std::exception_ptr ex_;
 
   bool write(Op& op);
-  bool read(Op& op);
+  bool read();
 
   void handleListening();
   void handleConnecting();

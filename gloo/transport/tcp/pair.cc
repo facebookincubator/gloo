@@ -134,7 +134,6 @@ void Pair::setSync(bool sync, bool busyPoll) {
     if (tx_.buf != nullptr) {
       auto rv = write(tx_);
       GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-      memset(&tx_, 0, sizeof(tx_));
     }
   }
 
@@ -352,6 +351,7 @@ bool Pair::write(Op& op) {
     op.buf->handleSendCompletion();
   }
 
+  memset(&op, 0, sizeof(op));
   return true;
 }
 
@@ -362,10 +362,11 @@ bool Pair::write(Op& op) {
 // In either case, the lock is held and the read function
 // below inherits it.
 //
-bool Pair::read(Op& op) {
+bool Pair::read() {
   verifyConnected();
 
   auto start = std::chrono::steady_clock::now();
+  auto& op = rx_;
 
   for (;;) {
     struct iovec iov;
@@ -476,6 +477,7 @@ bool Pair::read(Op& op) {
     op.buf->handleRecvCompletion();
   }
 
+  memset(&op, 0, sizeof(op));
   return true;
 }
 
@@ -503,7 +505,6 @@ void Pair::handleEvents(int events) {
             tx_.buf != nullptr,
             "tx_.buf cannot be NULL because EPOLLOUT happened");
         if (write(tx_)) {
-          memset(&tx_, 0, sizeof(tx_));
           dev_->registerDescriptor(fd_, EPOLLIN, this);
           cv_.notify_all();
         } else {
@@ -511,8 +512,8 @@ void Pair::handleEvents(int events) {
         }
       }
       if (events & EPOLLIN) {
-        while (read(rx_)) {
-          memset(&rx_, 0, sizeof(rx_));
+        while (read()) {
+          // Keep going
         }
       }
       return;
@@ -771,9 +772,8 @@ void Pair::recv() {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
-  auto rv = read(rx_);
+  auto rv = read();
   GLOO_ENFORCE(rv, "Read must always succeed in sync mode");
-  memset(&rx_, 0, sizeof(rx_));
 }
 
 std::unique_ptr<::gloo::transport::Buffer>
