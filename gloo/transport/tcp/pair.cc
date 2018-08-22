@@ -131,10 +131,10 @@ void Pair::setSync(bool sync, bool busyPoll) {
     setSocketBlocking(fd_, true);
 
     // If the pair was still flushing a write, finish it.
-    if (tx_.buf_ != nullptr) {
+    if (tx_.buf != nullptr) {
       auto rv = write(tx_);
       GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-      tx_.buf_->handleSendCompletion();
+      tx_.buf->handleSendCompletion();
       memset(&tx_, 0, sizeof(tx_));
     }
   }
@@ -285,21 +285,21 @@ bool Pair::write(Op& op) {
     nbytes = 0;
 
     // Include preamble if necessary
-    if (op.nwritten_ < sizeof(op.preamble_)) {
-      iov[ioc].iov_base = ((char*)&op.preamble_) + op.nwritten_;
-      iov[ioc].iov_len = sizeof(op.preamble_) - op.nwritten_;
+    if (op.nwritten < sizeof(op.preamble)) {
+      iov[ioc].iov_base = ((char*)&op.preamble) + op.nwritten;
+      iov[ioc].iov_len = sizeof(op.preamble) - op.nwritten;
       nbytes += iov[ioc].iov_len;
       ioc++;
     }
 
     // Include remaining piece of buffer
-    size_t offset = op.preamble_.offset_;
-    size_t length = op.preamble_.length_;
-    if (op.nwritten_ > sizeof(op.preamble_)) {
-      offset += op.nwritten_ - sizeof(op.preamble_);
-      length -= op.nwritten_ - sizeof(op.preamble_);
+    size_t offset = op.preamble.offset;
+    size_t length = op.preamble.length;
+    if (op.nwritten > sizeof(op.preamble)) {
+      offset += op.nwritten - sizeof(op.preamble);
+      length -= op.nwritten - sizeof(op.preamble);
     }
-    iov[ioc].iov_base = ((char*)op.buf_->ptr_) + offset;
+    iov[ioc].iov_base = ((char*)op.buf->ptr_) + offset;
     iov[ioc].iov_len = length;
     nbytes += iov[ioc].iov_len;
     ioc++;
@@ -338,7 +338,7 @@ bool Pair::write(Op& op) {
     // since an EINTR may or may not have happened. If this was not
     // the case, and the kernel buffer is full, the next call to
     // write(2) will return EAGAIN, which is handled appropriately.
-    op.nwritten_ += rv;
+    op.nwritten += rv;
     if (rv < nbytes) {
       continue;
     }
@@ -365,30 +365,30 @@ bool Pair::read(Op& op) {
   for (;;) {
     struct iovec iov;
 
-    if (op.nread_ < sizeof(op.preamble_)) {
+    if (op.nread < sizeof(op.preamble)) {
       // Read preamble
-      iov.iov_base = ((char*)&op.preamble_) + op.nread_;
-      iov.iov_len = sizeof(op.preamble_) - op.nread_;
+      iov.iov_base = ((char*)&op.preamble) + op.nread;
+      iov.iov_len = sizeof(op.preamble) - op.nread;
     } else {
       // Read payload
-      if (op.buf_ == nullptr) {
-        op.buf_ = getBuffer(op.preamble_.slot_);
+      if (op.buf == nullptr) {
+        op.buf = getBuffer(op.preamble.slot);
         // Buffer not (yet) registered, leave it for next loop iteration
-        if (op.buf_ == nullptr) {
+        if (op.buf == nullptr) {
           return false;
         }
       }
-      auto offset = op.nread_ - sizeof(op.preamble_);
-      iov.iov_base = ((char*)op.buf_->ptr_) + offset + op.preamble_.roffset_;
-      iov.iov_len = op.preamble_.length_ - offset;
+      auto offset = op.nread - sizeof(op.preamble);
+      iov.iov_base = ((char*)op.buf->ptr_) + offset + op.preamble.roffset;
+      iov.iov_len = op.preamble.length - offset;
 
       // There must always be a non-zero number of bytes to read
       GLOO_ENFORCE_GT(iov.iov_len, 0);
 
       // Bytes read must be in bounds for target buffer
       GLOO_ENFORCE_LE(
-          op.preamble_.roffset_ + op.preamble_.length_,
-          op.buf_->size_);
+          op.preamble.roffset + op.preamble.length,
+          op.buf->size_);
     }
 
     // If busy-poll has been requested AND sync mode has been enabled for pair
@@ -453,15 +453,15 @@ bool Pair::read(Op& op) {
       }
     }
 
-    op.nread_ += rv;
+    op.nread += rv;
 
     // Verify the payload is non-empty after reading preamble
-    if (op.nread_ == sizeof(op.preamble_)) {
-      GLOO_ENFORCE_NE(op.preamble_.length_, 0);
+    if (op.nread == sizeof(op.preamble)) {
+      GLOO_ENFORCE_NE(op.preamble.length, 0);
     }
 
     // Return if op is complete
-    if (op.nread_ == sizeof(op.preamble_) + op.preamble_.length_) {
+    if (op.nread == sizeof(op.preamble) + op.preamble.length) {
       return true;
     }
   }
@@ -488,10 +488,10 @@ void Pair::handleEvents(int events) {
     if (state_ == CONNECTED) {
       if (events & EPOLLOUT) {
         GLOO_ENFORCE(
-            tx_.buf_ != nullptr,
-            "tx_.buf_ cannot be NULL because EPOLLOUT happened");
+            tx_.buf != nullptr,
+            "tx_.buf cannot be NULL because EPOLLOUT happened");
         if (write(tx_)) {
-          tx_.buf_->handleSendCompletion();
+          tx_.buf->handleSendCompletion();
           memset(&tx_, 0, sizeof(tx_));
           dev_->registerDescriptor(fd_, EPOLLIN, this);
           cv_.notify_all();
@@ -501,7 +501,7 @@ void Pair::handleEvents(int events) {
       }
       if (events & EPOLLIN) {
         while (read(rx_)) {
-          rx_.buf_->handleRecvCompletion();
+          rx_.buf->handleRecvCompletion();
           memset(&rx_, 0, sizeof(rx_));
         }
       }
@@ -720,7 +720,7 @@ void Pair::send(Op& op) {
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
   size_t size = std::min(
-      (sizeof(op.preamble_) + op.preamble_.length_),
+      (sizeof(op.preamble) + op.preamble.length),
       kMaxSendBufferSize);
   if (sendBufferSize_ < size) {
     int rv;
@@ -736,10 +736,10 @@ void Pair::send(Op& op) {
   // Wait until event loop has finished current write. No need to wait for
   // timeout here. If necessary, the ongoing write op will timeout and signal
   // this thread.
-  if (!sync_ && tx_.buf_ != nullptr) {
+  if (!sync_ && tx_.buf != nullptr) {
     cv_.wait(lock, [&]{
       checkErrorState();
-      return tx_.buf_ == nullptr;
+      return tx_.buf == nullptr;
     });
   }
 
@@ -747,11 +747,11 @@ void Pair::send(Op& op) {
   if (sync_) {
     auto rv = write(op);
     GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-    op.buf_->handleSendCompletion();
+    op.buf->handleSendCompletion();
   } else {
     // Write immediately without checking socket for writeability.
     if (write(op)) {
-      op.buf_->handleSendCompletion();
+      op.buf->handleSendCompletion();
       return;
     }
 
@@ -767,7 +767,7 @@ void Pair::recv() {
 
   auto rv = read(rx_);
   GLOO_ENFORCE(rv, "Read must always succeed in sync mode");
-  rx_.buf_->handleRecvCompletion();
+  rx_.buf->handleRecvCompletion();
   memset(&rx_, 0, sizeof(rx_));
 }
 

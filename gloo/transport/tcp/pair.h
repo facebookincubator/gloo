@@ -35,17 +35,17 @@ class Buffer;
 
 struct Op {
   struct {
-    size_t opcode_;
-    size_t slot_;
-    size_t offset_;
-    size_t length_;
-    size_t roffset_;
-  } preamble_;
+    size_t opcode;
+    size_t slot;
+    size_t offset;
+    size_t length;
+    size_t roffset;
+  } preamble;
 
   // Used internally
-  Buffer* buf_;
-  size_t nread_;
-  size_t nwritten_;
+  Buffer* buf;
+  size_t nread;
+  size_t nwritten;
 };
 
 class Pair : public ::gloo::transport::Pair {
