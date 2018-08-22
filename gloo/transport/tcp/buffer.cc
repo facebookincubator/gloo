@@ -143,6 +143,7 @@ void Buffer::send(size_t offset, size_t length, size_t roffset) {
 
   memset(&op, 0, sizeof(op));
 
+  op.preamble.nbytes = sizeof(op.preamble) + length;
   op.preamble.opcode = 0;
   op.preamble.slot = slot_;
   op.preamble.offset = offset;

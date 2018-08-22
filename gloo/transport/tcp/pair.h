@@ -35,6 +35,7 @@ class Buffer;
 
 struct Op {
   struct {
+    size_t nbytes;
     size_t opcode;
     size_t slot;
     size_t offset;

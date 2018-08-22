@@ -344,6 +344,7 @@ bool Pair::write(Op& op) {
     }
 
     GLOO_ENFORCE_EQ(rv, nbytes);
+    GLOO_ENFORCE_EQ(op.nwritten, op.preamble.nbytes);
     break;
   }
 
@@ -461,7 +462,7 @@ bool Pair::read(Op& op) {
     }
 
     // Return if op is complete
-    if (op.nread == sizeof(op.preamble) + op.preamble.length) {
+    if (op.nread == op.preamble.nbytes) {
       return true;
     }
   }
@@ -719,9 +720,7 @@ void Pair::send(Op& op) {
 
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
-  size_t size = std::min(
-      (sizeof(op.preamble) + op.preamble.length),
-      kMaxSendBufferSize);
+  size_t size = std::min(op.preamble.nbytes, kMaxSendBufferSize);
   if (sendBufferSize_ < size) {
     int rv;
     size_t optval = size;
