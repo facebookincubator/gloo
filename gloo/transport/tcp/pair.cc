@@ -134,7 +134,6 @@ void Pair::setSync(bool sync, bool busyPoll) {
     if (tx_.buf != nullptr) {
       auto rv = write(tx_);
       GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-      tx_.buf->handleSendCompletion();
       memset(&tx_, 0, sizeof(tx_));
     }
   }
@@ -348,6 +347,11 @@ bool Pair::write(Op& op) {
     break;
   }
 
+  // Write completed
+  if (op.buf != nullptr) {
+    op.buf->handleSendCompletion();
+  }
+
   return true;
 }
 
@@ -463,9 +467,16 @@ bool Pair::read(Op& op) {
 
     // Return if op is complete
     if (op.nread == op.preamble.nbytes) {
-      return true;
+      break;
     }
   }
+
+  // Read completed
+  if (op.buf != nullptr) {
+    op.buf->handleRecvCompletion();
+  }
+
+  return true;
 }
 
 void Pair::handleEvents(int events) {
@@ -492,7 +503,6 @@ void Pair::handleEvents(int events) {
             tx_.buf != nullptr,
             "tx_.buf cannot be NULL because EPOLLOUT happened");
         if (write(tx_)) {
-          tx_.buf->handleSendCompletion();
           memset(&tx_, 0, sizeof(tx_));
           dev_->registerDescriptor(fd_, EPOLLIN, this);
           cv_.notify_all();
@@ -502,7 +512,6 @@ void Pair::handleEvents(int events) {
       }
       if (events & EPOLLIN) {
         while (read(rx_)) {
-          rx_.buf->handleRecvCompletion();
           memset(&rx_, 0, sizeof(rx_));
         }
       }
@@ -746,11 +755,9 @@ void Pair::send(Op& op) {
   if (sync_) {
     auto rv = write(op);
     GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-    op.buf->handleSendCompletion();
   } else {
     // Write immediately without checking socket for writeability.
     if (write(op)) {
-      op.buf->handleSendCompletion();
       return;
     }
 
@@ -766,7 +773,6 @@ void Pair::recv() {
 
   auto rv = read(rx_);
   GLOO_ENFORCE(rv, "Read must always succeed in sync mode");
-  rx_.buf->handleRecvCompletion();
   memset(&rx_, 0, sizeof(rx_));
 }
 
