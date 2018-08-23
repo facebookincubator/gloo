@@ -12,6 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <exception>
 #include <list>
 #include <map>
@@ -110,6 +111,8 @@ class Pair : public ::gloo::transport::Pair {
   void registerBuffer(Buffer* buf);
   void unregisterBuffer(Buffer* buf);
 
+  void sendSyncMode(Op& op);
+  void sendAsyncMode(Op& op);
   void send(Op& op);
   void recv();
 
@@ -130,8 +133,17 @@ class Pair : public ::gloo::transport::Pair {
   friend class Buffer;
 
  private:
+  // Maintain state of a single operation for receiving operations
+  // from the remote side of the pair.
   Op rx_;
-  Op tx_;
+
+  // Maintain state of multiple operations for transmitting operations
+  // to the remote side. To support send/recv of unbound buffers,
+  // transmission of notifications may be triggered from the event
+  // loop, where it is not possible to block and wait on other I/O
+  // operations to complete. Instead, if transmission cannot complete
+  // in place, it must be queued and executed later.
+  std::deque<Op> tx_;
 
   std::exception_ptr ex_;
 

@@ -57,7 +57,6 @@ Pair::Pair(
       sendBufferSize_(0),
       ex_(nullptr) {
   memset(&rx_, 0, sizeof(rx_));
-  memset(&tx_, 0, sizeof(tx_));
   listen();
 }
 
@@ -130,11 +129,12 @@ void Pair::setSync(bool sync, bool busyPoll) {
     dev_->unregisterDescriptor(fd_);
     setSocketBlocking(fd_, true);
 
-    // If the pair was still flushing a write, finish it.
-    if (tx_.buf != nullptr) {
-      auto rv = write(tx_);
+    // If the pair was still flushing writes, finish them.
+    for (auto& op : tx_) {
+      auto rv = write(op);
       GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
     }
+    tx_.clear();
   }
 
   sync_ = true;
@@ -351,7 +351,6 @@ bool Pair::write(Op& op) {
     op.buf->handleSendCompletion();
   }
 
-  memset(&op, 0, sizeof(op));
   return true;
 }
 
@@ -502,13 +501,21 @@ void Pair::handleEvents(int events) {
     if (state_ == CONNECTED) {
       if (events & EPOLLOUT) {
         GLOO_ENFORCE(
-            tx_.buf != nullptr,
-            "tx_.buf cannot be NULL because EPOLLOUT happened");
-        if (write(tx_)) {
+            !tx_.empty(),
+            "tx_ cannot be empty because EPOLLOUT happened");
+        while (!tx_.empty()) {
+          auto& op = tx_.front();
+          if (!write(op)) {
+            // Write did not complete; wait for epoll.
+            break;
+          }
+          // Write completed; remove from queue.
+          tx_.pop_front();
+        }
+
+        // If there is nothing to transmit; remove EPOLLOUT.
+        if (tx_.empty()) {
           dev_->registerDescriptor(fd_, EPOLLIN, this);
-          cv_.notify_all();
-        } else {
-          // Write didn't complete, wait for epoll again
         }
       }
       if (events & EPOLLIN) {
@@ -719,6 +726,39 @@ void Pair::verifyConnected() {
   }
 }
 
+// Sends contents of operation to the remote side of the pair.
+// The pair's mutex is held when this function is called.
+// Only applicable to synchronous mode. May block.
+void Pair::sendSyncMode(Op& op) {
+  GLOO_ENFORCE(sync_);
+  auto rv = write(op);
+  GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
+}
+
+// Sends contents of operation to the remote side of the pair.
+// The pair's mutex is held when this function is called.
+// Only applicable to asynchronous mode. Never blocks.
+void Pair::sendAsyncMode(Op& op) {
+  GLOO_ENFORCE(!sync_);
+
+  // If an earlier operation hasn't finished transmitting,
+  // add this operation to the transmit queue.
+  if (!tx_.empty()) {
+    tx_.push_back(std::move(op));
+    return;
+  }
+
+  // Write in place without checking socket for writeability.
+  // This is the fast path.
+  if (write(op)) {
+    return;
+  }
+
+  // Write didn't complete; pass to event loop
+  tx_.push_back(std::move(op));
+  dev_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
+}
+
 void Pair::send(Op& op) {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
@@ -742,29 +782,11 @@ void Pair::send(Op& op) {
     sendBufferSize_ = optval;
   }
 
-  // Wait until event loop has finished current write. No need to wait for
-  // timeout here. If necessary, the ongoing write op will timeout and signal
-  // this thread.
-  if (!sync_ && tx_.buf != nullptr) {
-    cv_.wait(lock, [&]{
-      checkErrorState();
-      return tx_.buf == nullptr;
-    });
-  }
-
   // Write to socket
   if (sync_) {
-    auto rv = write(op);
-    GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
+    sendSyncMode(op);
   } else {
-    // Write immediately without checking socket for writeability.
-    if (write(op)) {
-      return;
-    }
-
-    // Write didn't complete; pass to event loop
-    tx_ = op;
-    dev_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
+    sendAsyncMode(op);
   }
 }
 
