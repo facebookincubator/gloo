@@ -30,6 +30,12 @@ class Context {
 
   std::unique_ptr<transport::Pair>& getPair(int i);
 
+  // Factory function to create an unbound buffer for use with the
+  // transport used for this context. Use this function to avoid tying
+  // downstream code to a specific transport.
+  std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
+      void* ptr, size_t size);
+
   int nextSlot(int numToSkip = 1);
 
   void closeConnections();

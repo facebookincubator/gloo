@@ -1,0 +1,41 @@
+/**
+ * Copyright (c) 2018-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ */
+
+#pragma once
+
+#include <cstddef>
+
+namespace gloo {
+namespace transport {
+
+// The unbound buffer class represents a chunk of memory.
+// It can either be used as a source for send operations or a
+// destination for receive operations, or both. There should only be a
+// single pending operation against an unbound buffer at any given
+// time, or resulting behavior is undefined.
+//
+// It is called unbound to contrast with the bound buffers that have
+// been available since the inception of Gloo. It is unbound in that
+// it is not tied to a particular pair.
+//
+class UnboundBuffer {
+ public:
+  UnboundBuffer(void* ptr, size_t size)
+      : ptr(ptr), size(size) {}
+  virtual ~UnboundBuffer() = 0;
+
+  void* const ptr;
+  const size_t size;
+
+  virtual void waitRecv() = 0;
+  virtual void waitSend() = 0;
+};
+
+} // namespace transport
+} // namespace gloo

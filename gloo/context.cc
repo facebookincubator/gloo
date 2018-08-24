@@ -39,6 +39,11 @@ std::unique_ptr<transport::Pair>& Context::getPair(int i) {
   return pairs_.at(i);
 }
 
+std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
+    void* ptr, size_t size) {
+  return device_->createUnboundBuffer(ptr, size);
+}
+
 int Context::nextSlot(int numToSkip) {
   GLOO_ENFORCE_GT(numToSkip, 0);
   auto temp = slot_;

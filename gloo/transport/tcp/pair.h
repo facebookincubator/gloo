@@ -18,6 +18,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <sys/socket.h>
@@ -34,7 +35,24 @@ namespace tcp {
 // Forward declaration
 class Buffer;
 
+// Forward declaration
+class UnboundBuffer;
+
 struct Op {
+  // Default constructor initializes everything to 0.
+  explicit Op();
+
+  enum Opcode {
+    SEND_BUFFER = 0,
+    SEND_UNBOUND_BUFFER = 1,
+    NOTIFY_SEND_READY = 2,
+    NOTIFY_RECV_READY = 3,
+  };
+
+  inline enum Opcode getOpcode() {
+    return static_cast<Opcode>(preamble.opcode);
+  }
+
   struct {
     size_t nbytes;
     size_t opcode;
@@ -46,6 +64,7 @@ struct Op {
 
   // Used internally
   Buffer* buf;
+  UnboundBuffer* ubuf;
   size_t nread;
   size_t nwritten;
 };
@@ -82,6 +101,12 @@ class Pair : public ::gloo::transport::Pair {
   virtual std::unique_ptr<::gloo::transport::Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) override;
 
+  // Send from the specified buffer to remote side of pair.
+  virtual void send(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
+  // Receive into the specified buffer from the remote side of pair.
+  virtual void recv(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
   void handleEvents(int events);
 
   void close() override;
@@ -103,6 +128,15 @@ class Pair : public ::gloo::transport::Pair {
   std::mutex m_;
   std::condition_variable cv_;
   std::map<int, Buffer*> buffers_;
+
+  std::unordered_map<uint64_t, tcp::UnboundBuffer*> localPendingSend_;
+  std::unordered_map<uint64_t, tcp::UnboundBuffer*> localPendingRecv_;
+  std::unordered_map<uint64_t, bool> remotePendingSend_;
+  std::unordered_map<uint64_t, bool> remotePendingRecv_;
+
+  void sendUnboundBuffer(tcp::UnboundBuffer* buf, uint64_t slot);
+  void sendNotifyRecvReady(const tcp::UnboundBuffer* buf, uint64_t slot);
+  void sendNotifySendReady(const tcp::UnboundBuffer* buf, uint64_t slot);
 
   void listen();
   void connect(const Address& peer);
@@ -147,8 +181,13 @@ class Pair : public ::gloo::transport::Pair {
 
   std::exception_ptr ex_;
 
+  ssize_t writeBuildIov(Op& op, struct iovec* iov, int& ioc);
   bool write(Op& op);
+  bool readBuildIov(Op& op, struct iovec& iov);
   bool read();
+
+  void handleRemotePendingSend(const Op& op);
+  void handleRemotePendingRecv(const Op& op);
 
   void handleListening();
   void handleConnecting();

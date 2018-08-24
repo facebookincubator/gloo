@@ -20,6 +20,7 @@ namespace transport {
 // Forward declarations
 class Pair;
 class Buffer;
+class UnboundBuffer;
 
 // The device abstraction can be considered as a factory for all
 // communication pairs. A communication pair can be associated with
@@ -44,6 +45,14 @@ class Device {
 
   virtual std::unique_ptr<Pair> createPair(
       std::chrono::milliseconds timeout) = 0;
+
+  // Factory function to create an unbound buffer for use with the
+  // transport used for this context. Use this function to avoid tying
+  // downstream code to a specific transport.
+  // The return value is not tied to this device and can be used with
+  // any devices/pairs of the same transport.
+  virtual std::unique_ptr<UnboundBuffer> createUnboundBuffer(
+      void* ptr, size_t size) = 0;
 };
 
 } // namespace transport

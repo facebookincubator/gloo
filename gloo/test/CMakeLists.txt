@@ -6,6 +6,7 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/linux_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"
   )
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})

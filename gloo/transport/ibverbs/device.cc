@@ -178,6 +178,13 @@ std::unique_ptr<transport::Pair> Device::createPair(
   return std::unique_ptr<transport::Pair>(pair);
 }
 
+std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
+    void* ptr, size_t size) {
+  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+      "Unbound buffers not supported yet for ibverbs transport");
+  return std::unique_ptr<transport::UnboundBuffer>();
+}
+
 void Device::loop() {
   int rv;
 

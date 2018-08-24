@@ -6,12 +6,14 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.cc"
       )
     list(APPEND GLOO_TRANSPORT_HDRS
       "${CMAKE_CURRENT_SOURCE_DIR}/address.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.h"
       )
 endif()
 

@@ -23,6 +23,7 @@
 #include "gloo/common/logging.h"
 #include "gloo/common/error.h"
 #include "gloo/transport/tcp/pair.h"
+#include "gloo/transport/tcp/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -244,6 +245,12 @@ std::unique_ptr<transport::Pair> Device::createPair(
   }
   auto pair = new Pair(shared_from_this(), timeout);
   return std::unique_ptr<transport::Pair>(pair);
+}
+
+std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
+    void* ptr, size_t size) {
+  auto buf = new tcp::UnboundBuffer(ptr, size);
+  return std::unique_ptr<transport::UnboundBuffer>(buf);
 }
 
 void Device::registerDescriptor(int fd, int events, Pair* p) {
