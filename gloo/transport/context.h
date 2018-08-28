@@ -36,8 +36,19 @@ class Context {
   const int rank;
   const int size;
 
-  virtual std::unique_ptr<Pair> createPair(
+  virtual std::unique_ptr<Pair>& getPair(int rank);
+
+  virtual std::unique_ptr<Pair>& createPair(
+      int rank,
       std::chrono::milliseconds timeout) = 0;
+
+ protected:
+  // Lifecycle of the pairs is managed by a std::unique_ptr of the
+  // base class. This is done because the public context API dictates
+  // that getPair() returns a reference to this type. Functions
+  // internal to this class can cast these points to the native
+  // transport specific type.
+  std::vector<std::unique_ptr<Pair>> pairs_;
 };
 
 } // namespace transport

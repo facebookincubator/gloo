@@ -12,6 +12,7 @@
 #include <memory>
 #include <vector>
 
+#include "gloo/transport/context.h"
 #include "gloo/transport/device.h"
 #include "gloo/transport/pair.h"
 

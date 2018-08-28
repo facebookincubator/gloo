@@ -24,13 +24,15 @@ Context::Context(std::shared_ptr<Device> device, int rank, int size)
 Context::~Context() {
 }
 
-std::unique_ptr<transport::Pair> Context::createPair(
+std::unique_ptr<transport::Pair>& Context::createPair(
+    int rank,
     std::chrono::milliseconds timeout) {
   if (timeout < std::chrono::milliseconds::zero()) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
   }
   auto pair = new Pair(device_, timeout);
-  return std::unique_ptr<transport::Pair>(pair);
+  pairs_[rank] = std::unique_ptr<transport::Pair>(pair);
+  return pairs_[rank];
 }
 
 } // namespace tcp

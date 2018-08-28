@@ -12,10 +12,16 @@
 namespace gloo {
 namespace transport {
 
-Context::Context(int rank, int size) : rank(rank), size(size) {}
+Context::Context(int rank, int size) : rank(rank), size(size) {
+  pairs_.resize(size);
+}
 
 // Have to provide implementation for pure virtual destructor.
 Context::~Context() {}
+
+std::unique_ptr<transport::Pair>& Context::getPair(int rank) {
+  return pairs_[rank];
+}
 
 } // namespace transport
 } // namespace gloo

@@ -26,7 +26,8 @@ class Context : public ::gloo::transport::Context {
 
   virtual ~Context();
 
-  std::unique_ptr<transport::Pair> createPair(
+  std::unique_ptr<transport::Pair>& createPair(
+      int rank,
       std::chrono::milliseconds timeout) override;
 
  protected:
