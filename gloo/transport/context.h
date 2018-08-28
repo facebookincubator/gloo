@@ -9,6 +9,11 @@
 
 #pragma once
 
+#include <chrono>
+#include <memory>
+
+#include "gloo/transport/pair.h"
+
 namespace gloo {
 namespace transport {
 
@@ -30,6 +35,9 @@ class Context {
 
   const int rank;
   const int size;
+
+  virtual std::unique_ptr<Pair> createPair(
+      std::chrono::milliseconds timeout) = 0;
 };
 
 } // namespace transport

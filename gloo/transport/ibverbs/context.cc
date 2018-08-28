@@ -9,7 +9,9 @@
 
 #include "gloo/transport/ibverbs/context.h"
 
+#include "gloo/common/error.h"
 #include "gloo/transport/ibverbs/device.h"
+#include "gloo/transport/ibverbs/pair.h"
 
 namespace gloo {
 namespace transport {
@@ -20,6 +22,15 @@ Context::Context(std::shared_ptr<Device> device, int rank, int size)
 }
 
 Context::~Context() {
+}
+
+std::unique_ptr<transport::Pair> Context::createPair(
+    std::chrono::milliseconds timeout) {
+  if (timeout < std::chrono::milliseconds::zero()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
+  }
+  auto pair = new Pair(device_, timeout);
+  return std::unique_ptr<transport::Pair>(pair);
 }
 
 } // namespace ibverbs

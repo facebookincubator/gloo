@@ -44,6 +44,8 @@ class Device {
 
   virtual bool hasGPUDirect() const { return false; }
 
+  // Provided for backwards compatibility; new users should use the
+  // createPair function on the context object.
   virtual std::unique_ptr<Pair> createPair(
       std::chrono::milliseconds timeout) = 0;
 
