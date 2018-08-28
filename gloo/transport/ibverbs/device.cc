@@ -19,6 +19,7 @@
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
+#include "gloo/transport/ibverbs/context.h"
 #include "gloo/transport/ibverbs/pair.h"
 
 namespace gloo {
@@ -183,6 +184,12 @@ std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
   GLOO_THROW_INVALID_OPERATION_EXCEPTION(
       "Unbound buffers not supported yet for ibverbs transport");
   return std::unique_ptr<transport::UnboundBuffer>();
+}
+
+std::shared_ptr<transport::Context> Device::createContext(
+    int rank, int size) {
+  auto context = new Context(shared_from_this(), rank, size);
+  return std::unique_ptr<transport::Context>(context);
 }
 
 void Device::loop() {

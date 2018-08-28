@@ -22,6 +22,7 @@
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
 #include "gloo/common/error.h"
+#include "gloo/transport/tcp/context.h"
 #include "gloo/transport/tcp/pair.h"
 #include "gloo/transport/tcp/unbound_buffer.h"
 
@@ -251,6 +252,12 @@ std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
     void* ptr, size_t size) {
   auto buf = new tcp::UnboundBuffer(ptr, size);
   return std::unique_ptr<transport::UnboundBuffer>(buf);
+}
+
+std::shared_ptr<transport::Context> Device::createContext(
+    int rank, int size) {
+  auto context = new Context(shared_from_this(), rank, size);
+  return std::shared_ptr<transport::Context>(context);
 }
 
 void Device::registerDescriptor(int fd, int events, Pair* p) {
