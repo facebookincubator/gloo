@@ -44,14 +44,6 @@ class Device {
 
   virtual bool hasGPUDirect() const { return false; }
 
-  // Factory function to create an unbound buffer for use with the
-  // transport used for this context. Use this function to avoid tying
-  // downstream code to a specific transport.
-  // The return value is not tied to this device and can be used with
-  // any devices/pairs of the same transport.
-  virtual std::unique_ptr<UnboundBuffer> createUnboundBuffer(
-      void* ptr, size_t size) = 0;
-
   // Factory function to create transport context. A single device may
   // service multiple contexts, with no constraints on this process
   // its rank or the context size.

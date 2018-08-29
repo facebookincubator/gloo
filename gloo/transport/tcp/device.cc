@@ -239,12 +239,6 @@ int Device::getInterfaceSpeed() const {
   return interfaceSpeedMbps_;
 }
 
-std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
-    void* ptr, size_t size) {
-  auto buf = new tcp::UnboundBuffer(ptr, size);
-  return std::unique_ptr<transport::UnboundBuffer>(buf);
-}
-
 std::shared_ptr<transport::Context> Device::createContext(
     int rank, int size) {
   auto context = new Context(shared_from_this(), rank, size);

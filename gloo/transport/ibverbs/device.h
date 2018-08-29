@@ -57,9 +57,6 @@ class Device : public ::gloo::transport::Device,
 
   virtual bool hasGPUDirect() const override;
 
-  virtual std::unique_ptr<::gloo::transport::UnboundBuffer> createUnboundBuffer(
-      void* ptr, size_t size) override;
-
   virtual std::shared_ptr<::gloo::transport::Context> createContext(
       int rank, int size) override;
 

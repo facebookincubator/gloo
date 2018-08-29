@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "gloo/transport/pair.h"
+#include "gloo/transport/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -41,6 +42,15 @@ class Context {
   virtual std::unique_ptr<Pair>& createPair(
       int rank,
       std::chrono::milliseconds timeout) = 0;
+
+  // Creates unbound buffer to be used with the ranks in this context.
+  // It is not bound to a specific rank, but still bound to this
+  // context. This is needed to support recv-from-any semantics, where
+  // the context is used as shared arbiter between pairs that are
+  // ready to send and buffers that are ready to receive.
+  virtual std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
+      void* ptr,
+      size_t size) = 0;
 
  protected:
   // Lifecycle of the pairs is managed by a std::unique_ptr of the

@@ -12,6 +12,7 @@
 #include "gloo/common/error.h"
 #include "gloo/transport/tcp/device.h"
 #include "gloo/transport/tcp/pair.h"
+#include "gloo/transport/tcp/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -33,6 +34,13 @@ std::unique_ptr<transport::Pair>& Context::createPair(
   auto pair = new tcp::Pair(device_, timeout);
   pairs_[rank] = std::unique_ptr<transport::Pair>(pair);
   return pairs_[rank];
+}
+
+std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
+    void* ptr,
+    size_t size) {
+  auto buf = new tcp::UnboundBuffer(shared_from_this(), ptr, size);
+  return std::unique_ptr<transport::UnboundBuffer>(buf);
 }
 
 } // namespace tcp

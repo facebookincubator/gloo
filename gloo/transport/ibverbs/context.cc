@@ -35,6 +35,14 @@ std::unique_ptr<transport::Pair>& Context::createPair(
   return pairs_[rank];
 }
 
+std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
+    void* ptr,
+    size_t size) {
+  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+      "Unbound buffers not supported yet for ibverbs transport");
+  return std::unique_ptr<transport::UnboundBuffer>();
+}
+
 } // namespace ibverbs
 } // namespace transport
 } // namespace gloo

@@ -32,6 +32,10 @@ class Context : public ::gloo::transport::Context,
       int rank,
       std::chrono::milliseconds timeout) override;
 
+  std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
+      void* ptr,
+      size_t size) override;
+
  protected:
   std::shared_ptr<Device> device_;
 

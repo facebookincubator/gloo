@@ -170,13 +170,6 @@ bool Device::hasGPUDirect() const {
   return hasNvPeerMem_;
 }
 
-std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
-    void* ptr, size_t size) {
-  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
-      "Unbound buffers not supported yet for ibverbs transport");
-  return std::unique_ptr<transport::UnboundBuffer>();
-}
-
 std::shared_ptr<transport::Context> Device::createContext(
     int rank, int size) {
   auto context = new Context(shared_from_this(), rank, size);

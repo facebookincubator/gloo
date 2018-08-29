@@ -15,10 +15,14 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-UnboundBuffer::UnboundBuffer(void* ptr, size_t size)
+UnboundBuffer::UnboundBuffer(
+    const std::shared_ptr<Context>& context,
+    void* ptr,
+    size_t size)
     : ::gloo::transport::UnboundBuffer(ptr, size),
-    recvCompletions_(0),
-    sendCompletions_(0) {}
+      context_(context),
+      recvCompletions_(0),
+      sendCompletions_(0) {}
 
 UnboundBuffer::~UnboundBuffer() {}
 

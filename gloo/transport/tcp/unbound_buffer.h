@@ -12,6 +12,7 @@
 #include "gloo/transport/unbound_buffer.h"
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 
 namespace gloo {
@@ -19,11 +20,15 @@ namespace transport {
 namespace tcp {
 
 // Forward declaration
+class Context;
 class Pair;
 
 class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
  public:
-  UnboundBuffer(void* ptr, size_t size);
+  UnboundBuffer(
+      const std::shared_ptr<Context>& context,
+      void* ptr,
+      size_t size);
 
   virtual ~UnboundBuffer();
 
@@ -40,6 +45,8 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   int recvCompletions_;
   int sendCompletions_;
+
+  std::shared_ptr<Context> context_;
 
   friend class Pair;
 };
