@@ -12,6 +12,10 @@
 #include "gloo/transport/context.h"
 
 #include <memory>
+#include <mutex>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace gloo {
 namespace transport {
@@ -20,6 +24,7 @@ namespace tcp {
 // Forward declaration
 class Device;
 class Pair;
+class UnboundBuffer;
 
 class Context : public ::gloo::transport::Context,
                 public std::enable_shared_from_this<Context> {
@@ -39,7 +44,35 @@ class Context : public ::gloo::transport::Context,
  protected:
   std::shared_ptr<Device> device_;
 
+  std::mutex m_;
+
+  using pendingRecvTuple = std::tuple<UnboundBuffer*, std::unordered_set<int>>;
+
+  // Buffers with pending receive operation by slot.
+  std::unordered_map<uint64_t, pendingRecvTuple> pendingRecv_;
+
+  // List of ranks with a pending send operation by slot.
+  std::unordered_map<uint64_t, std::unordered_set<int>> pendingRemoteSend_;
+
+  // This function registers the specified unbound buffer for a receive
+  // operation from any of the specified ranks.
+  void recvFromAny(
+      UnboundBuffer* buf,
+      uint64_t slot,
+      std::vector<int> srcRanks);
+
+  int recvFromAnyFindRank(
+      UnboundBuffer* buf,
+      uint64_t slot,
+      std::vector<int> srcRanks);
+
+  UnboundBuffer* recvFromAnyCallback(
+      int rank,
+      uint64_t slot);
+
   friend class Pair;
+
+  friend class UnboundBuffer;
 };
 
 } // namespace tcp

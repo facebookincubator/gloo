@@ -52,7 +52,8 @@ Op::Op() {
 
 Pair::Pair(
     const std::shared_ptr<Device>& dev,
-    std::chrono::milliseconds timeout)
+    std::chrono::milliseconds timeout,
+    std::function<tcp::UnboundBuffer*(uint64_t slot)> fn)
     : dev_(dev),
       state_(INITIALIZING),
       sync_(false),
@@ -60,6 +61,7 @@ Pair::Pair(
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
+      recvFromAnyCallback_(fn),
       ex_(nullptr) {
   listen();
 }
@@ -569,8 +571,13 @@ void Pair::handleRemotePendingSend(const Op& op) {
     // One of two things now happen. Either,
     // 1) a recv for this slot is issued shortly and finds the remote
     //    send is already pending, or
-    // 2) a recv from any is pending and the corresponding latch is
-    //    triggered to notify it this peer has a send pending.
+    // 2) a recv-from-any is pending and the corresponding callback is
+    //    called to see if this peer should fulfill the recv.
+    auto buf = recvFromAnyCallback_(slot);
+    if (buf != nullptr) {
+      localPendingRecv_[slot] = buf;
+      sendNotifyRecvReady(buf, slot);
+    }
     return;
   }
 
@@ -968,6 +975,27 @@ void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
   // Notify peer of this pending recv.
   localPendingRecv_[slot] = buf;
   sendNotifyRecvReady(buf, slot);
+}
+
+bool Pair::tryRecv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  std::unique_lock<std::mutex> lock(m_);
+  checkErrorState();
+
+  // Return early if there is no remote pending send.
+  if (remotePendingSend_.count(slot) == 0) {
+    return false;
+  }
+
+  GLOO_ENFORCE(
+      localPendingRecv_.count(slot) == 0,
+      "Existing pending recv for slot ", slot);
+
+  // Notify peer of this pending recv.
+  localPendingRecv_[slot] = buf;
+  sendNotifyRecvReady(buf, slot);
+  return true;
 }
 
 void Pair::sendUnboundBuffer(UnboundBuffer* buf, uint64_t slot) {

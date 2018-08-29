@@ -40,6 +40,8 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   void recv(int srcRank, uint64_t slot) override;
 
+  void recv(std::vector<int> srcRanks, uint64_t slot) override;
+
  protected:
   void handleRecvCompletion();
   void handleSendCompletion();

@@ -42,6 +42,8 @@ class UnboundBuffer {
   virtual void send(int dstRank, uint64_t slot) = 0;
 
   virtual void recv(int srcRank, uint64_t slot) = 0;
+
+  virtual void recv(std::vector<int> srcRanks, uint64_t slot) = 0;
 };
 
 } // namespace transport

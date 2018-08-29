@@ -66,6 +66,10 @@ void UnboundBuffer::recv(int srcRank, uint64_t slot) {
   context_->getPair(srcRank)->recv(this, slot);
 }
 
+void UnboundBuffer::recv(std::vector<int> srcRanks, uint64_t slot) {
+  context_->recvFromAny(this, slot, srcRanks);
+}
+
 } // namespace tcp
 } // namespace transport
 } // namespace gloo

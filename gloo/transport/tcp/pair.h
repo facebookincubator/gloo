@@ -81,7 +81,8 @@ class Pair : public ::gloo::transport::Pair {
  public:
   explicit Pair(
       const std::shared_ptr<Device>& dev,
-      std::chrono::milliseconds timeout);
+      std::chrono::milliseconds timeout,
+      std::function<tcp::UnboundBuffer*(uint64_t slot)> fn);
 
   virtual ~Pair();
 
@@ -106,6 +107,11 @@ class Pair : public ::gloo::transport::Pair {
 
   // Receive into the specified buffer from the remote side of pair.
   virtual void recv(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
+  // Attempt to receive into the specified buffer from the remote side
+  // of pair. Returns true if there was a remote pending send and the
+  // recv is in progress, false otherwise.
+  bool tryRecv(transport::UnboundBuffer* tbuf, uint64_t tag);
 
   void handleEvents(int events);
 
@@ -137,6 +143,13 @@ class Pair : public ::gloo::transport::Pair {
   void sendUnboundBuffer(tcp::UnboundBuffer* buf, uint64_t slot);
   void sendNotifyRecvReady(const tcp::UnboundBuffer* buf, uint64_t slot);
   void sendNotifySendReady(const tcp::UnboundBuffer* buf, uint64_t slot);
+
+  // Callback to issue when the remote side of the pair has
+  // notified us that a send operation is ready to go. This is used to
+  // implement recv-from-any on unbound buffers. The callback returns
+  // an unbound buffer if there is a pending recv-from-any that
+  // matches the rank of the remote side of this pair.
+  std::function<tcp::UnboundBuffer*(uint64_t slot)> recvFromAnyCallback_;
 
   void listen();
   void connect(const Address& peer);

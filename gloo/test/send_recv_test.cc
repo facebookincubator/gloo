@@ -9,6 +9,8 @@
 
 #include "gloo/test/base_test.h"
 
+#include <unordered_set>
+
 #include "gloo/transport/tcp/unbound_buffer.h"
 
 namespace gloo {
@@ -74,6 +76,50 @@ TEST_P(SendRecvTest, AllToAll) {
           continue;
         }
         ASSERT_EQ(i, output[i]) << "Mismatch at index " << i;
+      }
+    });
+}
+
+TEST_P(SendRecvTest, RecvFromAny) {
+  auto contextSize = std::get<0>(GetParam());
+  auto dataSize = std::get<1>(GetParam());
+
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      constexpr uint64_t slot = 0x1337;
+      if (context->rank == 0) {
+        std::unordered_set<int> output;
+        int tmp;
+        auto buf = context->createUnboundBuffer(&tmp, sizeof(tmp));
+
+        // Compile vector of ranks to receive from
+        std::vector<int> ranks;
+        for (auto i = 0; i < context->size; i++) {
+          if (i == context->rank) {
+            continue;
+          }
+          ranks.push_back(i);
+        }
+
+        // Receive from N-1 peers
+        for (auto i = 0; i < context->size - 1; i++) {
+          buf->recv(ranks, slot);
+          buf->waitRecv();
+          output.insert(tmp);
+        }
+
+        // Verify output
+        for (auto i = 0; i < context->size; i++) {
+          if (i == context->rank) {
+            continue;
+          }
+          ASSERT_EQ(1, output.count(i)) << "Missing element " << i;
+        }
+      } else {
+        // Send to rank 0
+        int tmp = context->rank;
+        auto buf = context->createUnboundBuffer(&tmp, sizeof(tmp));
+        buf->send(0, slot);
+        buf->waitSend();
       }
     });
 }
