@@ -59,9 +59,6 @@ class Device : public ::gloo::transport::Device,
 
   virtual int getInterfaceSpeed() const override;
 
-  virtual std::unique_ptr<::gloo::transport::Pair> createPair(
-      std::chrono::milliseconds timeout) override;
-
   virtual std::unique_ptr<::gloo::transport::UnboundBuffer> createUnboundBuffer(
       void* ptr, size_t size) override;
 

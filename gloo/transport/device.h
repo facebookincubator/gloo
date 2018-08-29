@@ -44,11 +44,6 @@ class Device {
 
   virtual bool hasGPUDirect() const { return false; }
 
-  // Provided for backwards compatibility; new users should use the
-  // createPair function on the context object.
-  virtual std::unique_ptr<Pair> createPair(
-      std::chrono::milliseconds timeout) = 0;
-
   // Factory function to create an unbound buffer for use with the
   // transport used for this context. Use this function to avoid tying
   // downstream code to a specific transport.

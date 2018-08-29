@@ -30,7 +30,7 @@ std::unique_ptr<transport::Pair>& Context::createPair(
   if (timeout < std::chrono::milliseconds::zero()) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
   }
-  auto pair = new Pair(device_, timeout);
+  auto pair = new ibverbs::Pair(device_, timeout);
   pairs_[rank] = std::unique_ptr<transport::Pair>(pair);
   return pairs_[rank];
 }

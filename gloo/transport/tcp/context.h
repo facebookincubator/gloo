@@ -19,8 +19,10 @@ namespace tcp {
 
 // Forward declaration
 class Device;
+class Pair;
 
-class Context : public ::gloo::transport::Context {
+class Context : public ::gloo::transport::Context,
+                public std::enable_shared_from_this<Context> {
  public:
   Context(std::shared_ptr<Device> device, int rank, int size);
 
@@ -32,6 +34,8 @@ class Context : public ::gloo::transport::Context {
 
  protected:
   std::shared_ptr<Device> device_;
+
+  friend class Pair;
 };
 
 } // namespace tcp

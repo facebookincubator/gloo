@@ -239,15 +239,6 @@ int Device::getInterfaceSpeed() const {
   return interfaceSpeedMbps_;
 }
 
-std::unique_ptr<transport::Pair> Device::createPair(
-    std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-  auto pair = new Pair(shared_from_this(), timeout);
-  return std::unique_ptr<transport::Pair>(pair);
-}
-
 std::unique_ptr<transport::UnboundBuffer> Device::createUnboundBuffer(
     void* ptr, size_t size) {
   auto buf = new tcp::UnboundBuffer(ptr, size);
