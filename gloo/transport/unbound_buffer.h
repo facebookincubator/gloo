@@ -10,6 +10,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <vector>
 
 namespace gloo {
 namespace transport {
@@ -34,7 +36,12 @@ class UnboundBuffer {
   const size_t size;
 
   virtual void waitRecv() = 0;
+
   virtual void waitSend() = 0;
+
+  virtual void send(int dstRank, uint64_t slot) = 0;
+
+  virtual void recv(int srcRank, uint64_t slot) = 0;
 };
 
 } // namespace transport

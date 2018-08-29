@@ -11,6 +11,8 @@
 
 #include <stdexcept>
 
+#include "gloo/transport/tcp/context.h"
+
 namespace gloo {
 namespace transport {
 namespace tcp {
@@ -54,6 +56,14 @@ void UnboundBuffer::waitSend() {
   };
   sendCv_.wait(lock, pred);
   sendCompletions_--;
+}
+
+void UnboundBuffer::send(int dstRank, uint64_t slot) {
+  context_->getPair(dstRank)->send(this, slot);
+}
+
+void UnboundBuffer::recv(int srcRank, uint64_t slot) {
+  context_->getPair(srcRank)->recv(this, slot);
 }
 
 } // namespace tcp

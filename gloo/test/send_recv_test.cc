@@ -48,7 +48,7 @@ TEST_P(SendRecvTest, AllToAll) {
         if (i == context->rank) {
           continue;
         }
-        context->getPair(i)->send(inputBuffers[i].get(), context->rank);
+        inputBuffers[i]->send(i, context->rank);
       }
 
       // Receive message from every other rank
@@ -56,7 +56,7 @@ TEST_P(SendRecvTest, AllToAll) {
         if (i == context->rank) {
           continue;
         }
-        context->getPair(i)->recv(outputBuffers[i].get(), i);
+        outputBuffers[i]->recv(i, i);
       }
 
       // Wait for send and recv to complete

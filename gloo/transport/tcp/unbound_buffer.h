@@ -32,8 +32,13 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   virtual ~UnboundBuffer();
 
-  virtual void waitRecv() override;
-  virtual void waitSend() override;
+  void waitRecv() override;
+
+  void waitSend() override;
+
+  void send(int dstRank, uint64_t slot) override;
+
+  void recv(int srcRank, uint64_t slot) override;
 
  protected:
   void handleRecvCompletion();
