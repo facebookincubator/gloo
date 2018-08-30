@@ -135,10 +135,10 @@ class Pair : public ::gloo::transport::Pair {
   std::condition_variable cv_;
   std::map<int, Buffer*> buffers_;
 
-  std::unordered_map<uint64_t, tcp::UnboundBuffer*> localPendingSend_;
-  std::unordered_map<uint64_t, tcp::UnboundBuffer*> localPendingRecv_;
-  std::unordered_map<uint64_t, bool> remotePendingSend_;
-  std::unordered_map<uint64_t, bool> remotePendingRecv_;
+  std::unordered_map<uint64_t, std::deque<tcp::UnboundBuffer*>> localPendingSend_;
+  std::unordered_map<uint64_t, std::deque<tcp::UnboundBuffer*>> localPendingRecv_;
+  std::unordered_map<uint64_t, int> remotePendingSend_;
+  std::unordered_map<uint64_t, int> remotePendingRecv_;
 
   void sendUnboundBuffer(tcp::UnboundBuffer* buf, uint64_t slot);
   void sendNotifyRecvReady(const tcp::UnboundBuffer* buf, uint64_t slot);

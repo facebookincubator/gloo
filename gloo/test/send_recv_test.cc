@@ -124,6 +124,59 @@ TEST_P(SendRecvTest, RecvFromAny) {
     });
 }
 
+TEST_P(SendRecvTest, RecvFromAnyPipeline) {
+  auto contextSize = std::get<0>(GetParam());
+  auto dataSize = std::get<1>(GetParam());
+
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      constexpr uint64_t slot = 0x1337;
+
+      if (context->rank == 0) {
+        std::vector<int> output;
+        std::array<int, 2> tmp;
+        auto buf0 = context->createUnboundBuffer(&tmp[0], sizeof(tmp[0]));
+        auto buf1 = context->createUnboundBuffer(&tmp[1], sizeof(tmp[1]));
+
+        // Compile vector of ranks to receive from
+        std::vector<int> ranks;
+        for (auto i = 0; i < context->size; i++) {
+          if (i == context->rank) {
+            continue;
+          }
+          ranks.push_back(i);
+        }
+
+        // Receive twice per peer
+        for (auto i = 0; i < context->size - 1; i++) {
+          buf0->recv(ranks, slot);
+          buf1->recv(ranks, slot);
+          buf0->waitRecv();
+          buf1->waitRecv();
+          output.push_back(tmp[0]);
+          output.push_back(tmp[1]);
+        }
+
+        // Verify output
+        std::sort(output.begin(), output.end());
+        for (auto i = 1; i < context->size; i++) {
+          ASSERT_EQ(i, output[(i-1) * 2 + 0]) << "Mismatch at " << i;
+          ASSERT_EQ(i, output[(i-1) * 2 + 1]) << "Mismatch at " << i;
+        }
+      } else {
+        // Send twice to rank 0 on the same slot
+        std::array<int, 2> tmp;
+        tmp[0] = context->rank;
+        tmp[1] = context->rank;
+        auto buf0 = context->createUnboundBuffer(&tmp[0], sizeof(tmp[0]));
+        auto buf1 = context->createUnboundBuffer(&tmp[1], sizeof(tmp[1]));
+        buf0->send(0, slot);
+        buf1->send(0, slot);
+        buf0->waitSend();
+        buf1->waitSend();
+      }
+    });
+}
+
 INSTANTIATE_TEST_CASE_P(
     SendRecvDefault,
     SendRecvTest,

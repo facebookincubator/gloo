@@ -73,21 +73,26 @@ int Context::recvFromAnyFindRank(
   std::unique_lock<std::mutex> lock(m_);
 
   // See if there is a pending remote send that can fulfill this recv.
-  auto it = pendingRemoteSend_.find(slot);
-  if (it != pendingRemoteSend_.end()) {
-    auto& ranks = it->second;
+  auto pit = pendingRemoteSend_.find(slot);
+  if (pit != pendingRemoteSend_.end()) {
+    auto& sends = pit->second;
+
+    // Doing a linear search to find eligible ranks is suboptimal in
+    // terms of performance but is functionally correct.
     for (const auto& srcRank : srcRanks) {
-      if (ranks.count(srcRank) > 0) {
+      auto sit = sends.find(srcRank);
+      if (sit != sends.end()) {
         // We've found a rank that could fulfill this recv.
         //
-        // An entry is only valid once and since the caller of this
-        // function will try and attempt the recv, we can now remove
-        // the rank from the set (or remove the set itself).
+        // Since the caller of this function will try and attempt the
+        // recv, we can now decrement the number of pending sends for
+        // this rank.
         //
-        if (ranks.size() == 1) {
-          pendingRemoteSend_.erase(slot);
-        } else {
-          ranks.erase(srcRank);
+        if (--(sit->second) == 0) {
+          sends.erase(sit);
+          if (sends.empty()) {
+            pendingRemoteSend_.erase(pit);
+          }
         }
         return srcRank;
       }
@@ -96,7 +101,7 @@ int Context::recvFromAnyFindRank(
 
   // No candidates; register buffer for recv
   auto set = std::unordered_set<int>(srcRanks.begin(), srcRanks.end());
-  pendingRecv_.emplace(slot, std::make_tuple(buf, set));
+  pendingRecv_[slot].emplace_back(std::make_tuple(buf, set));
   return -1;
 }
 
@@ -106,20 +111,29 @@ UnboundBuffer* Context::recvFromAnyCallback(
   std::unique_lock<std::mutex> lock(m_);
 
   // See if there is a pending recv for this slot.
-  auto it = pendingRecv_.find(slot);
-  if (it != pendingRecv_.end()) {
-    auto buf = std::get<0>(it->second);
-    const auto& ranks = std::get<1>(it->second);
-    // If the rank of this peer is in the set of acceptable ranks for
-    // this slot we can proceed and return the buffer to recv into.
-    if (ranks.count(rank) > 0) {
-      pendingRecv_.erase(it);
-      return buf;
+  auto pit = pendingRecv_.find(slot);
+  if (pit != pendingRecv_.end()) {
+    auto& recvs = pit->second;
+
+    // Iterate over available buffers to find a match.
+    for (auto rit = recvs.begin(); rit != recvs.end(); rit++) {
+      auto buf = std::get<0>(*rit);
+      const auto& ranks = std::get<1>(*rit);
+
+      // If the rank of this peer is in the set of acceptable ranks for
+      // this slot we can proceed and return the buffer to recv into.
+      if (ranks.count(rank) > 0) {
+        recvs.erase(rit);
+        if (recvs.empty()) {
+          pendingRecv_.erase(pit);
+        }
+        return buf;
+      }
     }
   }
 
   // No candidates; register rank for pending remote send.
-  pendingRemoteSend_[slot].insert(rank);
+  pendingRemoteSend_[slot][rank]++;
   return nullptr;
 }
 

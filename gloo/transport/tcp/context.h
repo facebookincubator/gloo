@@ -11,6 +11,7 @@
 
 #include "gloo/transport/context.h"
 
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -49,10 +50,10 @@ class Context : public ::gloo::transport::Context,
   using pendingRecvTuple = std::tuple<UnboundBuffer*, std::unordered_set<int>>;
 
   // Buffers with pending receive operation by slot.
-  std::unordered_map<uint64_t, pendingRecvTuple> pendingRecv_;
+  std::unordered_map<uint64_t, std::deque<pendingRecvTuple>> pendingRecv_;
 
-  // List of ranks with a pending send operation by slot.
-  std::unordered_map<uint64_t, std::unordered_set<int>> pendingRemoteSend_;
+  // Per slot, map of rank to the number of pending send operations.
+  std::unordered_map<uint64_t, std::unordered_map<int, int>> pendingRemoteSend_;
 
   // This function registers the specified unbound buffer for a receive
   // operation from any of the specified ranks.

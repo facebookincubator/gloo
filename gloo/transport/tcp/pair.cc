@@ -425,9 +425,10 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
     if (op.ubuf == nullptr) {
       auto localRecv = localPendingRecv_.find(op.preamble.slot);
       GLOO_ENFORCE(localRecv != localPendingRecv_.end());
-      op.ubuf = localRecv->second;
-      localPendingRecv_.erase(op.preamble.slot);
-      remotePendingSend_.erase(op.preamble.slot);
+      auto& bufs = localRecv->second;
+      GLOO_ENFORCE(!bufs.empty());
+      op.ubuf = bufs.front();
+      bufs.pop_front();
     }
 
     auto offset = op.nread - sizeof(op.preamble);
@@ -563,29 +564,23 @@ bool Pair::read() {
 // indicating it has a pending send operation.
 void Pair::handleRemotePendingSend(const Op& op) {
   const auto& slot = op.preamble.slot;
-  remotePendingSend_[slot] = true;
 
-  auto localRecv = localPendingRecv_.find(slot);
-  if (localRecv == localPendingRecv_.end()) {
-    // No local pending receive.
-    // One of two things now happen. Either,
-    // 1) a recv for this slot is issued shortly and finds the remote
-    //    send is already pending, or
-    // 2) a recv-from-any is pending and the corresponding callback is
-    //    called to see if this peer should fulfill the recv.
+  // Increase balance of remote pending sends.
+  // Note that the current value may be negative if the
+  // corresponding recv's have already been posted.
+  remotePendingSend_[slot]++;
+
+  // If the balance of remote pending sends is positive, check with
+  // the context whether or not there are any recv-from-any operations
+  // that this send can fulfill.
+  if (remotePendingSend_[slot] > 0) {
     auto buf = recvFromAnyCallback_(slot);
     if (buf != nullptr) {
-      localPendingRecv_[slot] = buf;
+      localPendingRecv_[slot].push_back(buf);
+      remotePendingSend_[slot]--;
       sendNotifyRecvReady(buf, slot);
     }
-    return;
   }
-
-  // There is a local pending recv operation.
-  // It will have already sent a message to the peer notifying of its
-  // presence, which will trigger it to execute the send.
-  // There is nothing left for us to do here.
-  return;
 }
 
 // This function is called upon receiving a message from the peer
@@ -593,18 +588,23 @@ void Pair::handleRemotePendingSend(const Op& op) {
 void Pair::handleRemotePendingRecv(const Op& op) {
   const auto& slot = op.preamble.slot;
 
-  auto localSend = localPendingSend_.find(slot);
-  if (localSend == localPendingSend_.end()) {
-    // No local pending receive.
-    // Mark slot as having a remote pending receive such that
-    // the send operation can be executed immediately when called.
-    remotePendingRecv_[slot] = true;
-    return;
-  }
+  // Increase balance of remote pending recv.
+  // Note that the current value CANNOT be negative, as sends
+  // cannot execute until the remote side is ready to receive.
+  remotePendingRecv_[slot]++;
 
-  // There is a local pending send operation; execute it.
-  sendUnboundBuffer(localSend->second, slot);
-  localPendingSend_.erase(slot);
+  // Find local pending send and execute it.
+  // Nothing to do if there are none.
+  auto it = localPendingSend_.find(slot);
+  if (it != localPendingSend_.end()) {
+    auto& pendingSends = it->second;
+    if (!pendingSends.empty()) {
+      auto buf = pendingSends.front();
+      pendingSends.pop_front();
+      remotePendingRecv_[slot]--;
+      sendUnboundBuffer(buf, slot);
+    }
+  }
 }
 
 void Pair::handleEvents(int events) {
@@ -945,19 +945,15 @@ void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot) {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
-  GLOO_ENFORCE(
-      localPendingSend_.count(slot) == 0,
-      "Existing pending send for slot ", slot);
-
   // Execute this send if there is a remote pending receive.
-  if (remotePendingRecv_.count(slot) > 0) {
+  if (remotePendingRecv_[slot] > 0) {
     sendUnboundBuffer(buf, slot);
-    remotePendingRecv_.erase(slot);
+    remotePendingRecv_[slot]--;
     return;
   }
 
   // Notify peer of this pending send.
-  localPendingSend_[slot] = buf;
+  localPendingSend_[slot].push_back(buf);
   sendNotifySendReady(buf, slot);
 }
 
@@ -968,12 +964,9 @@ void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
-  GLOO_ENFORCE(
-      localPendingRecv_.count(slot) == 0,
-      "Existing pending recv for slot ", slot);
-
   // Notify peer of this pending recv.
-  localPendingRecv_[slot] = buf;
+  localPendingRecv_[slot].push_back(buf);
+  remotePendingSend_[slot]--;
   sendNotifyRecvReady(buf, slot);
 }
 
@@ -984,16 +977,13 @@ bool Pair::tryRecv(transport::UnboundBuffer* tbuf, uint64_t slot) {
   checkErrorState();
 
   // Return early if there is no remote pending send.
-  if (remotePendingSend_.count(slot) == 0) {
+  if (remotePendingSend_[slot] <= 0) {
     return false;
   }
 
-  GLOO_ENFORCE(
-      localPendingRecv_.count(slot) == 0,
-      "Existing pending recv for slot ", slot);
-
   // Notify peer of this pending recv.
-  localPendingRecv_[slot] = buf;
+  localPendingRecv_[slot].push_back(buf);
+  remotePendingSend_[slot]--;
   sendNotifyRecvReady(buf, slot);
   return true;
 }
