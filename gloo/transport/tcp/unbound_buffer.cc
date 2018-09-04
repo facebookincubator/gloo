@@ -24,38 +24,48 @@ UnboundBuffer::UnboundBuffer(
     : ::gloo::transport::UnboundBuffer(ptr, size),
       context_(context),
       recvCompletions_(0),
-      sendCompletions_(0) {}
+      recvRank_(-1),
+      sendCompletions_(0),
+      sendRank_(-1) {}
 
 UnboundBuffer::~UnboundBuffer() {}
 
-void UnboundBuffer::handleRecvCompletion() {
+void UnboundBuffer::handleRecvCompletion(int rank) {
   std::lock_guard<std::mutex> lock(m_);
   recvCompletions_++;
+  recvRank_ = rank;
   recvCv_.notify_one();
 }
 
-void UnboundBuffer::waitRecv() {
+void UnboundBuffer::waitRecv(int* rank) {
   std::unique_lock<std::mutex> lock(m_);
   auto pred = [&]{
     return recvCompletions_ > 0;
   };
   recvCv_.wait(lock, pred);
   recvCompletions_--;
+  if (rank != nullptr) {
+    *rank = recvRank_;
+  }
 }
 
-void UnboundBuffer::handleSendCompletion() {
+void UnboundBuffer::handleSendCompletion(int rank) {
   std::lock_guard<std::mutex> lock(m_);
   sendCompletions_++;
+  sendRank_ = rank;
   sendCv_.notify_one();
 }
 
-void UnboundBuffer::waitSend() {
+void UnboundBuffer::waitSend(int* rank) {
   std::unique_lock<std::mutex> lock(m_);
   auto pred = [&]{
     return sendCompletions_ > 0;
   };
   sendCv_.wait(lock, pred);
   sendCompletions_--;
+  if (rank != nullptr) {
+    *rank = sendRank_;
+  }
 }
 
 void UnboundBuffer::send(int dstRank, uint64_t slot) {

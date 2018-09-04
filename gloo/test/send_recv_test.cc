@@ -87,32 +87,30 @@ TEST_P(SendRecvTest, RecvFromAny) {
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
       constexpr uint64_t slot = 0x1337;
       if (context->rank == 0) {
-        std::unordered_set<int> output;
+        std::unordered_set<int> outputData;
+        std::unordered_set<int> outputRanks;
         int tmp;
         auto buf = context->createUnboundBuffer(&tmp, sizeof(tmp));
 
         // Compile vector of ranks to receive from
         std::vector<int> ranks;
-        for (auto i = 0; i < context->size; i++) {
-          if (i == context->rank) {
-            continue;
-          }
+        for (auto i = 1; i < context->size; i++) {
           ranks.push_back(i);
         }
 
         // Receive from N-1 peers
-        for (auto i = 0; i < context->size - 1; i++) {
+        for (auto i = 1; i < context->size; i++) {
+          int srcRank = -1;
           buf->recv(ranks, slot);
-          buf->waitRecv();
-          output.insert(tmp);
+          buf->waitRecv(&srcRank);
+          outputData.insert(tmp);
+          outputRanks.insert(srcRank);
         }
 
-        // Verify output
-        for (auto i = 0; i < context->size; i++) {
-          if (i == context->rank) {
-            continue;
-          }
-          ASSERT_EQ(1, output.count(i)) << "Missing element " << i;
+        // Verify result
+        for (auto i = 1; i < context->size; i++) {
+          ASSERT_EQ(1, outputData.count(i)) << "Missing output " << i;
+          ASSERT_EQ(1, outputRanks.count(i)) << "Missing rank " << i;
         }
       } else {
         // Send to rank 0

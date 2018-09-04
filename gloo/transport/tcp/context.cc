@@ -33,6 +33,7 @@ std::unique_ptr<transport::Pair>& Context::createPair(
   }
   auto pair = new tcp::Pair(
       device_,
+      rank,
       timeout,
       [=] (uint64_t slot) -> UnboundBuffer* {
         return recvFromAnyCallback(rank, slot);

@@ -81,6 +81,7 @@ class Pair : public ::gloo::transport::Pair {
  public:
   explicit Pair(
       const std::shared_ptr<Device>& dev,
+      const int rank,
       std::chrono::milliseconds timeout,
       std::function<tcp::UnboundBuffer*(uint64_t slot)> fn);
 
@@ -119,6 +120,7 @@ class Pair : public ::gloo::transport::Pair {
 
  protected:
   std::shared_ptr<Device> dev_;
+  const int rank_;
   state state_;
   std::atomic<bool> sync_;
   const std::chrono::milliseconds timeout_;

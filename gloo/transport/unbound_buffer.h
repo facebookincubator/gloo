@@ -35,9 +35,11 @@ class UnboundBuffer {
   void* const ptr;
   const size_t size;
 
-  virtual void waitRecv() = 0;
+  // If specified, the source of this recv is stored in the rank pointer.
+  virtual void waitRecv(int* rank = nullptr) = 0;
 
-  virtual void waitSend() = 0;
+  // If specified, the destination of this send is stored in the rank pointer.
+  virtual void waitSend(int* rank = nullptr) = 0;
 
   virtual void send(int dstRank, uint64_t slot) = 0;
 

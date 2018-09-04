@@ -32,9 +32,9 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   virtual ~UnboundBuffer();
 
-  void waitRecv() override;
+  void waitRecv(int* rank) override;
 
-  void waitSend() override;
+  void waitSend(int* rank) override;
 
   void send(int dstRank, uint64_t slot) override;
 
@@ -43,15 +43,17 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   void recv(std::vector<int> srcRanks, uint64_t slot) override;
 
  protected:
-  void handleRecvCompletion();
-  void handleSendCompletion();
+  void handleRecvCompletion(int rank);
+  void handleSendCompletion(int rank);
 
   std::mutex m_;
   std::condition_variable recvCv_;
   std::condition_variable sendCv_;
 
   int recvCompletions_;
+  int recvRank_;
   int sendCompletions_;
+  int sendRank_;
 
   std::shared_ptr<Context> context_;
 

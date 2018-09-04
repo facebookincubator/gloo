@@ -52,9 +52,11 @@ Op::Op() {
 
 Pair::Pair(
     const std::shared_ptr<Device>& dev,
+    const int rank,
     std::chrono::milliseconds timeout,
     std::function<tcp::UnboundBuffer*(uint64_t slot)> fn)
     : dev_(dev),
+      rank_(rank),
       state_(INITIALIZING),
       sync_(false),
       timeout_(timeout),
@@ -374,7 +376,7 @@ bool Pair::write(Op& op) {
       op.buf->handleSendCompletion();
       break;
     case Op::SEND_UNBOUND_BUFFER:
-      op.ubuf->handleSendCompletion();
+      op.ubuf->handleSendCompletion(rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       break;
@@ -544,7 +546,7 @@ bool Pair::read() {
       break;
     case Op::SEND_UNBOUND_BUFFER:
       // Remote side is sending data to unbound buffer; trigger completion
-      op.ubuf->handleRecvCompletion();
+      op.ubuf->handleRecvCompletion(rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       // Remote side has pending send operation
