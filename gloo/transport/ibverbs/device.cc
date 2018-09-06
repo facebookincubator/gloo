@@ -19,6 +19,7 @@
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
+#include "gloo/transport/ibverbs/context.h"
 #include "gloo/transport/ibverbs/pair.h"
 
 namespace gloo {
@@ -169,13 +170,10 @@ bool Device::hasGPUDirect() const {
   return hasNvPeerMem_;
 }
 
-std::unique_ptr<transport::Pair> Device::createPair(
-    std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-  auto pair = new Pair(shared_from_this(), timeout);
-  return std::unique_ptr<transport::Pair>(pair);
+std::shared_ptr<transport::Context> Device::createContext(
+    int rank, int size) {
+  auto context = new Context(shared_from_this(), rank, size);
+  return std::unique_ptr<transport::Context>(context);
 }
 
 void Device::loop() {

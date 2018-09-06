@@ -13,6 +13,7 @@
 
 #include "gloo/transport/address.h"
 #include "gloo/transport/buffer.h"
+#include "gloo/transport/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -34,6 +35,12 @@ class Pair {
 
   virtual std::unique_ptr<Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) = 0;
+
+  // Send from the specified buffer to remote side of pair.
+  virtual void send(UnboundBuffer* buf, uint64_t tag) = 0;
+
+  // Receive into the specified buffer from the remote side of pair.
+  virtual void recv(UnboundBuffer* buf, uint64_t tag) = 0;
 };
 
 } // namespace transport

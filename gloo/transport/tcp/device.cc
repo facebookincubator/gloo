@@ -22,7 +22,9 @@
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
 #include "gloo/common/error.h"
+#include "gloo/transport/tcp/context.h"
 #include "gloo/transport/tcp/pair.h"
+#include "gloo/transport/tcp/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -237,13 +239,10 @@ int Device::getInterfaceSpeed() const {
   return interfaceSpeedMbps_;
 }
 
-std::unique_ptr<transport::Pair> Device::createPair(
-    std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-  auto pair = new Pair(shared_from_this(), timeout);
-  return std::unique_ptr<transport::Pair>(pair);
+std::shared_ptr<transport::Context> Device::createContext(
+    int rank, int size) {
+  auto context = new Context(shared_from_this(), rank, size);
+  return std::shared_ptr<transport::Context>(context);
 }
 
 void Device::registerDescriptor(int fd, int events, Pair* p) {

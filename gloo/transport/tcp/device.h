@@ -59,8 +59,8 @@ class Device : public ::gloo::transport::Device,
 
   virtual int getInterfaceSpeed() const override;
 
-  virtual std::unique_ptr<::gloo::transport::Pair> createPair(
-      std::chrono::milliseconds timeout) override;
+  virtual std::shared_ptr<::gloo::transport::Context> createContext(
+      int rank, int size) override;
 
  protected:
   void loop();
