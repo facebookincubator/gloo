@@ -78,11 +78,8 @@ TEST_P(ReduceScatterTest, SinglePointer) {
   auto fn = std::get<2>(GetParam());
   auto base = std::get<3>(GetParam());
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context = std::make_shared<::gloo::rendezvous::Context>(
-        contextRank, contextSize, base);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     for (int i = 0; i < dataSize; i++) {
@@ -110,11 +107,8 @@ TEST_F(ReduceScatterTest, MultipleAlgorithms) {
   auto dataSize = 1000;
   auto fns = {reduceScatterHalvingDoubling};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     std::vector<int> recvCounts;
@@ -155,11 +149,8 @@ TEST_F(ReduceScatterTestHP, HalfPrecisionTest) {
   auto dataSize = 1024;
   auto fns = {reduceScatterHalvingDoublingHP};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float16>(dataSize);
     auto* ptr = buffer.data();
     std::vector<int> recvCounts;

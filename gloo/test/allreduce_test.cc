@@ -148,11 +148,8 @@ TEST_P(AllreduceTest, SinglePointer) {
   auto fn = std::get<2>(GetParam());
   auto base = std::get<3>(GetParam());
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context = std::make_shared<::gloo::rendezvous::Context>(
-        contextRank, contextSize, base);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     for (int i = 0; i < dataSize; i++) {
@@ -165,7 +162,7 @@ TEST_P(AllreduceTest, SinglePointer) {
     for (int i = 0; i < dataSize; i++) {
       ASSERT_EQ(expected, ptr[i]) << "Mismatch at index " << i;
     }
-  });
+  }, base);
 }
 
 TEST_F(AllreduceTest, MultipleAlgorithms) {
@@ -176,11 +173,8 @@ TEST_F(AllreduceTest, MultipleAlgorithms) {
               allreduceHalvingDoubling,
               allreduceBcube};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     for (const auto& fn : fns) {
@@ -215,11 +209,8 @@ TEST_F(AllreduceTestHP, HalfPrecisionTest) {
   auto fns = {
       allreduceRingHP, allreduceRingChunkedHP, allreduceHalvingDoublingHP};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float16>(dataSize);
     auto* ptr = buffer.data();
     for (const auto& fn : fns) {

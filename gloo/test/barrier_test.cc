@@ -33,10 +33,7 @@ TEST_P(BarrierTest, SinglePointer) {
   auto contextSize = std::get<0>(GetParam());
   auto fn = std::get<1>(GetParam());
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-      std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
     fn(context);
   });
 }
