@@ -28,6 +28,7 @@
 #include "gloo/common/error.h"
 #include "gloo/common/logging.h"
 #include "gloo/transport/tcp/buffer.h"
+#include "gloo/transport/tcp/unbound_buffer.h"
 
 #define FD_INVALID (-1)
 
@@ -45,19 +46,25 @@ constexpr size_t kMaxRecvBufferSize = 32 * 1024 * 1024;
 
 } // namespace
 
+Op::Op() {
+  memset(this, 0, sizeof(*this));
+}
+
 Pair::Pair(
     const std::shared_ptr<Device>& dev,
-    std::chrono::milliseconds timeout)
+    const int rank,
+    std::chrono::milliseconds timeout,
+    std::function<tcp::UnboundBuffer*(uint64_t slot)> fn)
     : dev_(dev),
+      rank_(rank),
       state_(INITIALIZING),
       sync_(false),
       timeout_(timeout),
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
+      recvFromAnyCallback_(fn),
       ex_(nullptr) {
-  memset(&rx_, 0, sizeof(rx_));
-  memset(&tx_, 0, sizeof(tx_));
   listen();
 }
 
@@ -130,13 +137,12 @@ void Pair::setSync(bool sync, bool busyPoll) {
     dev_->unregisterDescriptor(fd_);
     setSocketBlocking(fd_, true);
 
-    // If the pair was still flushing a write, finish it.
-    if (tx_.buf_ != nullptr) {
-      auto rv = write(tx_);
+    // If the pair was still flushing writes, finish them.
+    for (auto& op : tx_) {
+      auto rv = write(op);
       GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-      tx_.buf_->handleSendCompletion();
-      memset(&tx_, 0, sizeof(tx_));
     }
+    tx_.clear();
   }
 
   sync_ = true;
@@ -265,6 +271,43 @@ void Pair::connect(const Address& peer) {
   waitUntilConnected(lock, true);
 }
 
+ssize_t Pair::writeBuildIov(Op& op, struct iovec* iov, int& ioc) {
+  ssize_t nbytes = 0;
+  ioc = 0;
+
+  // Include preamble if necessary
+  if (op.nwritten < sizeof(op.preamble)) {
+    iov[ioc].iov_base = ((char*)&op.preamble) + op.nwritten;
+    iov[ioc].iov_len = sizeof(op.preamble) - op.nwritten;
+    nbytes += iov[ioc].iov_len;
+    ioc++;
+  }
+
+  // Include remaining buffer segment if applicable
+  char* ptr = nullptr;
+  auto opcode = op.getOpcode();
+  if (opcode == Op::SEND_BUFFER) {
+    ptr = (char*)op.buf->ptr_;
+  } else if (opcode == Op::SEND_UNBOUND_BUFFER) {
+    ptr = (char*)op.ubuf->ptr;
+  } else {
+    return nbytes;
+  }
+
+  size_t offset = op.preamble.offset;
+  size_t length = op.preamble.length;
+  if (op.nwritten > sizeof(op.preamble)) {
+    offset += op.nwritten - sizeof(op.preamble);
+    length -= op.nwritten - sizeof(op.preamble);
+  }
+  iov[ioc].iov_base = ptr + offset;
+  iov[ioc].iov_len = length;
+  nbytes += iov[ioc].iov_len;
+  ioc++;
+
+  return nbytes;
+}
+
 // write is called from:
 // 1) the device thread (the handleEvents function)
 // 2) a user thread (the send function)
@@ -275,34 +318,12 @@ void Pair::connect(const Address& peer) {
 bool Pair::write(Op& op) {
   std::array<struct iovec, 2> iov;
   int ioc;
-  ssize_t nbytes;
   ssize_t rv;
 
   verifyConnected();
 
   for (;;) {
-    ioc = 0;
-    nbytes = 0;
-
-    // Include preamble if necessary
-    if (op.nwritten_ < sizeof(op.preamble_)) {
-      iov[ioc].iov_base = ((char*)&op.preamble_) + op.nwritten_;
-      iov[ioc].iov_len = sizeof(op.preamble_) - op.nwritten_;
-      nbytes += iov[ioc].iov_len;
-      ioc++;
-    }
-
-    // Include remaining piece of buffer
-    size_t offset = op.preamble_.offset_;
-    size_t length = op.preamble_.length_;
-    if (op.nwritten_ > sizeof(op.preamble_)) {
-      offset += op.nwritten_ - sizeof(op.preamble_);
-      length -= op.nwritten_ - sizeof(op.preamble_);
-    }
-    iov[ioc].iov_base = ((char*)op.buf_->ptr_) + offset;
-    iov[ioc].iov_len = length;
-    nbytes += iov[ioc].iov_len;
-    ioc++;
+    auto nbytes = writeBuildIov(op, iov.data(), ioc);
 
     // Write
     rv = writev(fd_, iov.data(), ioc);
@@ -338,16 +359,93 @@ bool Pair::write(Op& op) {
     // since an EINTR may or may not have happened. If this was not
     // the case, and the kernel buffer is full, the next call to
     // write(2) will return EAGAIN, which is handled appropriately.
-    op.nwritten_ += rv;
+    op.nwritten += rv;
     if (rv < nbytes) {
       continue;
     }
 
     GLOO_ENFORCE_EQ(rv, nbytes);
+    GLOO_ENFORCE_EQ(op.nwritten, op.preamble.nbytes);
     break;
   }
 
+  // Write completed
+  auto opcode = op.getOpcode();
+  switch (opcode) {
+    case Op::SEND_BUFFER:
+      op.buf->handleSendCompletion();
+      break;
+    case Op::SEND_UNBOUND_BUFFER:
+      op.ubuf->handleSendCompletion(rank_);
+      break;
+    case Op::NOTIFY_SEND_READY:
+      break;
+    case Op::NOTIFY_RECV_READY:
+      break;
+  }
+
   return true;
+}
+
+bool Pair::readBuildIov(Op& op, struct iovec& iov) {
+  // Read preamble
+  if (op.nread < sizeof(op.preamble)) {
+    iov.iov_base = ((char*)&op.preamble) + op.nread;
+    iov.iov_len = sizeof(op.preamble) - op.nread;
+    return true;
+  }
+
+  auto opcode = op.getOpcode();
+
+  // Remote side is sending data to a buffer; read payload
+  if (opcode == Op::SEND_BUFFER) {
+    if (op.buf == nullptr) {
+      op.buf = getBuffer(op.preamble.slot);
+      // Buffer not (yet) registered, leave it for next loop iteration
+      if (op.buf == nullptr) {
+        return false;
+      }
+    }
+
+    auto offset = op.nread - sizeof(op.preamble);
+    iov.iov_base = ((char*)op.buf->ptr_) + offset + op.preamble.roffset;
+    iov.iov_len = op.preamble.length - offset;
+
+    // There must always be a non-zero number of bytes to read
+    GLOO_ENFORCE_GT(iov.iov_len, 0);
+
+    // Bytes read must be in bounds for target buffer
+    GLOO_ENFORCE_LE(
+        op.preamble.roffset + op.preamble.length,
+        op.buf->size_);
+
+    return true;
+  }
+
+  // Remote side is sending data to an unbound buffer; read payload
+  if (opcode == Op::SEND_UNBOUND_BUFFER) {
+    if (op.ubuf == nullptr) {
+      auto localRecv = localPendingRecv_.find(op.preamble.slot);
+      GLOO_ENFORCE(localRecv != localPendingRecv_.end());
+      auto& bufs = localRecv->second;
+      GLOO_ENFORCE(!bufs.empty());
+      op.ubuf = bufs.front();
+      bufs.pop_front();
+    }
+
+    auto offset = op.nread - sizeof(op.preamble);
+    iov.iov_base = ((char*) op.ubuf->ptr) + offset;
+    iov.iov_len = op.preamble.length - offset;
+
+    // There must always be a non-zero number of bytes to read
+    GLOO_ENFORCE_GT(iov.iov_len, 0);
+
+    // Bytes read must be in bounds for target buffer
+    GLOO_ENFORCE_LE(op.preamble.length, op.ubuf->size);
+    return true;
+  }
+
+  GLOO_ENFORCE(false, "Invalid opcode on read: ", opcode);
 }
 
 // read is called from:
@@ -357,38 +455,16 @@ bool Pair::write(Op& op) {
 // In either case, the lock is held and the read function
 // below inherits it.
 //
-bool Pair::read(Op& op) {
+bool Pair::read() {
   verifyConnected();
 
   auto start = std::chrono::steady_clock::now();
+  auto& op = rx_;
 
   for (;;) {
     struct iovec iov;
-
-    if (op.nread_ < sizeof(op.preamble_)) {
-      // Read preamble
-      iov.iov_base = ((char*)&op.preamble_) + op.nread_;
-      iov.iov_len = sizeof(op.preamble_) - op.nread_;
-    } else {
-      // Read payload
-      if (op.buf_ == nullptr) {
-        op.buf_ = getBuffer(op.preamble_.slot_);
-        // Buffer not (yet) registered, leave it for next loop iteration
-        if (op.buf_ == nullptr) {
-          return false;
-        }
-      }
-      auto offset = op.nread_ - sizeof(op.preamble_);
-      iov.iov_base = ((char*)op.buf_->ptr_) + offset + op.preamble_.roffset_;
-      iov.iov_len = op.preamble_.length_ - offset;
-
-      // There must always be a non-zero number of bytes to read
-      GLOO_ENFORCE_GT(iov.iov_len, 0);
-
-      // Bytes read must be in bounds for target buffer
-      GLOO_ENFORCE_LE(
-          op.preamble_.roffset_ + op.preamble_.length_,
-          op.buf_->size_);
+    if (!readBuildIov(op, iov)) {
+      return false;
     }
 
     // If busy-poll has been requested AND sync mode has been enabled for pair
@@ -453,16 +529,82 @@ bool Pair::read(Op& op) {
       }
     }
 
-    op.nread_ += rv;
-
-    // Verify the payload is non-empty after reading preamble
-    if (op.nread_ == sizeof(op.preamble_)) {
-      GLOO_ENFORCE_NE(op.preamble_.length_, 0);
-    }
+    op.nread += rv;
 
     // Return if op is complete
-    if (op.nread_ == sizeof(op.preamble_) + op.preamble_.length_) {
-      return true;
+    if (op.nread == op.preamble.nbytes) {
+      break;
+    }
+  }
+
+  // Read completed
+  auto opcode = op.getOpcode();
+  switch (opcode) {
+    case Op::SEND_BUFFER:
+      // Done sending data to pinned buffer; trigger completion.
+      op.buf->handleRecvCompletion();
+      break;
+    case Op::SEND_UNBOUND_BUFFER:
+      // Remote side is sending data to unbound buffer; trigger completion
+      op.ubuf->handleRecvCompletion(rank_);
+      break;
+    case Op::NOTIFY_SEND_READY:
+      // Remote side has pending send operation
+      handleRemotePendingSend(op);
+      break;
+    case Op::NOTIFY_RECV_READY:
+      // Remote side has pending recv operation
+      handleRemotePendingRecv(op);
+      break;
+  }
+
+  memset(&op, 0, sizeof(op));
+  return true;
+}
+
+// This function is called upon receiving a message from the peer
+// indicating it has a pending send operation.
+void Pair::handleRemotePendingSend(const Op& op) {
+  const auto& slot = op.preamble.slot;
+
+  // Increase balance of remote pending sends.
+  // Note that the current value may be negative if the
+  // corresponding recv's have already been posted.
+  remotePendingSend_[slot]++;
+
+  // If the balance of remote pending sends is positive, check with
+  // the context whether or not there are any recv-from-any operations
+  // that this send can fulfill.
+  if (remotePendingSend_[slot] > 0) {
+    auto buf = recvFromAnyCallback_(slot);
+    if (buf != nullptr) {
+      localPendingRecv_[slot].push_back(buf);
+      remotePendingSend_[slot]--;
+      sendNotifyRecvReady(buf, slot);
+    }
+  }
+}
+
+// This function is called upon receiving a message from the peer
+// indicating it has a pending receive operation.
+void Pair::handleRemotePendingRecv(const Op& op) {
+  const auto& slot = op.preamble.slot;
+
+  // Increase balance of remote pending recv.
+  // Note that the current value CANNOT be negative, as sends
+  // cannot execute until the remote side is ready to receive.
+  remotePendingRecv_[slot]++;
+
+  // Find local pending send and execute it.
+  // Nothing to do if there are none.
+  auto it = localPendingSend_.find(slot);
+  if (it != localPendingSend_.end()) {
+    auto& pendingSends = it->second;
+    if (!pendingSends.empty()) {
+      auto buf = pendingSends.front();
+      pendingSends.pop_front();
+      remotePendingRecv_[slot]--;
+      sendUnboundBuffer(buf, slot);
     }
   }
 }
@@ -488,21 +630,26 @@ void Pair::handleEvents(int events) {
     if (state_ == CONNECTED) {
       if (events & EPOLLOUT) {
         GLOO_ENFORCE(
-            tx_.buf_ != nullptr,
-            "tx_.buf_ cannot be NULL because EPOLLOUT happened");
-        if (write(tx_)) {
-          tx_.buf_->handleSendCompletion();
-          memset(&tx_, 0, sizeof(tx_));
+            !tx_.empty(),
+            "tx_ cannot be empty because EPOLLOUT happened");
+        while (!tx_.empty()) {
+          auto& op = tx_.front();
+          if (!write(op)) {
+            // Write did not complete; wait for epoll.
+            break;
+          }
+          // Write completed; remove from queue.
+          tx_.pop_front();
+        }
+
+        // If there is nothing to transmit; remove EPOLLOUT.
+        if (tx_.empty()) {
           dev_->registerDescriptor(fd_, EPOLLIN, this);
-          cv_.notify_all();
-        } else {
-          // Write didn't complete, wait for epoll again
         }
       }
       if (events & EPOLLIN) {
-        while (read(rx_)) {
-          rx_.buf_->handleRecvCompletion();
-          memset(&rx_, 0, sizeof(rx_));
+        while (read()) {
+          // Keep going
         }
       }
       return;
@@ -708,6 +855,39 @@ void Pair::verifyConnected() {
   }
 }
 
+// Sends contents of operation to the remote side of the pair.
+// The pair's mutex is held when this function is called.
+// Only applicable to synchronous mode. May block.
+void Pair::sendSyncMode(Op& op) {
+  GLOO_ENFORCE(sync_);
+  auto rv = write(op);
+  GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
+}
+
+// Sends contents of operation to the remote side of the pair.
+// The pair's mutex is held when this function is called.
+// Only applicable to asynchronous mode. Never blocks.
+void Pair::sendAsyncMode(Op& op) {
+  GLOO_ENFORCE(!sync_);
+
+  // If an earlier operation hasn't finished transmitting,
+  // add this operation to the transmit queue.
+  if (!tx_.empty()) {
+    tx_.push_back(std::move(op));
+    return;
+  }
+
+  // Write in place without checking socket for writeability.
+  // This is the fast path.
+  if (write(op)) {
+    return;
+  }
+
+  // Write didn't complete; pass to event loop
+  tx_.push_back(std::move(op));
+  dev_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
+}
+
 void Pair::send(Op& op) {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
@@ -719,9 +899,7 @@ void Pair::send(Op& op) {
 
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
-  size_t size = std::min(
-      (sizeof(op.preamble_) + op.preamble_.length_),
-      kMaxSendBufferSize);
+  size_t size = std::min(op.preamble.nbytes, kMaxSendBufferSize);
   if (sendBufferSize_ < size) {
     int rv;
     size_t optval = size;
@@ -733,31 +911,11 @@ void Pair::send(Op& op) {
     sendBufferSize_ = optval;
   }
 
-  // Wait until event loop has finished current write. No need to wait for
-  // timeout here. If necessary, the ongoing write op will timeout and signal
-  // this thread.
-  if (!sync_ && tx_.buf_ != nullptr) {
-    cv_.wait(lock, [&]{
-      checkErrorState();
-      return tx_.buf_ == nullptr;
-    });
-  }
-
   // Write to socket
   if (sync_) {
-    auto rv = write(op);
-    GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
-    op.buf_->handleSendCompletion();
+    sendSyncMode(op);
   } else {
-    // Write immediately without checking socket for writeability.
-    if (write(op)) {
-      op.buf_->handleSendCompletion();
-      return;
-    }
-
-    // Write didn't complete; pass to event loop
-    tx_ = op;
-    dev_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
+    sendAsyncMode(op);
   }
 }
 
@@ -765,10 +923,8 @@ void Pair::recv() {
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
-  auto rv = read(rx_);
+  auto rv = read();
   GLOO_ENFORCE(rv, "Read must always succeed in sync mode");
-  rx_.buf_->handleRecvCompletion();
-  memset(&rx_, 0, sizeof(rx_));
 }
 
 std::unique_ptr<::gloo::transport::Buffer>
@@ -782,6 +938,87 @@ Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
   auto buffer = new Buffer(this, slot, ptr, size);
   registerBuffer(buffer);
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
+}
+
+// Send from the specified buffer to remote side of pair.
+void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  std::unique_lock<std::mutex> lock(m_);
+  checkErrorState();
+
+  // Execute this send if there is a remote pending receive.
+  if (remotePendingRecv_[slot] > 0) {
+    sendUnboundBuffer(buf, slot);
+    remotePendingRecv_[slot]--;
+    return;
+  }
+
+  // Notify peer of this pending send.
+  localPendingSend_[slot].push_back(buf);
+  sendNotifySendReady(buf, slot);
+}
+
+// Receive into the specified buffer from the remote side of pair.
+void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  std::unique_lock<std::mutex> lock(m_);
+  checkErrorState();
+
+  // Notify peer of this pending recv.
+  localPendingRecv_[slot].push_back(buf);
+  remotePendingSend_[slot]--;
+  sendNotifyRecvReady(buf, slot);
+}
+
+bool Pair::tryRecv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  std::unique_lock<std::mutex> lock(m_);
+  checkErrorState();
+
+  // Return early if there is no remote pending send.
+  if (remotePendingSend_[slot] <= 0) {
+    return false;
+  }
+
+  // Notify peer of this pending recv.
+  localPendingRecv_[slot].push_back(buf);
+  remotePendingSend_[slot]--;
+  sendNotifyRecvReady(buf, slot);
+  return true;
+}
+
+void Pair::sendUnboundBuffer(UnboundBuffer* buf, uint64_t slot) {
+  Op op;
+  op.preamble.nbytes = sizeof(op.preamble) + buf->size;
+  op.preamble.opcode = Op::SEND_UNBOUND_BUFFER;
+  op.preamble.slot = slot;
+  op.preamble.offset = 0;
+  op.preamble.length = buf->size;
+  op.ubuf = buf;
+  sendAsyncMode(op);
+}
+
+void Pair::sendNotifyRecvReady(const UnboundBuffer* buf, uint64_t slot) {
+  Op op;
+  op.preamble.nbytes = sizeof(op.preamble);
+  op.preamble.opcode = Op::NOTIFY_RECV_READY;
+  op.preamble.slot = slot;
+  op.preamble.offset = 0;
+  op.preamble.length = buf->size;
+  sendAsyncMode(op);
+}
+
+void Pair::sendNotifySendReady(const UnboundBuffer* buf, uint64_t slot) {
+  Op op;
+  op.preamble.nbytes = sizeof(op.preamble);
+  op.preamble.opcode = Op::NOTIFY_SEND_READY;
+  op.preamble.slot = slot;
+  op.preamble.offset = 0;
+  op.preamble.length = buf->size;
+  sendAsyncMode(op);
 }
 
 void Pair::signalIoFailureExternal(const std::string& msg) {

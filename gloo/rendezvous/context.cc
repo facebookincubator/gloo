@@ -35,18 +35,17 @@ std::vector<char> Context::extractAddress(
 void Context::connectFullMesh(
     rendezvous::Store& store,
     std::shared_ptr<transport::Device>& dev) {
-  std::vector<std::unique_ptr<transport::Pair>> pairs(size);
-
-  // Create pair to connect to every other node in the collective
   std::vector<char> allBytes;
+
+  // Create pairs
+  auto transportContext = dev->createContext(rank, size);
   for (int i = 0; i < size; i++) {
     if (i == rank) {
       continue;
     }
 
-    auto pair = dev->createPair(getTimeout());
-    pairs[i] = std::move(pair);
-    auto addrBytes = pairs[i]->address().bytes();
+    auto& pair = transportContext->createPair(i, getTimeout());
+    auto addrBytes = pair->address().bytes();
     allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
   }
 
@@ -68,11 +67,11 @@ void Context::connectFullMesh(
     // Connect to other side of this pair
     auto allAddrs = store.get(key.str());
     auto addr = extractAddress(allAddrs, i);
-    pairs[i]->connect(addr);
+    transportContext->getPair(i)->connect(addr);
   }
 
   device_ = dev;
-  pairs_ = std::move(pairs);
+  transportContext_ = std::move(transportContext);
 }
 
 ContextFactory::ContextFactory(std::shared_ptr<::gloo::Context> backingContext)
@@ -145,21 +144,20 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
       backingContext_->rank,
       backingContext_->size);
   context->setTimeout(backingContext_->getTimeout());
-  std::vector<std::unique_ptr<transport::Pair>> pairs(context->size);
 
   // Assume it's the same for all pairs on a device
   size_t addressSize = 0;
 
   // Create pairs
+  auto transportContext = dev->createContext(context->rank, context->size);
   for (auto i = 0; i < context->size; i++) {
     if (i == context->rank) {
       continue;
     }
 
-    auto pair = dev->createPair(context->getTimeout());
+    auto& pair = transportContext->createPair(i, context->getTimeout());
     auto address = pair->address().bytes();
     addressSize = address.size();
-    pairs[i] = std::move(pair);
 
     // Send address of new pair to peer
     GLOO_ENFORCE_LE(addressSize, sendData_[i].size());
@@ -176,7 +174,7 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
     recvBuffers_[i]->waitRecv();
     auto& data = recvData_[i];
     auto address = std::vector<char>(data.begin(), data.begin() + addressSize);
-    pairs[i]->connect(address);
+    transportContext->getPair(i)->connect(address);
 
     // Notify peer that we've consumed the payload
     sendNotificationBuffers_[i]->send();
@@ -199,7 +197,7 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
   }
 
   context->device_ = dev;
-  context->pairs_ = std::move(pairs);
+  context->transportContext_ = std::move(transportContext);
   return std::static_pointer_cast<::gloo::Context>(context);
 }
 

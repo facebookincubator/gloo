@@ -12,6 +12,7 @@
 #include <chrono>
 #include <memory>
 
+#include "gloo/transport/context.h"
 #include "gloo/transport/pair.h"
 
 namespace gloo {
@@ -20,6 +21,7 @@ namespace transport {
 // Forward declarations
 class Pair;
 class Buffer;
+class UnboundBuffer;
 
 // The device abstraction can be considered as a factory for all
 // communication pairs. A communication pair can be associated with
@@ -42,8 +44,10 @@ class Device {
 
   virtual bool hasGPUDirect() const { return false; }
 
-  virtual std::unique_ptr<Pair> createPair(
-      std::chrono::milliseconds timeout) = 0;
+  // Factory function to create transport context. A single device may
+  // service multiple contexts, with no constraints on this process
+  // its rank or the context size.
+  virtual std::shared_ptr<Context> createContext(int rank, int size) = 0;
 };
 
 } // namespace transport

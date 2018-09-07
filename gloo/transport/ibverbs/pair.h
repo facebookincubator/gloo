@@ -67,6 +67,12 @@ class Pair : public ::gloo::transport::Pair {
   virtual std::unique_ptr<::gloo::transport::Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) override;
 
+  // Send from the specified buffer to remote side of pair.
+  virtual void send(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
+  // Receive into the specified buffer from the remote side of pair.
+  virtual void recv(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
   void handleCompletionEvent();
 
   void pollCompletions();

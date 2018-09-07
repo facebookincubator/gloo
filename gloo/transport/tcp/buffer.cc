@@ -143,12 +143,13 @@ void Buffer::send(size_t offset, size_t length, size_t roffset) {
 
   memset(&op, 0, sizeof(op));
 
-  op.preamble_.opcode_ = 0;
-  op.preamble_.slot_ = slot_;
-  op.preamble_.offset_ = offset;
-  op.preamble_.length_ = length;
-  op.preamble_.roffset_ = roffset;
-  op.buf_ = this;
+  op.preamble.nbytes = sizeof(op.preamble) + length;
+  op.preamble.opcode = Op::SEND_BUFFER;
+  op.preamble.slot = slot_;
+  op.preamble.offset = offset;
+  op.preamble.length = length;
+  op.preamble.roffset = roffset;
+  op.buf = this;
 
   // Increment number of sends in flight
   sendPending_++;

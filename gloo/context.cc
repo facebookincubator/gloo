@@ -36,7 +36,13 @@ std::shared_ptr<transport::Device>& Context::getDevice() {
 }
 
 std::unique_ptr<transport::Pair>& Context::getPair(int i) {
-  return pairs_.at(i);
+  GLOO_ENFORCE(transportContext_, "Transport context not set!");
+  return transportContext_->getPair(i);
+}
+
+std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
+    void* ptr, size_t size) {
+  return transportContext_->createUnboundBuffer(ptr, size);
 }
 
 int Context::nextSlot(int numToSkip) {
@@ -47,7 +53,8 @@ int Context::nextSlot(int numToSkip) {
 }
 
 void Context::closeConnections() {
-  for (auto& pair : pairs_) {
+  for (auto i = 0; i < size; i++) {
+    auto& pair = getPair(i);
     if (pair) {
       pair->close();
     }

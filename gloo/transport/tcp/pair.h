@@ -12,11 +12,13 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <exception>
 #include <list>
 #include <map>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <sys/socket.h>
@@ -33,19 +35,38 @@ namespace tcp {
 // Forward declaration
 class Buffer;
 
+// Forward declaration
+class UnboundBuffer;
+
 struct Op {
+  // Default constructor initializes everything to 0.
+  explicit Op();
+
+  enum Opcode {
+    SEND_BUFFER = 0,
+    SEND_UNBOUND_BUFFER = 1,
+    NOTIFY_SEND_READY = 2,
+    NOTIFY_RECV_READY = 3,
+  };
+
+  inline enum Opcode getOpcode() {
+    return static_cast<Opcode>(preamble.opcode);
+  }
+
   struct {
-    size_t opcode_;
-    size_t slot_;
-    size_t offset_;
-    size_t length_;
-    size_t roffset_;
-  } preamble_;
+    size_t nbytes;
+    size_t opcode;
+    size_t slot;
+    size_t offset;
+    size_t length;
+    size_t roffset;
+  } preamble;
 
   // Used internally
-  Buffer* buf_;
-  size_t nread_;
-  size_t nwritten_;
+  Buffer* buf;
+  UnboundBuffer* ubuf;
+  size_t nread;
+  size_t nwritten;
 };
 
 class Pair : public ::gloo::transport::Pair {
@@ -60,7 +81,9 @@ class Pair : public ::gloo::transport::Pair {
  public:
   explicit Pair(
       const std::shared_ptr<Device>& dev,
-      std::chrono::milliseconds timeout);
+      const int rank,
+      std::chrono::milliseconds timeout,
+      std::function<tcp::UnboundBuffer*(uint64_t slot)> fn);
 
   virtual ~Pair();
 
@@ -80,12 +103,24 @@ class Pair : public ::gloo::transport::Pair {
   virtual std::unique_ptr<::gloo::transport::Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) override;
 
+  // Send from the specified buffer to remote side of pair.
+  virtual void send(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
+  // Receive into the specified buffer from the remote side of pair.
+  virtual void recv(transport::UnboundBuffer* tbuf, uint64_t tag) override;
+
+  // Attempt to receive into the specified buffer from the remote side
+  // of pair. Returns true if there was a remote pending send and the
+  // recv is in progress, false otherwise.
+  bool tryRecv(transport::UnboundBuffer* tbuf, uint64_t tag);
+
   void handleEvents(int events);
 
   void close() override;
 
  protected:
   std::shared_ptr<Device> dev_;
+  const int rank_;
   state state_;
   std::atomic<bool> sync_;
   const std::chrono::milliseconds timeout_;
@@ -102,6 +137,22 @@ class Pair : public ::gloo::transport::Pair {
   std::condition_variable cv_;
   std::map<int, Buffer*> buffers_;
 
+  std::unordered_map<uint64_t, std::deque<tcp::UnboundBuffer*>> localPendingSend_;
+  std::unordered_map<uint64_t, std::deque<tcp::UnboundBuffer*>> localPendingRecv_;
+  std::unordered_map<uint64_t, int> remotePendingSend_;
+  std::unordered_map<uint64_t, int> remotePendingRecv_;
+
+  void sendUnboundBuffer(tcp::UnboundBuffer* buf, uint64_t slot);
+  void sendNotifyRecvReady(const tcp::UnboundBuffer* buf, uint64_t slot);
+  void sendNotifySendReady(const tcp::UnboundBuffer* buf, uint64_t slot);
+
+  // Callback to issue when the remote side of the pair has
+  // notified us that a send operation is ready to go. This is used to
+  // implement recv-from-any on unbound buffers. The callback returns
+  // an unbound buffer if there is a pending recv-from-any that
+  // matches the rank of the remote side of this pair.
+  std::function<tcp::UnboundBuffer*(uint64_t slot)> recvFromAnyCallback_;
+
   void listen();
   void connect(const Address& peer);
 
@@ -109,6 +160,8 @@ class Pair : public ::gloo::transport::Pair {
   void registerBuffer(Buffer* buf);
   void unregisterBuffer(Buffer* buf);
 
+  void sendSyncMode(Op& op);
+  void sendAsyncMode(Op& op);
   void send(Op& op);
   void recv();
 
@@ -129,13 +182,27 @@ class Pair : public ::gloo::transport::Pair {
   friend class Buffer;
 
  private:
+  // Maintain state of a single operation for receiving operations
+  // from the remote side of the pair.
   Op rx_;
-  Op tx_;
+
+  // Maintain state of multiple operations for transmitting operations
+  // to the remote side. To support send/recv of unbound buffers,
+  // transmission of notifications may be triggered from the event
+  // loop, where it is not possible to block and wait on other I/O
+  // operations to complete. Instead, if transmission cannot complete
+  // in place, it must be queued and executed later.
+  std::deque<Op> tx_;
 
   std::exception_ptr ex_;
 
+  ssize_t writeBuildIov(Op& op, struct iovec* iov, int& ioc);
   bool write(Op& op);
-  bool read(Op& op);
+  bool readBuildIov(Op& op, struct iovec& iov);
+  bool read();
+
+  void handleRemotePendingSend(const Op& op);
+  void handleRemotePendingRecv(const Op& op);
 
   void handleListening();
   void handleConnecting();

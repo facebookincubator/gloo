@@ -327,6 +327,18 @@ Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
 }
 
+// Send from the specified buffer to remote side of pair.
+void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+      "Unbound buffers not supported yet for ibverbs transport");
+}
+
+// Receive into the specified buffer from the remote side of pair.
+void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+      "Unbound buffers not supported yet for ibverbs transport");
+}
+
 // handleCompletionEvent is called by the device thread when it
 // received an event for this pair's completion queue on its
 // completion channel.
