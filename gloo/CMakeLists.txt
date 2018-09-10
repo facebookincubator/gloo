@@ -111,7 +111,7 @@ if(GLOO_INSTALL)
     install(TARGETS gloo_cuda EXPORT GlooTargets
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   endif()
-  install(FILES ${CMAKE_BINARY_DIR}/gloo/config.h
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/gloo)
   foreach(HEADER ${GLOO_HDRS})
     string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})
