@@ -37,22 +37,59 @@ class CudaBenchmark : public Benchmark<T> {
   virtual ~CudaBenchmark() {}
 
  protected:
+  // Allocates memory for algorithm under benchmark to use. It calls
+  // the allocate function on the superclass to get initialized host
+  // side memory. This is then copied to device memory, instead of
+  // duplicating initialization code here. The host side memory is
+  // reused when the benchmark runs in verification mode and memory
+  // contents is checked after an algorithm has run.
   virtual std::vector<T*> allocate(int inputs, size_t elements) override {
-    GLOO_ENFORCE_LE(inputs, cudaNumDevices());
-    std::vector<T*> ptrs;
+    auto rawHostPtrs = Benchmark<T>::allocate(inputs, elements);
 
-    const auto stride = this->context_->size * inputs;
+    // Initialize allocations, streams, CUDA pointer wrappers
     for (auto i = 0; i < inputs; i++) {
-      CudaDeviceScope scope(i);
-      auto cudaMemory = CudaMemory<T>(elements);
-      cudaMemory.set((this->context_->rank * inputs) + i, stride);
-      ptrs.push_back(*cudaMemory);
-      inputs_.push_back(std::move(cudaMemory));
+      auto device = i % cudaNumDevices();
+
+      CudaDeviceScope scope(device);
+      allocations_.push_back(CudaMemory<T>(elements));
+      streams_.push_back(CudaStream(device));
+      hostPtrs_.push_back(
+        CudaHostPointer<T>::create(rawHostPtrs[i], elements));
+      devicePtrs_.push_back(
+        CudaDevicePointer<T>::create(*allocations_[i], elements));
     }
-    return ptrs;
+
+    // Copy initialized inputs to device
+    for (auto i = 0; i < inputs; i++) {
+      streams_[i].copyAsync(devicePtrs_[i], hostPtrs_[i]);
+    }
+
+    // Wait for copy to complete and populate return vector
+    std::vector<T*> rawDevicePtrs;
+    for (auto i = 0; i < inputs; i++) {
+      streams_[i].wait();
+      rawDevicePtrs.push_back(*devicePtrs_[i]);
+    }
+
+    return rawDevicePtrs;
   }
 
-  std::vector<CudaMemory<T>> inputs_;
+  std::vector<T*> copyToHost() {
+    for (auto i = 0; i < hostPtrs_.size(); i++) {
+      streams_[i].copyAsync(hostPtrs_[i], devicePtrs_[i]);
+    }
+    std::vector<T*> rawHostPtrs;
+    for (auto i = 0; i < hostPtrs_.size(); i++) {
+      streams_[i].wait();
+      rawHostPtrs.push_back(*hostPtrs_[i]);
+    }
+    return rawHostPtrs;
+  }
+
+  std::vector<CudaMemory<T>> allocations_;
+  std::vector<CudaStream> streams_;
+  std::vector<CudaHostPointer<T>> hostPtrs_;
+  std::vector<CudaDevicePointer<T>> devicePtrs_;
 };
 
 template <typename T>
@@ -83,9 +120,10 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
     // "size", and we have "size" of them. Therefore, after
     // allreduce, the stride between expected values is "size^2".
     const auto stride = size * size;
-    for (const auto& input : this->inputs_) {
-      auto ptr = input.copyToHost();
-      for (int i = 0; i < input.elements; i++) {
+    const auto ptrs = this->copyToHost();
+    const auto elements = this->hostPtrs_[0].getCount();
+    for (const auto& ptr : ptrs) {
+      for (int i = 0; i < elements; i++) {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(T(offset + expected), ptr[i], "Mismatch at index: ", i);
       }
@@ -123,9 +161,10 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
   virtual void verify() override {
     const auto rootOffset = rootRank_ * this->inputs_.size() + rootPointerRank_;
     const auto stride = this->context_->size * this->inputs_.size();
-    for (const auto& input : this->inputs_) {
-      auto ptr = input.copyToHost();
-      for (int i = 0; i < input.elements; i++) {
+    const auto ptrs = this->copyToHost();
+    const auto elements = this->hostPtrs_[0].getCount();
+    for (const auto& ptr : ptrs) {
+      for (int i = 0; i < elements; i++) {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(
             T(rootOffset + offset), ptr[i], "Mismatch at index: ", i);

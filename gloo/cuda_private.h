@@ -121,13 +121,9 @@ class CudaMemory {
   CudaMemory(CudaMemory&&) noexcept;
   ~CudaMemory();
 
-  void set(int val, size_t stride = 0, cudaStream_t stream = kStreamNotSet);
-
   T* operator*() const {
     return ptr_;
   }
-
-  std::unique_ptr<T[]> copyToHost() const;
 
   const size_t elements;
   const size_t bytes;

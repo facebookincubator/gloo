@@ -204,6 +204,10 @@ class CudaHostPointer {
  public:
   static CudaHostPointer<T> alloc(size_t count);
 
+  static CudaHostPointer<T> create(T* ptr, size_t count) {
+    return CudaHostPointer<T>(ptr, count, false);
+  }
+
   CudaHostPointer(CudaHostPointer&&) noexcept;
   ~CudaHostPointer();
 

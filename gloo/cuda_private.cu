@@ -88,27 +88,6 @@ CudaMemory<T>::~CudaMemory() {
   }
 }
 
-template<typename T>
-void CudaMemory<T>::set(int val, size_t stride, cudaStream_t stream) {
-  CudaDeviceScope scope(device_);
-  if (stream == kStreamNotSet) {
-    initializeMemory<T><<<1, 32>>>(ptr_, val, elements, stride);
-  } else {
-    initializeMemory<T><<<1, 32, 0, stream>>>(ptr_, val, elements, stride);
-  }
-}
-
-template<typename T>
-std::unique_ptr<T[]> CudaMemory<T>::copyToHost() const {
-  CudaDeviceScope scope(device_);
-  auto host = make_unique<T[]>(elements);
-  // Synchronize to ensure that the copy has completed.
-  // The caller needs to be able to use the result immediately.
-  CUDA_CHECK(cudaMemcpyAsync(host.get(), ptr_, bytes, cudaMemcpyDefault, 0));
-  CUDA_CHECK(cudaStreamSynchronize(0));
-  return host;
-}
-
 // Instantiate template
 template class CudaMemory<float>;
 template class CudaMemory<float16>;
