@@ -36,7 +36,7 @@ class CudaLocalNativeReduce : public LocalOp<T> {
         numPtrs_(devicePtrs.size()),
         steps_(log2(numPtrs_)) {
     // Only works with power-of-2 number of pointers
-    GLOO_ENFORCE(1 << steps_, streams.size(), "Not power of two");
+    GLOO_ENFORCE((1 << steps_) != 0, streams.size(), "Not power of two");
 
     // Incorporate offset/count into devicePtrs
     devicePtrs_.reserve(devicePtrs.size());
@@ -164,7 +164,7 @@ class CudaLocalNativeBroadcast : public LocalOp<T> {
         numPtrs_(devicePtrs.size()),
         steps_(log2(numPtrs_)) {
     // Only works with power-of-2 number of pointers
-    GLOO_ENFORCE(1 << steps_, streams.size(), "Not power of two");
+    GLOO_ENFORCE((1 << steps_) != 0, streams.size(), "Not power of two");
 
     // Incorporate offset/count into devicePtrs
     devicePtrs_.reserve(devicePtrs.size());
