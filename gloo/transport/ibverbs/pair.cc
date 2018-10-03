@@ -328,13 +328,13 @@ Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
 }
 
 // Send from the specified buffer to remote side of pair.
-void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot) {
+void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot, size_t offset, size_t nbytes) {
   GLOO_THROW_INVALID_OPERATION_EXCEPTION(
       "Unbound buffers not supported yet for ibverbs transport");
 }
 
 // Receive into the specified buffer from the remote side of pair.
-void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot, size_t offset, size_t nbytes) {
   GLOO_THROW_INVALID_OPERATION_EXCEPTION(
       "Unbound buffers not supported yet for ibverbs transport");
 }

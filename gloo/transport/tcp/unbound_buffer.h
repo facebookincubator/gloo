@@ -36,11 +36,17 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   void waitSend(int* rank) override;
 
-  void send(int dstRank, uint64_t slot) override;
+  void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes = 0)
+      override;
 
-  void recv(int srcRank, uint64_t slot) override;
+  void recv(int srcRank, uint64_t slot, size_t offset, size_t nbytes = 0)
+      override;
 
-  void recv(std::vector<int> srcRanks, uint64_t slot) override;
+  void recv(
+      std::vector<int> srcRanks,
+      uint64_t slot,
+      size_t offset,
+      size_t nbytes) override;
 
  protected:
   void handleRecvCompletion(int rank);

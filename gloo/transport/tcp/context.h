@@ -47,7 +47,8 @@ class Context : public ::gloo::transport::Context,
 
   std::mutex m_;
 
-  using pendingRecvTuple = std::tuple<UnboundBuffer*, std::unordered_set<int>>;
+  using pendingRecvTuple =
+      std::tuple<UnboundBuffer*, size_t, size_t, std::unordered_set<int>>;
 
   // Buffers with pending receive operation by slot.
   std::unordered_map<uint64_t, std::deque<pendingRecvTuple>> pendingRecv_;
@@ -60,16 +61,22 @@ class Context : public ::gloo::transport::Context,
   void recvFromAny(
       UnboundBuffer* buf,
       uint64_t slot,
+      size_t offset,
+      size_t nbytes,
       std::vector<int> srcRanks);
 
   int recvFromAnyFindRank(
       UnboundBuffer* buf,
       uint64_t slot,
+      size_t offset,
+      size_t nbytes,
       std::vector<int> srcRanks);
 
   UnboundBuffer* recvFromAnyCallback(
       int rank,
-      uint64_t slot);
+      uint64_t slot,
+      size_t* offset,
+      size_t* nbytes);
 
   friend class Pair;
 
