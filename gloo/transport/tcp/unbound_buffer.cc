@@ -11,6 +11,7 @@
 
 #include <stdexcept>
 
+#include "gloo/common/logging.h"
 #include "gloo/transport/tcp/context.h"
 
 namespace gloo {
@@ -68,16 +69,40 @@ void UnboundBuffer::waitSend(int* rank) {
   }
 }
 
-void UnboundBuffer::send(int dstRank, uint64_t slot) {
-  context_->getPair(dstRank)->send(this, slot);
+void UnboundBuffer::send(
+    int dstRank,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
+  if (nbytes == 0) {
+    GLOO_ENFORCE_LT(offset, this->size);
+    nbytes = this->size - offset;
+  }
+  context_->getPair(dstRank)->send(this, slot, offset, nbytes);
 }
 
-void UnboundBuffer::recv(int srcRank, uint64_t slot) {
-  context_->getPair(srcRank)->recv(this, slot);
+void UnboundBuffer::recv(
+    int srcRank,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
+  if (nbytes == 0) {
+    GLOO_ENFORCE_LT(offset, this->size);
+    nbytes = this->size - offset;
+  }
+  context_->getPair(srcRank)->recv(this, slot, offset, nbytes);
 }
 
-void UnboundBuffer::recv(std::vector<int> srcRanks, uint64_t slot) {
-  context_->recvFromAny(this, slot, srcRanks);
+void UnboundBuffer::recv(
+    std::vector<int> srcRanks,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
+  if (nbytes == 0) {
+    GLOO_ENFORCE_LT(offset, this->size);
+    nbytes = this->size - offset;
+  }
+  context_->recvFromAny(this, slot, offset, nbytes, srcRanks);
 }
 
 } // namespace tcp

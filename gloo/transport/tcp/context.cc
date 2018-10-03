@@ -32,14 +32,13 @@ std::unique_ptr<transport::Pair>& Context::createPair(
   if (timeout < std::chrono::milliseconds::zero()) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
   }
-  pairs_[rank] = std::unique_ptr<transport::Pair>(
-      new tcp::Pair(
-          device_,
-          rank,
-          timeout,
-          [=] (uint64_t slot) -> UnboundBuffer* {
-            return recvFromAnyCallback(rank, slot);
-          }));
+  pairs_[rank] = std::unique_ptr<transport::Pair>(new tcp::Pair(
+      device_,
+      rank,
+      timeout,
+      [=](uint64_t slot, size_t* offset, size_t* nbytes) -> UnboundBuffer* {
+        return recvFromAnyCallback(rank, slot, offset, nbytes);
+      }));
   return pairs_[rank];
 }
 
@@ -53,10 +52,12 @@ std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
 void Context::recvFromAny(
     UnboundBuffer* buf,
     uint64_t slot,
+    size_t offset,
+    size_t nbytes,
     std::vector<int> srcRanks) {
   for (;;) {
     // Find rank of pair we can attempt a recv from
-    auto rank = recvFromAnyFindRank(buf, slot, srcRanks);
+    auto rank = recvFromAnyFindRank(buf, slot, offset, nbytes, srcRanks);
     if (rank == -1) {
       return;
     }
@@ -65,7 +66,7 @@ void Context::recvFromAny(
     GLOO_ENFORCE(ptr != nullptr);
     auto pair = dynamic_cast<Pair*>(ptr);
     GLOO_ENFORCE(pair != nullptr);
-    if (pair->tryRecv(buf, slot)) {
+    if (pair->tryRecv(buf, slot, offset, nbytes)) {
       return;
     }
   }
@@ -74,6 +75,8 @@ void Context::recvFromAny(
 int Context::recvFromAnyFindRank(
     UnboundBuffer* buf,
     uint64_t slot,
+    size_t offset,
+    size_t nbytes,
     std::vector<int> srcRanks) {
   std::unique_lock<std::mutex> lock(m_);
 
@@ -106,13 +109,15 @@ int Context::recvFromAnyFindRank(
 
   // No candidates; register buffer for recv
   auto set = std::unordered_set<int>(srcRanks.begin(), srcRanks.end());
-  pendingRecv_[slot].emplace_back(std::make_tuple(buf, set));
+  pendingRecv_[slot].emplace_back(std::make_tuple(buf, offset, nbytes, set));
   return -1;
 }
 
 UnboundBuffer* Context::recvFromAnyCallback(
     int rank,
-    uint64_t slot) {
+    uint64_t slot,
+    size_t* offset,
+    size_t* nbytes) {
   std::unique_lock<std::mutex> lock(m_);
 
   // See if there is a pending recv for this slot.
@@ -122,12 +127,16 @@ UnboundBuffer* Context::recvFromAnyCallback(
 
     // Iterate over available buffers to find a match.
     for (auto rit = recvs.begin(); rit != recvs.end(); rit++) {
-      auto buf = std::get<0>(*rit);
-      const auto& ranks = std::get<1>(*rit);
+      const auto& ranks = std::get<3>(*rit);
 
       // If the rank of this peer is in the set of acceptable ranks for
       // this slot we can proceed and return the buffer to recv into.
       if (ranks.count(rank) > 0) {
+        // Capture values to return.
+        auto buf = std::get<0>(*rit);
+        *offset = std::get<1>(*rit);
+        *nbytes = std::get<2>(*rit);
+        // Cleanup.
         recvs.erase(rit);
         if (recvs.empty()) {
           pendingRecv_.erase(pit);

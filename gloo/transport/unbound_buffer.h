@@ -41,11 +41,23 @@ class UnboundBuffer {
   // If specified, the destination of this send is stored in the rank pointer.
   virtual void waitSend(int* rank = nullptr) = 0;
 
-  virtual void send(int dstRank, uint64_t slot) = 0;
+  virtual void send(
+      int dstRank,
+      uint64_t slot,
+      size_t offset = 0,
+      size_t nbytes = 0) = 0;
 
-  virtual void recv(int srcRank, uint64_t slot) = 0;
+  virtual void recv(
+      int srcRank,
+      uint64_t slot,
+      size_t offset = 0,
+      size_t nbytes = 0) = 0;
 
-  virtual void recv(std::vector<int> srcRanks, uint64_t slot) = 0;
+  virtual void recv(
+      std::vector<int> srcRanks,
+      uint64_t slot,
+      size_t offset = 0,
+      size_t nbytes = 0) = 0;
 };
 
 } // namespace transport
