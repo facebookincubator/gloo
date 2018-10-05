@@ -54,7 +54,7 @@ Pair::Pair(
     const std::shared_ptr<Device>& dev,
     const int rank,
     std::chrono::milliseconds timeout,
-    std::function<tcp::UnboundBuffer*(uint64_t slot)> fn)
+    recvCallbackType fn)
     : dev_(dev),
       rank_(rank),
       state_(INITIALIZING),
@@ -272,40 +272,52 @@ void Pair::connect(const Address& peer) {
 }
 
 ssize_t Pair::writeBuildIov(Op& op, struct iovec* iov, int& ioc) {
-  ssize_t nbytes = 0;
+  ssize_t len = 0;
   ioc = 0;
 
   // Include preamble if necessary
   if (op.nwritten < sizeof(op.preamble)) {
     iov[ioc].iov_base = ((char*)&op.preamble) + op.nwritten;
     iov[ioc].iov_len = sizeof(op.preamble) - op.nwritten;
-    nbytes += iov[ioc].iov_len;
+    len += iov[ioc].iov_len;
     ioc++;
   }
 
-  // Include remaining buffer segment if applicable
-  char* ptr = nullptr;
   auto opcode = op.getOpcode();
+
+  // Send data to a remote buffer
   if (opcode == Op::SEND_BUFFER) {
-    ptr = (char*)op.buf->ptr_;
-  } else if (opcode == Op::SEND_UNBOUND_BUFFER) {
-    ptr = (char*)op.ubuf->ptr;
-  } else {
-    return nbytes;
+    char* ptr = (char*)op.buf->ptr_;
+    size_t offset = op.preamble.offset;
+    size_t nbytes = op.preamble.length;
+    if (op.nwritten > sizeof(op.preamble)) {
+      offset += op.nwritten - sizeof(op.preamble);
+      nbytes -= op.nwritten - sizeof(op.preamble);
+    }
+    iov[ioc].iov_base = ptr + offset;
+    iov[ioc].iov_len = nbytes;
+    len += iov[ioc].iov_len;
+    ioc++;
+    return len;
   }
 
-  size_t offset = op.preamble.offset;
-  size_t length = op.preamble.length;
-  if (op.nwritten > sizeof(op.preamble)) {
-    offset += op.nwritten - sizeof(op.preamble);
-    length -= op.nwritten - sizeof(op.preamble);
+  // Send data to a remote unbound buffer
+  if (opcode == Op::SEND_UNBOUND_BUFFER) {
+    char* ptr = (char*)op.ubuf->ptr;
+    size_t offset = op.offset;
+    size_t nbytes = op.nbytes;
+    if (op.nwritten > sizeof(op.preamble)) {
+      offset += op.nwritten - sizeof(op.preamble);
+      nbytes -= op.nwritten - sizeof(op.preamble);
+    }
+    iov[ioc].iov_base = ptr + offset;
+    iov[ioc].iov_len = nbytes;
+    len += iov[ioc].iov_len;
+    ioc++;
+    return len;
   }
-  iov[ioc].iov_base = ptr + offset;
-  iov[ioc].iov_len = length;
-  nbytes += iov[ioc].iov_len;
-  ioc++;
 
-  return nbytes;
+  return len;
 }
 
 // write is called from:
@@ -425,23 +437,23 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
   // Remote side is sending data to an unbound buffer; read payload
   if (opcode == Op::SEND_UNBOUND_BUFFER) {
     if (op.ubuf == nullptr) {
-      auto localRecv = localPendingRecv_.find(op.preamble.slot);
-      GLOO_ENFORCE(localRecv != localPendingRecv_.end());
-      auto& bufs = localRecv->second;
-      GLOO_ENFORCE(!bufs.empty());
-      op.ubuf = bufs.front();
-      bufs.pop_front();
+      auto it = localPendingRecv_.find(op.preamble.slot);
+      GLOO_ENFORCE(it != localPendingRecv_.end());
+      auto& tuples = it->second;
+      GLOO_ENFORCE(!tuples.empty());
+      std::tie(op.ubuf, op.offset, op.nbytes) = tuples.front();
+      tuples.pop_front();
     }
 
     auto offset = op.nread - sizeof(op.preamble);
-    iov.iov_base = ((char*) op.ubuf->ptr) + offset;
+    iov.iov_base = ((char*)op.ubuf->ptr) + op.offset + offset;
     iov.iov_len = op.preamble.length - offset;
 
     // There must always be a non-zero number of bytes to read
     GLOO_ENFORCE_GT(iov.iov_len, 0);
 
     // Bytes read must be in bounds for target buffer
-    GLOO_ENFORCE_LE(op.preamble.length, op.ubuf->size);
+    GLOO_ENFORCE_LE(op.preamble.length, op.nbytes);
     return true;
   }
 
@@ -576,11 +588,13 @@ void Pair::handleRemotePendingSend(const Op& op) {
   // the context whether or not there are any recv-from-any operations
   // that this send can fulfill.
   if (remotePendingSend_[slot] > 0) {
-    auto buf = recvFromAnyCallback_(slot);
+    size_t offset;
+    size_t nbytes;
+    auto buf = recvFromAnyCallback_(slot, &offset, &nbytes);
     if (buf != nullptr) {
-      localPendingRecv_[slot].push_back(buf);
+      localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
       remotePendingSend_[slot]--;
-      sendNotifyRecvReady(buf, slot);
+      sendNotifyRecvReady(slot, nbytes);
     }
   }
 }
@@ -601,10 +615,13 @@ void Pair::handleRemotePendingRecv(const Op& op) {
   if (it != localPendingSend_.end()) {
     auto& pendingSends = it->second;
     if (!pendingSends.empty()) {
-      auto buf = pendingSends.front();
+      UnboundBuffer* buf;
+      size_t offset;
+      size_t nbytes;
+      std::tie(buf, offset, nbytes) = pendingSends.front();
       pendingSends.pop_front();
       remotePendingRecv_[slot]--;
-      sendUnboundBuffer(buf, slot);
+      sendUnboundBuffer(buf, slot, offset, nbytes);
     }
   }
 }
@@ -941,39 +958,66 @@ Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
 }
 
 // Send from the specified buffer to remote side of pair.
-void Pair::send(transport::UnboundBuffer* tbuf, uint64_t slot) {
+void Pair::send(
+    transport::UnboundBuffer* tbuf,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  GLOO_ENFORCE_GE(offset, 0);
+  GLOO_ENFORCE_LT(offset, buf->size);
+  GLOO_ENFORCE_GT(nbytes, 0);
+  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
   // Execute this send if there is a remote pending receive.
   if (remotePendingRecv_[slot] > 0) {
-    sendUnboundBuffer(buf, slot);
+    sendUnboundBuffer(buf, slot, offset, nbytes);
     remotePendingRecv_[slot]--;
     return;
   }
 
   // Notify peer of this pending send.
-  localPendingSend_[slot].push_back(buf);
-  sendNotifySendReady(buf, slot);
+  localPendingSend_[slot].push_back(std::make_tuple(buf, offset, nbytes));
+  sendNotifySendReady(slot, nbytes);
 }
 
 // Receive into the specified buffer from the remote side of pair.
-void Pair::recv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+void Pair::recv(
+    transport::UnboundBuffer* tbuf,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  GLOO_ENFORCE_GE(offset, 0);
+  GLOO_ENFORCE_LT(offset, buf->size);
+  GLOO_ENFORCE_GT(nbytes, 0);
+  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
 
   // Notify peer of this pending recv.
-  localPendingRecv_[slot].push_back(buf);
+  localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
   remotePendingSend_[slot]--;
-  sendNotifyRecvReady(buf, slot);
+  sendNotifyRecvReady(slot, nbytes);
 }
 
-bool Pair::tryRecv(transport::UnboundBuffer* tbuf, uint64_t slot) {
+bool Pair::tryRecv(
+    transport::UnboundBuffer* tbuf,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+
+  GLOO_ENFORCE_GE(offset, 0);
+  GLOO_ENFORCE_LT(offset, buf->size);
+  GLOO_ENFORCE_GT(nbytes, 0);
+  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   checkErrorState();
@@ -984,40 +1028,43 @@ bool Pair::tryRecv(transport::UnboundBuffer* tbuf, uint64_t slot) {
   }
 
   // Notify peer of this pending recv.
-  localPendingRecv_[slot].push_back(buf);
+  localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
   remotePendingSend_[slot]--;
-  sendNotifyRecvReady(buf, slot);
+  sendNotifyRecvReady(slot, nbytes);
   return true;
 }
 
-void Pair::sendUnboundBuffer(UnboundBuffer* buf, uint64_t slot) {
+void Pair::sendUnboundBuffer(
+    UnboundBuffer* buf,
+    uint64_t slot,
+    size_t offset,
+    size_t nbytes) {
   Op op;
-  op.preamble.nbytes = sizeof(op.preamble) + buf->size;
+  op.preamble.nbytes = sizeof(op.preamble) + nbytes;
   op.preamble.opcode = Op::SEND_UNBOUND_BUFFER;
   op.preamble.slot = slot;
-  op.preamble.offset = 0;
-  op.preamble.length = buf->size;
+  op.preamble.length = nbytes;
   op.ubuf = buf;
+  op.offset = offset;
+  op.nbytes = nbytes;
   sendAsyncMode(op);
 }
 
-void Pair::sendNotifyRecvReady(const UnboundBuffer* buf, uint64_t slot) {
+void Pair::sendNotifyRecvReady(uint64_t slot, size_t nbytes) {
   Op op;
   op.preamble.nbytes = sizeof(op.preamble);
   op.preamble.opcode = Op::NOTIFY_RECV_READY;
   op.preamble.slot = slot;
-  op.preamble.offset = 0;
-  op.preamble.length = buf->size;
+  op.preamble.length = nbytes;
   sendAsyncMode(op);
 }
 
-void Pair::sendNotifySendReady(const UnboundBuffer* buf, uint64_t slot) {
+void Pair::sendNotifySendReady(uint64_t slot, size_t nbytes) {
   Op op;
   op.preamble.nbytes = sizeof(op.preamble);
   op.preamble.opcode = Op::NOTIFY_SEND_READY;
   op.preamble.slot = slot;
-  op.preamble.offset = 0;
-  op.preamble.length = buf->size;
+  op.preamble.length = nbytes;
   sendAsyncMode(op);
 }
 

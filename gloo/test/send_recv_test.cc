@@ -26,8 +26,6 @@ class SendRecvTest : public BaseTest,
 
 TEST_P(SendRecvTest, AllToAll) {
   auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
       using buffer_ptr = std::unique_ptr<::gloo::transport::UnboundBuffer>;
       std::vector<int> input(contextSize);
@@ -80,10 +78,60 @@ TEST_P(SendRecvTest, AllToAll) {
     });
 }
 
+TEST_P(SendRecvTest, AllToAllOffset) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      auto elementSize = sizeof(int);
+      std::vector<int> input(contextSize);
+      std::vector<int> output(contextSize);
+      auto inputBuffer = context->createUnboundBuffer(
+          input.data(), input.size() * elementSize);
+      auto outputBuffer = context->createUnboundBuffer(
+          output.data(), output.size() * elementSize);
+
+      // Initialize
+      for (auto i = 0; i < context->size; i++) {
+        input[i] = i;
+        output[i] = -1;
+      }
+
+      // Send a message with the local rank to every other rank
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        inputBuffer->send(i, 0, context->rank * elementSize, elementSize);
+      }
+
+      // Receive message from every other rank
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        outputBuffer->recv(i, 0, i * elementSize, elementSize);
+      }
+
+      // Wait for send and recv to complete
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        inputBuffer->waitSend();
+        outputBuffer->waitRecv();
+      }
+
+      // Verify output
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        ASSERT_EQ(i, output[i]) << "Mismatch at index " << i;
+      }
+    });
+}
+
 TEST_P(SendRecvTest, RecvFromAny) {
   auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
       constexpr uint64_t slot = 0x1337;
       if (context->rank == 0) {
@@ -122,10 +170,50 @@ TEST_P(SendRecvTest, RecvFromAny) {
     });
 }
 
+TEST_P(SendRecvTest, RecvFromAnyOffset) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      auto elementSize = sizeof(int);
+      constexpr uint64_t slot = 0x1337;
+      if (context->rank == 0) {
+        std::unordered_set<int> outputData;
+        std::unordered_set<int> outputRanks;
+        std::array<int, 2> tmp;
+        auto buf =
+            context->createUnboundBuffer(tmp.data(), tmp.size() * elementSize);
+
+        // Compile vector of ranks to receive from
+        std::vector<int> ranks;
+        for (auto i = 1; i < context->size; i++) {
+          ranks.push_back(i);
+        }
+
+        // Receive from N-1 peers
+        for (auto i = 1; i < context->size; i++) {
+          int srcRank = -1;
+          buf->recv(ranks, slot, (i % tmp.size()) * elementSize, elementSize);
+          buf->waitRecv(&srcRank);
+          outputData.insert(tmp[i % tmp.size()]);
+          outputRanks.insert(srcRank);
+        }
+
+        // Verify result
+        for (auto i = 1; i < context->size; i++) {
+          ASSERT_EQ(1, outputData.count(i)) << "Missing output " << i;
+          ASSERT_EQ(1, outputRanks.count(i)) << "Missing rank " << i;
+        }
+      } else {
+        // Send to rank 0
+        int tmp = context->rank;
+        auto buf = context->createUnboundBuffer(&tmp, sizeof(tmp));
+        buf->send(0, slot);
+        buf->waitSend();
+      }
+    });
+}
+
 TEST_P(SendRecvTest, RecvFromAnyPipeline) {
   auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
       constexpr uint64_t slot = 0x1337;
 
