@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/allgather.h"
 #include "gloo/allgather_ring.h"
 #include "gloo/common/common.h"
 #include "gloo/test/base_test.h"
@@ -108,6 +109,76 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Range(2, 10),
         ::testing::ValuesIn(genMemorySizes()),
         ::testing::Range(1, 4)));
+
+using NewParam = std::tuple<int, int>;
+
+class AllgatherNewTest : public BaseTest,
+                         public ::testing::WithParamInterface<NewParam> {};
+
+TEST_P(AllgatherNewTest, Default) {
+  auto contextSize = std::get<0>(GetParam());
+  auto dataSize = std::get<1>(GetParam());
+
+  auto validate = [dataSize](
+      const std::shared_ptr<Context>& context,
+      Fixture<uint64_t>& output) {
+    const auto ptr = output.getPointer();
+    const auto stride = context->size;
+    for (auto j = 0; j < context->size; j++) {
+      for (auto k = 0; k < dataSize; k++) {
+        ASSERT_EQ(j + k * stride, ptr[k + j * dataSize])
+          << "Mismatch at index " << (k + j * dataSize);
+      }
+    }
+  };
+
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      auto input = Fixture<uint64_t>(context, 1, dataSize);
+      auto output = Fixture<uint64_t>(context, 1, contextSize * dataSize);
+
+      // Run with raw pointers and sizes in options
+      {
+        input.assignValues();
+        output.clear();
+
+        AllgatherOptions opts;
+        opts.inPtr = input.getPointer();
+        opts.inElements = dataSize;
+        opts.outPtr = output.getPointer();
+        opts.outElements = contextSize * dataSize;
+        opts.elementSize = sizeof(uint64_t);
+        input.assignValues();
+        output.clear();
+        allgather(context, opts);
+        validate(context, output);
+      }
+
+      // Run with (optionally cached) unbound buffers in options
+      {
+        input.assignValues();
+        output.clear();
+
+        AllgatherOptions opts;
+        opts.inBuffer = context->createUnboundBuffer(
+            input.getPointer(),
+            dataSize * sizeof(uint64_t));
+        opts.outBuffer = context->createUnboundBuffer(
+            output.getPointer(),
+            contextSize * dataSize * sizeof(uint64_t));
+        opts.elementSize = sizeof(uint64_t);
+        allgather(context, opts);
+        validate(context, output);
+      }
+    });
+}
+
+INSTANTIATE_TEST_CASE_P(
+    AllgatherNewDefault,
+    AllgatherNewTest,
+    ::testing::Combine(
+        ::testing::Values(2, 4, 7),
+        ::testing::ValuesIn(genMemorySizes())));
+
 
 } // namespace
 } // namespace test
