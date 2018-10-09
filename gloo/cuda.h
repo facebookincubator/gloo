@@ -122,7 +122,7 @@ class BuilderHelpers {
       return std::all_of(inputs.begin(), inputs.end(), [](const T* ptr) {
         cudaPointerAttributes attr;
         auto rv = cudaPointerGetAttributes(&attr, ptr);
-        #ifdef CUDA_VERSION >= 10000
+        #if CUDA_VERSION >= 10000
           return rv == cudaSuccess && attr.type == cudaMemoryTypeDevice;
         #else
           return rv == cudaSuccess && attr.memoryType == cudaMemoryTypeDevice;
