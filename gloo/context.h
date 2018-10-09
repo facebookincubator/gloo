@@ -50,7 +50,6 @@ class Context {
   std::shared_ptr<transport::Context> transportContext_;
   int slot_;
   std::chrono::milliseconds timeout_;
-
 };
 
 } // namespace gloo
