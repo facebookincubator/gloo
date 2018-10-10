@@ -975,6 +975,11 @@ void Pair::send(
 
   // Execute this send if there is a remote pending receive.
   if (remotePendingRecv_[slot] > 0) {
+    // We keep a tally of remote pending send and receive operations.
+    // In this code path the remote side hasn't seen a notification
+    // for this send operation yet so we need to take special care
+    // their tally is updated regardless.
+    sendNotifySendReady(slot, nbytes);
     sendUnboundBuffer(buf, slot, offset, nbytes);
     remotePendingRecv_[slot]--;
     return;

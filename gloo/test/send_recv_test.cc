@@ -263,6 +263,61 @@ TEST_P(SendRecvTest, RecvFromAnyPipeline) {
     });
 }
 
+// This test stresses the pattern that is commonly used for some sort
+// of RPC on top of send/recv primitives. The server executes an
+// indirect recv (that can be fulfilled any some subset of peers) to
+// receive the message size and rank of a client, followed by an
+// immediate recv from that rank to get the actual message.
+TEST_P(SendRecvTest, RecvFromAnyRPC) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      constexpr uint64_t slot = 0x1337;
+      constexpr auto niters = 10;
+      size_t tmp0;
+      size_t tmp1;
+      auto buf0 = context->createUnboundBuffer(&tmp0, sizeof(tmp0));
+      auto buf1 = context->createUnboundBuffer(&tmp1, sizeof(tmp1));
+
+      if (context->rank == 0) {
+        // Keep number of recvs per rank
+        std::unordered_map<int, int> counts;
+        // Compile vector of ranks to receive from
+        std::vector<int> allRanks;
+        for (auto i = 0; i < context->size; i++) {
+          if (i == context->rank) {
+            continue;
+          }
+          allRanks.push_back(i);
+        }
+        // Receive twice from every peer, niters times
+        for (auto i = 0; i < (niters * (context->size - 1)); i++) {
+          int rank;
+          // Receive from any peer first
+          buf0->recv(allRanks, slot);
+          buf0->waitRecv(&rank);
+          counts[rank]++;
+          // Then receive from the same peer again
+          buf1->recv(rank, slot);
+          buf1->waitRecv();
+        }
+        // Verify result
+        for (auto i = 0; i < context->size; i++) {
+          if (i == context->rank) {
+            continue;
+          }
+          ASSERT_EQ(niters, counts[i]) << "recv mismatch for rank " << i;
+        }
+      } else {
+        for (auto i = 0; i < niters; i++) {
+          buf0->send(0, slot);
+          buf0->waitSend();
+          buf1->send(0, slot);
+          buf1->waitSend();
+        }
+      }
+    });
+}
+
 INSTANTIATE_TEST_CASE_P(
     SendRecvDefault,
     SendRecvTest,
