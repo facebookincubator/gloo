@@ -172,6 +172,10 @@ class Fixture {
     }
   }
 
+  T* getPointer() const {
+    return srcs.front().get();
+  }
+
   std::vector<T*> getPointers() const {
     std::vector<T*> out;
     for (const auto& src : srcs) {
