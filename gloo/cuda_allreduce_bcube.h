@@ -25,14 +25,12 @@
 namespace gloo {
 
 namespace cuda {
-namespace allreduce {
 namespace bcube {
 
 class Node;
 class Group;
 
 } // namespace bcube
-} // namespace allreduce
 } // namespace cuda
 
 /**
@@ -161,7 +159,7 @@ class CudaAllreduceBcube : public Algorithm {
   /**
    * List of all the nodes
    */
-  std::vector<cuda::allreduce::bcube::Node> allNodes_;
+  std::vector<cuda::bcube::Node> allNodes_;
 
   /**
    * Compute number of steps required in reduce-scatter and all-gather (each)
@@ -240,7 +238,7 @@ class CudaAllreduceBcube : public Algorithm {
    * @param step The step for which we are updating the values
    * @param groups The group object with all peer, count and offset data
    */
-  void updateGroupNodes(int step, const cuda::allreduce::bcube::Group& group);
+  void updateGroupNodes(int step, const cuda::bcube::Group& group);
   /**
    * Setup all the nodes
    * Here are the things we do in this function
@@ -264,7 +262,6 @@ class CudaAllreduceBcube : public Algorithm {
 };
 
 namespace cuda {
-namespace allreduce {
 namespace bcube {
 
 /**
@@ -406,7 +403,6 @@ class Group {
 };
 
 } // namespace bcube
-} // namespace allreduce
 } // namespace cuda
 
 } // namespace gloo

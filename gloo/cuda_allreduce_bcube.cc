@@ -301,7 +301,7 @@ void CudaAllreduceBcube<T, W>::createNodes() {
 template <typename T, typename W>
 void CudaAllreduceBcube<T, W>::updateGroupNodes(
     int step,
-    const cuda::allreduce::bcube::Group& group) {
+    const cuda::bcube::Group& group) {
   const std::vector<int>& peers = group.getNodeRanks();
   const int peersSz = peers.size();
   int ptrOffset = group.getPtrOffset();
@@ -311,7 +311,7 @@ void CudaAllreduceBcube<T, W>::updateGroupNodes(
     count = 1;
   }
   for (int i = 0; i < peersSz; ++i) {
-    cuda::allreduce::bcube::Node& node = allNodes_[peers[i]];
+    cuda::bcube::Node& node = allNodes_[peers[i]];
     if (peersSz - 1 != i) { // if not the last node in group
       node.setPerStepAttributes(step, peers, count, ptrOffset);
       ptrOffset += count;
@@ -335,10 +335,10 @@ void CudaAllreduceBcube<T, W>::setupNodes() {
   // Now we actually try to set up the nodes
   int peerDistance = 1;
   for (int step = 0; step < steps_; ++step) {
-    std::vector<cuda::allreduce::bcube::Group> groups;
+    std::vector<cuda::bcube::Group> groups;
     // Iterate over all the nodes to identify the first node of each group
     for (int rank = 0; rank < nodes_; ++rank) {
-      const cuda::allreduce::bcube::Node& firstNode = allNodes_[rank];
+      const cuda::bcube::Node& firstNode = allNodes_[rank];
       // Only the ones with no peers would be first node
       if (0 == firstNode.getPeersPerStep(step).size()) {
         // Create a new group
@@ -409,7 +409,6 @@ void CudaAllreduceBcube<T, W>::init(
 }
 
 namespace cuda {
-namespace allreduce {
 namespace bcube {
 
 Node::Node(int rank, int steps) : rank_(rank) {
@@ -499,7 +498,6 @@ std::vector<int> Group::getNodeRanks(
 }
 
 } // namespace bcube
-} // namespace allreduce
 } // namespace cuda
 
 #define INSTANTIATE_TEMPLATE(T)                               \
