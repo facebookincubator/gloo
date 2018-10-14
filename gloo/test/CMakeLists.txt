@@ -1,9 +1,11 @@
 set(GLOO_TEST_SRCS
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgather_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_test.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/gather_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/linux_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"

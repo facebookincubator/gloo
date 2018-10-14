@@ -136,6 +136,14 @@ class Fixture {
     }
   }
 
+  void clear() {
+    for (auto i = 0; i < srcs.size(); i++) {
+      for (auto j = 0; j < count; j++) {
+        srcs[i][j] = 0;
+      }
+    }
+  }
+
   void checkBroadcastResult(Fixture<T>& fixture, int root, int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
@@ -170,6 +178,10 @@ class Fixture {
             expected - srcs[i][j]);
       }
     }
+  }
+
+  T* getPointer() const {
+    return srcs.front().get();
   }
 
   std::vector<T*> getPointers() const {
