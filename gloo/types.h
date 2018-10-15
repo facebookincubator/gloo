@@ -27,6 +27,54 @@
 
 namespace gloo {
 
+// Unlike old style collectives that are class instances that hold
+// some state, the new style collectives do not need initialization
+// before they can run. Instead of asking the context for a series of
+// slots and storing them for later use and reuse, the new style
+// collectives take a slot (or tag) argument that allows for
+// concurrent execution of multiple collectives on the same context.
+//
+// This tag is what determines the slot numbers for the send and recv
+// operations that the collectives end up executing. A single
+// collective may have many send and recv operations running in
+// parallel, so instead of using the specified tag verbatim, we use it
+// as a prefix. Also, to avoid conflicts between collectives with the
+// same tag, we have another tag prefix per collective type. Out of
+// the 64 bits we can use for a slot, we use 8 of them to identify a
+// collective, 32 to identify the collective tag, another 8 for use by
+// the collective operation itself (allowing for 256 independent send
+// and recv operations against the same point to point pair), and
+// leave 16 bits unused.
+//
+// Below, you find constexprs for the prefix per collective type, as
+// well as a way to compute slots when executing a collective. The
+// slot class below captures both a prefix and a delta on that prefix
+// to support addition with bounds checking. It is usable as an
+// uint64_t, but one that cannot overflow beyond the bits allocated
+// for use within a collective.
+//
+
+constexpr uint8_t kGatherSlotPrefix = 0x01;
+
+class Slot {
+ public:
+  static Slot build(uint8_t prefix, uint32_t tag);
+
+  operator uint64_t() const {
+    return base_ + delta_;
+  }
+
+  Slot operator+(uint8_t i) const;
+
+ protected:
+  explicit Slot(uint64_t base, uint64_t delta)
+      : base_(base), delta_(delta) {
+  }
+
+  const uint64_t base_;
+  const uint64_t delta_;
+};
+
 struct float16;
 float16 cpu_float2half_rn(float f);
 float cpu_half2float(float16 h);
