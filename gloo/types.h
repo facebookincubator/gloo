@@ -55,6 +55,7 @@ namespace gloo {
 //
 
 constexpr uint8_t kGatherSlotPrefix = 0x01;
+constexpr uint8_t kAllgatherSlotPrefix = 0x02;
 
 class Slot {
  public:

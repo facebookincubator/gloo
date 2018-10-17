@@ -7,6 +7,7 @@ set(GLOO_HDRS)
 # Compiled sources in root directory
 list(APPEND GLOO_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgather.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/gather.cc"
@@ -15,6 +16,7 @@ list(APPEND GLOO_SRCS
 
 list(APPEND GLOO_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgather.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_ring.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_halving_doubling.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_bcube.h"
