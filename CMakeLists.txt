@@ -13,10 +13,6 @@ if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "Gloo can only be built on 64-bit systems.")
 endif()
 
-# We want CMake to glob everything every time.
-execute_process(COMMAND
-  find "${PROJECT_SOURCE_DIR}" -name "CMakeLists.txt" -exec touch {} \;)
-
 # Local CMake modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 
