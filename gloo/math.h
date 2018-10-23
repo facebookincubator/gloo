@@ -41,6 +41,15 @@ void min(T* x, const T* y, size_t n) {
   }
 }
 
+template <typename T>
+T roundUp(T value, T multiple) {
+  T remainder = value % multiple;
+  if (remainder == 0) {
+    return value;
+  }
+  return value + multiple - remainder;
+}
+
 #if GLOO_USE_AVX
 
 // Assumes x and y are either both aligned to 32 bytes or unaligned by the same
