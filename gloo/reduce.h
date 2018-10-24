@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+
 #include "gloo/context.h"
 #include "gloo/transport/unbound_buffer.h"
 
