@@ -31,43 +31,42 @@ TEST_P(ReduceTest, Default) {
     auto input = Fixture<uint64_t>(context, 1, dataSize);
     auto output = Fixture<uint64_t>(context, 1, dataSize);
 
-    ReduceOptions opts;
+    ReduceOptions opts(context);
 
     if (inPlace) {
-      opts.outPtr = output.getPointer();
+      opts.setOutput(output.getPointer(), dataSize);
     } else {
-      opts.inPtr = input.getPointer();
-      opts.outPtr = output.getPointer();
+      opts.setInput(input.getPointer(), dataSize);
+      opts.setOutput(output.getPointer(), dataSize);
     }
 
-    opts.elements = dataSize;
-    opts.elementSize = sizeof(uint64_t);
-    opts.reduce = [](void* a, const void* b, const void* c, size_t n) {
+    opts.setReduceFunction([](void* a, const void* b, const void* c, size_t n) {
       auto ua = static_cast<uint64_t*>(a);
       const auto ub = static_cast<const uint64_t*>(b);
       const auto uc = static_cast<const uint64_t*>(c);
       for (size_t i = 0; i < n; i++) {
         ua[i] = ub[i] + uc[i];
       }
-    };
+    });
 
     // A small maximum segment size triggers code paths where we'll
     // have a number of segments larger than the lower bound of
     // twice the context size.
-    opts.maxSegmentSize = 128;
+    opts.setMaxSegmentSize(128);
 
     // Take turns being root
-    for (opts.root = 0; opts.root < context->size; opts.root++) {
+    for (size_t root = 0; root < context->size; root++) {
       if (inPlace) {
         output.assignValues();
       } else {
         input.assignValues();
         output.clear();
       }
-      reduce(context, opts);
+      opts.setRoot(root);
+      reduce(opts);
 
       // Validate result if this process was root
-      if (context->rank == opts.root) {
+      if (context->rank == root) {
         const auto base = (contextSize * (contextSize - 1)) / 2;
         const auto ptr = output.getPointer();
         const auto stride = context->size;

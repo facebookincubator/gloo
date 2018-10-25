@@ -137,27 +137,24 @@ TEST_P(AllgatherNewTest, Default) {
       auto input = Fixture<uint64_t>(context, 1, dataSize);
       auto output = Fixture<uint64_t>(context, 1, contextSize * dataSize);
 
-      AllgatherOptions opts;
-      opts.elementSize = sizeof(uint64_t);
+      AllgatherOptions opts(context);
 
       if (passBuffers) {
         // Run with (optionally cached) unbound buffers in options
-        opts.inBuffer = context->createUnboundBuffer(
+        opts.setInput<uint64_t>(context->createUnboundBuffer(
             input.getPointer(),
-            dataSize * sizeof(uint64_t));
-        opts.outBuffer = context->createUnboundBuffer(
+            dataSize * sizeof(uint64_t)));
+        opts.setOutput<uint64_t>(context->createUnboundBuffer(
             output.getPointer(),
-            contextSize * dataSize * sizeof(uint64_t));
+            contextSize * dataSize * sizeof(uint64_t)));
       } else {
         // Run with raw pointers and sizes in options
-        opts.inPtr = input.getPointer();
-        opts.inElements = dataSize;
-        opts.outPtr = output.getPointer();
-        opts.outElements = contextSize * dataSize;
+        opts.setInput(input.getPointer(), dataSize);
+        opts.setOutput(output.getPointer(), contextSize * dataSize);
       }
 
       input.assignValues();
-      allgather(context, opts);
+      allgather(opts);
       validate(context, output);
     });
 }

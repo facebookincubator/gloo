@@ -17,14 +17,62 @@
 
 namespace gloo {
 
-struct ReduceOptions {
-  // The input and output buffers can either be specified as a unbound
-  // buffer (that can be cached and reused by the caller), or a
-  // literal pointer and number of elements stored at that pointer.
-  std::unique_ptr<transport::UnboundBuffer> inBuffer;
-  void* inPtr = nullptr;
-  std::unique_ptr<transport::UnboundBuffer> outBuffer;
-  void* outPtr = nullptr;
+class ReduceOptions {
+public:
+  using Func = std::function<void(void*, const void*, const void*, size_t)>;
+
+  explicit ReduceOptions(const std::shared_ptr<Context>& context)
+      : context(context) {
+  }
+
+  template <typename T>
+  void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
+    this->elements = buf->size / sizeof(T);
+    this->elementSize = sizeof(T);
+    this->in = std::move(buf);
+  }
+
+  template <typename T>
+  void setInput(T* ptr, size_t elements) {
+    this->elements = elements;
+    this->elementSize = sizeof(T);
+    this->in = context->createUnboundBuffer(ptr, elements * sizeof(T));
+  }
+
+  template <typename T>
+  void setOutput(std::unique_ptr<transport::UnboundBuffer> buf) {
+    this->elements = buf->size / sizeof(T);
+    this->elementSize = sizeof(T);
+    this->out = std::move(buf);
+  }
+
+  template <typename T>
+  void setOutput(T* ptr, size_t elements) {
+    this->elements = elements;
+    this->elementSize = sizeof(T);
+    this->out = context->createUnboundBuffer(ptr, elements * sizeof(T));
+  }
+
+  void setRoot(int root) {
+    this->root = root;
+  }
+
+  void setReduceFunction(Func fn) {
+    this->reduce = fn;
+  }
+
+  void setTag(uint32_t tag) {
+    this->tag = tag;
+  }
+
+  void setMaxSegmentSize(size_t maxSegmentSize) {
+    this->maxSegmentSize = maxSegmentSize;
+  }
+
+protected:
+  std::shared_ptr<Context> context;
+  std::unique_ptr<transport::UnboundBuffer> in;
+  std::unique_ptr<transport::UnboundBuffer> out;
 
   // Number of elements.
   size_t elements = 0;
@@ -33,12 +81,12 @@ struct ReduceOptions {
   size_t elementSize = 0;
 
   // Rank of process to reduce to.
-  int root = 0;
+  int root = -1;
 
-  // Reduction function (output, input 1, input 2, number of elements).
-  std::function<void(void*, const void*, const void*, size_t)> reduce;
+  // Reduction function.
+  Func reduce;
 
-  // Tag for this gather operation.
+  // Tag for this operation.
   // Must be unique across operations executing in parallel.
   uint32_t tag = 0;
 
@@ -52,8 +100,10 @@ struct ReduceOptions {
   // (because they would require millions of elements if the default
   // were not configurable).
   size_t maxSegmentSize = kMaxSegmentSize;
+
+  friend void reduce(ReduceOptions&);
 };
 
-void reduce(const std::shared_ptr<Context>& context, ReduceOptions& opts);
+void reduce(ReduceOptions& opts);
 
 } // namespace gloo

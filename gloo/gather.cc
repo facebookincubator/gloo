@@ -16,42 +16,21 @@
 
 namespace gloo {
 
-void gather(const std::shared_ptr<Context>& context, GatherOptions& opts) {
-  std::unique_ptr<transport::UnboundBuffer> tmpInBuffer;
-  std::unique_ptr<transport::UnboundBuffer> tmpOutBuffer;
-  transport::UnboundBuffer* in = nullptr;
-  transport::UnboundBuffer* out = nullptr;
+void gather(GatherOptions& opts) {
+  const auto& context = opts.context;
+  transport::UnboundBuffer* in = opts.in.get();
+  transport::UnboundBuffer* out = opts.out.get();
   const auto slot = Slot::build(kGatherSlotPrefix, opts.tag);
 
   // Sanity checks
   GLOO_ENFORCE(opts.elementSize > 0);
-
-  // Figure out pointer to input buffer
-  if (opts.inBuffer) {
-    in = opts.inBuffer.get();
-  } else {
-    GLOO_ENFORCE(opts.inPtr != nullptr);
-    GLOO_ENFORCE(opts.inElements > 0);
-    tmpInBuffer = context->createUnboundBuffer(
-        opts.inPtr, opts.inElements * opts.elementSize);
-    in = tmpInBuffer.get();
-  }
+  GLOO_ENFORCE(in != nullptr);
 
   if (context->rank == opts.root) {
     const size_t chunkSize = in->size;
 
-    // Figure out pointer to output buffer (only for root rank)
-    if (opts.outBuffer) {
-      out = opts.outBuffer.get();
-    } else {
-      GLOO_ENFORCE(opts.outPtr != nullptr);
-      GLOO_ENFORCE(opts.outElements > 0);
-      tmpOutBuffer = context->createUnboundBuffer(
-          opts.outPtr, opts.outElements * opts.elementSize);
-      out = tmpOutBuffer.get();
-    }
-
     // Ensure the output buffer has the right size.
+    GLOO_ENFORCE(out != nullptr);
     GLOO_ENFORCE(in->size * context->size == out->size);
 
     // Post receive operations from peers into out buffer

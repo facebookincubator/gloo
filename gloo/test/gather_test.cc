@@ -33,24 +33,18 @@ TEST_P(GatherTest, Default) {
       // Initialize fixture with globally unique values
       input.assignValues();
 
-      GatherOptions opts;
-      opts.inPtr = input.getPointer();
-      opts.inElements = dataSize;
-      opts.elementSize = sizeof(uint64_t);
+      GatherOptions opts(context);
+      opts.setInput(input.getPointer(), dataSize);
 
       // Take turns being root
       for (auto i = 0; i < context->size; i++) {
         // Set output pointer only when root
         if (i == context->rank) {
-          opts.outPtr = output.getPointer();
-          opts.outElements = dataSize * contextSize;
-        } else {
-          opts.outPtr = nullptr;
-          opts.outElements = 0;
+          opts.setOutput(output.getPointer(), dataSize * contextSize);
         }
 
-        opts.root = i;
-        gather(context, opts);
+        opts.setRoot(i);
+        gather(opts);
 
         // Validate result if root
         if (i == context->rank) {

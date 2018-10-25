@@ -18,11 +18,10 @@
 
 namespace gloo {
 
-void reduce(const std::shared_ptr<Context>& context, ReduceOptions& opts) {
-  std::unique_ptr<transport::UnboundBuffer> tmpInBuffer;
-  std::unique_ptr<transport::UnboundBuffer> tmpOutBuffer;
-  transport::UnboundBuffer* in = nullptr;
-  transport::UnboundBuffer* out = nullptr;
+void reduce(ReduceOptions& opts) {
+  const auto& context = opts.context;
+  transport::UnboundBuffer* in = opts.in.get();
+  transport::UnboundBuffer* out = opts.out.get();
   const auto slot = Slot::build(kReduceSlotPrefix, opts.tag);
 
   // Sanity checks
@@ -41,24 +40,8 @@ void reduce(const std::shared_ptr<Context>& context, ReduceOptions& opts) {
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(sendRank));
 
-  // Figure out pointer to output buffer
-  if (opts.outBuffer) {
-    out = opts.outBuffer.get();
-  } else {
-    GLOO_ENFORCE(opts.outPtr != nullptr);
-    tmpOutBuffer = context->createUnboundBuffer(
-        opts.outPtr, opts.elements * opts.elementSize);
-    out = tmpOutBuffer.get();
-  }
-
-  // Figure out pointer to input buffer
-  if (opts.inBuffer) {
-    in = opts.inBuffer.get();
-  } else if (opts.inPtr != nullptr) {
-    tmpInBuffer = context->createUnboundBuffer(
-        opts.inPtr, opts.elements * opts.elementSize);
-    in = tmpInBuffer.get();
-  } else {
+  // If input buffer is not specified, the output is also the input
+  if (in == nullptr) {
     in = out;
   }
 

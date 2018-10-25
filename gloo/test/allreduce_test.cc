@@ -309,41 +309,36 @@ TEST_P(AllreduceNewTest, Default) {
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> inputs(context, numPointers, dataSize);
     Fixture<uint64_t> outputs(context, numPointers, dataSize);
-    auto in = inputs.getPointers();
-    auto out = outputs.getPointers();
 
-    AllreduceOptions opts;
-
-    opts.outPtrs = (void**)out.data();
+    AllreduceOptions opts(context);
+    opts.setOutputs(outputs.getPointers(), dataSize);
     if (inPlace) {
       outputs.assignValues();
     } else {
-      opts.inPtrs = (void**)in.data();
+      opts.setInputs(inputs.getPointers(), dataSize);
       inputs.assignValues();
       outputs.clear();
     }
 
-    opts.numPtrs = numPointers;
-    opts.elements = dataSize;
-    opts.elementSize = sizeof(uint64_t);
-    opts.reduce = [](void* a, const void* b, const void* c, size_t n) {
+    opts.setReduceFunction([](void* a, const void* b, const void* c, size_t n) {
       auto ua = static_cast<uint64_t*>(a);
       const auto ub = static_cast<const uint64_t*>(b);
       const auto uc = static_cast<const uint64_t*>(c);
       for (size_t i = 0; i < n; i++) {
         ua[i] = ub[i] + uc[i];
       }
-    };
+    });
 
     // A small maximum segment size triggers code paths where we'll
     // have a number of segments larger than the lower bound of
     // twice the context size.
-    opts.maxSegmentSize = 128;
+    opts.setMaxSegmentSize(128);
 
-    allreduce(context, opts);
+    allreduce(opts);
 
     const auto stride = contextSize * numPointers;
     const auto base = (stride * (stride - 1)) / 2;
+    const auto out = outputs.getPointers();
     for (auto j = 0; j < dataSize; j++) {
       ASSERT_EQ(j * stride * stride + base, out[0][j])
           << "Mismatch at index " << j;

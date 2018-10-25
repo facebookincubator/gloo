@@ -18,62 +18,18 @@
 
 namespace gloo {
 
-namespace {
-
-// This struct is used as a proxy for the input or output buffers.
-// If the caller specified unbound buffers directly, this will only hold
-// raw pointers to those unbound buffers. If the caller specified raw pointers,
-// this will both hold the temporary unbound buffer instances, as well as the
-// raw pointers to those unbound buffers. The point of encapsulation is that
-// this applies to both the inputs and the outputs. Both need optional
-// temporary unbound buffers that live for the duration of the function call.
-struct buffers {
-  std::vector<std::unique_ptr<transport::UnboundBuffer>> buffers;
-  std::vector<transport::UnboundBuffer*> ptrs;
-};
-
-void loadBuffers(
-    buffers& out,
-    const std::vector<std::unique_ptr<transport::UnboundBuffer>>& bufs) {
-  out.ptrs.reserve(bufs.size());
-  for (auto& buf : bufs) {
-    out.ptrs.push_back(buf.get());
-  }
-}
-
-void loadBuffers(
-    buffers& out,
-    const std::shared_ptr<Context>& context,
-    void** ptrs,
-    size_t numPtrs,
-    size_t bytes) {
-  GLOO_ENFORCE(ptrs != nullptr);
-  GLOO_ENFORCE(numPtrs > 0);
-  out.buffers.reserve(numPtrs);
-  out.ptrs.reserve(numPtrs);
-  for (size_t i = 0; i < numPtrs; i++) {
-    GLOO_ENFORCE(ptrs[i] != nullptr);
-    out.buffers.push_back(context->createUnboundBuffer(ptrs[i], bytes));
-    out.ptrs.push_back(out.buffers.back().get());
-  }
-}
-
-} // namespace
-
-void allreduce(
-    const std::shared_ptr<Context>& context,
-    AllreduceOptions& opts) {
-  buffers inBuffers;
-  buffers outBuffers;
-  std::vector<transport::UnboundBuffer*>& in = inBuffers.ptrs;
-  std::vector<transport::UnboundBuffer*>& out = outBuffers.ptrs;
+void allreduce(AllreduceOptions& opts) {
+  const auto& context = opts.context;
+  std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
+  std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
   const auto slot = Slot::build(kAllreduceSlotPrefix, opts.tag);
 
   // Sanity checks
+  GLOO_ENFORCE_GT(out.size(), 0);
   GLOO_ENFORCE(opts.elements > 0);
   GLOO_ENFORCE(opts.elementSize > 0);
-  const size_t totalBytes = opts.elements * opts.elementSize;
   GLOO_ENFORCE(opts.reduce != nullptr);
+  const size_t totalBytes = opts.elements * opts.elementSize;
   const auto recvRank = (context->size + context->rank + 1) % context->size;
   GLOO_ENFORCE(
       context->getPair(recvRank),
@@ -84,23 +40,6 @@ void allreduce(
       context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(sendRank));
-
-  // Figure out pointer(s) to output buffer(s).
-  if (!opts.outBuffers.empty()) {
-    loadBuffers(outBuffers, opts.outBuffers);
-  } else {
-    loadBuffers(outBuffers, context, opts.outPtrs, opts.numPtrs, totalBytes);
-  }
-
-  // Figure out pointer to input buffer.
-  if (!opts.inBuffers.empty()) {
-    loadBuffers(inBuffers, opts.inBuffers);
-  } else if (opts.inPtrs != nullptr) {
-    loadBuffers(inBuffers, context, opts.inPtrs, opts.numPtrs, totalBytes);
-  } else {
-    // Input not specified; assume output is input
-    inBuffers.ptrs = outBuffers.ptrs;
-  }
 
   // Assert the size of all inputs and outputs is identical.
   size_t size = out[0]->size;
@@ -224,7 +163,7 @@ void allreduce(
   // prior to either sending a region to a neighbor, or reducing a
   // region received from a neighbor.
   std::function<void(size_t, size_t, size_t)> reduceInputs;
-  if (in[0] != out[0]) {
+  if (in.size() > 0) {
     if (in.size() == 1) {
       reduceInputs = [&](size_t offset, size_t length, size_t /* unused */) {
         memcpy(
@@ -250,7 +189,7 @@ void allreduce(
     }
   } else {
     reduceInputs = [&](size_t offset, size_t length, size_t elementSize) {
-      for (size_t i = 1; i < in.size(); i++) {
+      for (size_t i = 1; i < out.size(); i++) {
         opts.reduce(
             static_cast<uint8_t*>(out[0]->ptr) + offset,
             static_cast<const uint8_t*>(out[0]->ptr) + offset,

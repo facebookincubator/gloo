@@ -16,13 +16,10 @@
 
 namespace gloo {
 
-void allgather(
-    const std::shared_ptr<Context>& context,
-    AllgatherOptions& opts) {
-  std::unique_ptr<transport::UnboundBuffer> tmpInBuffer;
-  std::unique_ptr<transport::UnboundBuffer> tmpOutBuffer;
-  transport::UnboundBuffer* in = nullptr;
-  transport::UnboundBuffer* out = nullptr;
+void allgather(AllgatherOptions& opts) {
+  const auto& context = opts.context;
+  transport::UnboundBuffer* in = opts.in.get();
+  transport::UnboundBuffer* out = opts.out.get();
   const auto slot = Slot::build(kAllgatherSlotPrefix, opts.tag);
 
   // Sanity checks
@@ -37,27 +34,6 @@ void allgather(
       context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(sendRank));
-
-  // Figure out pointer to input buffer
-  if (opts.inBuffer) {
-    in = opts.inBuffer.get();
-  } else if (opts.inPtr != nullptr) {
-    GLOO_ENFORCE(opts.inElements > 0);
-    tmpInBuffer = context->createUnboundBuffer(
-        opts.inPtr, opts.inElements * opts.elementSize);
-    in = tmpInBuffer.get();
-  }
-
-  // Figure out pointer to output buffer
-  if (opts.outBuffer) {
-    out = opts.outBuffer.get();
-  } else {
-    GLOO_ENFORCE(opts.outPtr != nullptr);
-    GLOO_ENFORCE(opts.outElements > 0);
-    tmpOutBuffer = context->createUnboundBuffer(
-        opts.outPtr, opts.outElements * opts.elementSize);
-    out = tmpOutBuffer.get();
-  }
 
   if (in != nullptr) {
     GLOO_ENFORCE_EQ(out->size, in->size * context->size);
