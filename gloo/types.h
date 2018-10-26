@@ -58,6 +58,7 @@ constexpr uint8_t kGatherSlotPrefix = 0x01;
 constexpr uint8_t kAllgatherSlotPrefix = 0x02;
 constexpr uint8_t kReduceSlotPrefix = 0x03;
 constexpr uint8_t kAllreduceSlotPrefix = 0x04;
+constexpr uint8_t kScatterSlotPrefix = 0x05;
 
 class Slot {
  public:
