@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/broadcast.h"
 #include "gloo/broadcast_one_to_all.h"
 #include "gloo/test/base_test.h"
 
@@ -119,6 +120,76 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(1),
         ::testing::Values(512 * 1024 * 1024),
         ::testing::Values(broadcastOneToAll)));
+
+using NewParam = std::tuple<int, int, bool, bool>;
+
+class BroadcastNewTest : public BaseTest,
+                         public ::testing::WithParamInterface<NewParam> {};
+
+TEST_P(BroadcastNewTest, Default) {
+  auto contextSize = std::get<0>(GetParam());
+  auto dataSize = std::get<1>(GetParam());
+  auto passBuffers = std::get<2>(GetParam());
+  auto inPlace = std::get<3>(GetParam());
+
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      auto input = Fixture<uint64_t>(context, 1, dataSize);
+      auto output = Fixture<uint64_t>(context, 1, dataSize);
+
+      // Take turns being root
+      for (auto root = 0; root < context->size; root++) {
+        BroadcastOptions opts(context);
+        opts.setRoot(root);
+
+        input.clear();
+        output.clear();
+
+        if (context->rank == root) {
+          if (inPlace) {
+            // If in place, use output as input
+            output.assignValues();
+          } else {
+            // If not in place, use separate input
+            input.assignValues();
+            if (passBuffers) {
+              opts.setInput<uint64_t>(context->createUnboundBuffer(
+                  input.getPointer(),
+                  dataSize * sizeof(uint64_t)));
+            } else {
+              opts.setInput(input.getPointer(), dataSize);
+            }
+          }
+        }
+
+        if (passBuffers) {
+          opts.setOutput<uint64_t>(context->createUnboundBuffer(
+              output.getPointer(),
+              dataSize * sizeof(uint64_t)));
+        } else {
+          opts.setOutput(output.getPointer(), dataSize);
+        }
+
+        broadcast(opts);
+
+        // Validate output
+        const auto ptr = output.getPointer();
+        const auto stride = context->size;
+        for (auto k = 0; k < dataSize; k++) {
+          ASSERT_EQ(root + k * stride, ptr[k])
+            << "Mismatch at index " << k;
+        }
+      }
+    });
+}
+
+INSTANTIATE_TEST_CASE_P(
+    BroadcastNewDefault,
+    BroadcastNewTest,
+    ::testing::Combine(
+        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 10, 100),
+        ::testing::Values(false, true),
+        ::testing::Values(false, true)));
 
 } // namespace
 } // namespace test

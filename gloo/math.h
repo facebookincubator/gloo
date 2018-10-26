@@ -50,6 +50,18 @@ T roundUp(T value, T multiple) {
   return value + multiple - remainder;
 }
 
+inline uint32_t log2ceil(uint32_t value) {
+  uint32_t dim = 0;
+#if defined(__GNUC__)
+  if (value <= 1)
+    return 0;
+  dim = 32 - __builtin_clz(value - 1);
+#else
+  for (uint32_t size = 1; size < value; ++dim, size <<= 1)  /* empty */;
+#endif // defined(__GNUC__)
+  return dim;
+}
+
 #if GLOO_USE_AVX
 
 // Assumes x and y are either both aligned to 32 bytes or unaligned by the same
