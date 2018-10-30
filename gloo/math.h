@@ -14,31 +14,63 @@
 namespace gloo {
 
 template <typename T>
-void sum(T* x, const T* y, size_t n) {
+void sum(void* c_, const void* a_, const void* b_, size_t n) {
+  T* c = static_cast<T*>(c_);
+  const T* a = static_cast<const T*>(a_);
+  const T* b = static_cast<const T*>(b_);
   for (auto i = 0; i < n; i++) {
-    x[i] = x[i] + y[i];
+    c[i] = a[i] + b[i];
   }
 }
 
 template <typename T>
-void product(T* x, const T* y, size_t n) {
+void sum(T* a, const T* b, size_t n) {
+  sum<T>(a, a, b, n);
+}
+
+template <typename T>
+void product(void* c_, const void* a_, const void* b_, size_t n) {
+  T* c = static_cast<T*>(c_);
+  const T* a = static_cast<const T*>(a_);
+  const T* b = static_cast<const T*>(b_);
   for (auto i = 0; i < n; i++) {
-    x[i] = x[i] * y[i];
+    c[i] = a[i] * b[i];
   }
 }
 
 template <typename T>
-void max(T* x, const T* y, size_t n) {
+void product(T* a, const T* b, size_t n) {
+  product<T>(a, a, b, n);
+}
+
+template <typename T>
+void max(void* c_, const void* a_, const void* b_, size_t n) {
+  T* c = static_cast<T*>(c_);
+  const T* a = static_cast<const T*>(a_);
+  const T* b = static_cast<const T*>(b_);
   for (auto i = 0; i < n; i++) {
-    x[i] = std::max(x[i], y[i]);
+    c[i] = std::max(a[i], b[i]);
   }
 }
 
 template <typename T>
-void min(T* x, const T* y, size_t n) {
+void max(T* a, const T* b, size_t n) {
+  max<T>(a, a, b, n);
+}
+
+template <typename T>
+void min(void* c_, const void* a_, const void* b_, size_t n) {
+  T* c = static_cast<T*>(c_);
+  const T* a = static_cast<const T*>(a_);
+  const T* b = static_cast<const T*>(b_);
   for (auto i = 0; i < n; i++) {
-    x[i] = std::min(x[i], y[i]);
+    c[i] = std::min(a[i], b[i]);
   }
+}
+
+template <typename T>
+void min(T* a, const T* b, size_t n) {
+  min<T>(a, a, b, n);
 }
 
 template <typename T>
@@ -64,33 +96,25 @@ inline uint32_t log2ceil(uint32_t value) {
 
 #if GLOO_USE_AVX
 
-// Assumes x and y are either both aligned to 32 bytes or unaligned by the same
-// offset, as would happen when reducing at an offset within an aligned buffer
 template <>
-void sum<float16>(float16* x, const float16* y, size_t n);
-extern template
-void sum<float16>(float16* x, const float16* y, size_t n);
+void sum<float16>(void* c, const void* a, const void* b, size_t n);
+extern template void
+sum<float16>(void* c, const void* a, const void* b, size_t n);
 
-// Assumes x and y are either both aligned to 32 bytes or unaligned by the same
-// offset, as would happen when reducing at an offset within an aligned buffer
 template <>
-void product<float16>(float16* x, const float16* y, size_t n);
-extern template
-void product<float16>(float16* x, const float16* y, size_t n);
+void product<float16>(void* c, const void* a, const void* b, size_t n);
+extern template void
+product<float16>(void* c, const void* a, const void* b, size_t n);
 
-// Assumes x and y are either both aligned to 32 bytes or unaligned by the same
-// offset, as would happen when reducing at an offset within an aligned buffer
 template <>
-void max<float16>(float16* x, const float16* y, size_t n);
-extern template
-void max<float16>(float16* x, const float16* y, size_t n);
+void max<float16>(void* c, const void* a, const void* b, size_t n);
+extern template void
+max<float16>(void* c, const void* a, const void* b, size_t n);
 
-// Assumes x and y are either both aligned to 32 bytes or unaligned by the same
-// offset, as would happen when reducing at an offset within an aligned buffer
 template <>
-void min<float16>(float16* x, const float16* y, size_t n);
-extern template
-void min<float16>(float16* x, const float16* y, size_t n);
+void min<float16>(void* c, const void* a, const void* b, size_t n);
+extern template void
+min<float16>(void* c, const void* a, const void* b, size_t n);
 
 #endif
 

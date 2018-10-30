@@ -72,9 +72,7 @@ class Slot {
   Slot operator+(uint8_t i) const;
 
  protected:
-  explicit Slot(uint64_t base, uint64_t delta)
-      : base_(base), delta_(delta) {
-  }
+  explicit Slot(uint64_t base, uint64_t delta) : base_(base), delta_(delta) {}
 
   const uint64_t base_;
   const uint64_t delta_;
@@ -93,19 +91,23 @@ struct __attribute__((__aligned__(2))) float16 {
     float16 res = cpu_float2half_rn(static_cast<float>(val));
     x = res.x;
   }
+
   explicit float16(unsigned long val) {
     float16 res = cpu_float2half_rn(static_cast<float>(val));
     x = res.x;
   }
+
   explicit float16(double val) {
     float16 res = cpu_float2half_rn(static_cast<float>(val));
     x = res.x;
   }
+
   float16& operator=(const int& rhs) {
     float16 res = cpu_float2half_rn(static_cast<float>(rhs));
     x = res.x;
     return *this;
   }
+
   float16& operator=(const float16& rhs) {
     if (rhs != *this) {
       x = rhs.x;
@@ -125,10 +127,12 @@ struct __attribute__((__aligned__(2))) float16 {
     float16 res = cpu_float2half_rn(static_cast<float>(rhs));
     return x == res.x;
   }
+
   bool operator==(const unsigned long& rhs) const {
     float16 res = cpu_float2half_rn(static_cast<float>(rhs));
     return x == res.x;
   }
+
   bool operator==(const double& rhs) const {
     float16 res = cpu_float2half_rn(static_cast<float>(rhs));
     return x == res.x;
@@ -161,6 +165,7 @@ struct __attribute__((__aligned__(2))) float16 {
     *this = cpu_float2half_rn(r);
     return *this;
   }
+
   float16& operator-=(const float16& rhs) {
     float r = cpu_half2float(*this) - cpu_half2float(rhs);
     *this = cpu_float2half_rn(r);
@@ -172,12 +177,12 @@ struct __attribute__((__aligned__(2))) float16 {
     *this = cpu_float2half_rn(r);
     return *this;
   }
+
   float16& operator/=(const float16& rhs) {
     float r = cpu_half2float(*this) / cpu_half2float(rhs);
     *this = cpu_float2half_rn(r);
     return *this;
   }
-
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const float16& val) {
@@ -190,6 +195,7 @@ inline float16 operator+(const float16& lhs, const float16& rhs) {
   result += rhs;
   return result;
 }
+
 inline float16 operator-(const float16& lhs, const float16& rhs) {
   float16 result = lhs;
   result -= rhs;
@@ -201,6 +207,7 @@ inline float16 operator*(const float16& lhs, const float16& rhs) {
   result *= rhs;
   return result;
 }
+
 inline float16 operator/(const float16& lhs, const float16& rhs) {
   float16 result = lhs;
   result /= rhs;
@@ -210,12 +217,15 @@ inline float16 operator/(const float16& lhs, const float16& rhs) {
 inline bool operator<(const float16& lhs, const float16& rhs) {
   return cpu_half2float(lhs) < cpu_half2float(rhs);
 }
+
 inline bool operator<=(const float16& lhs, const float16& rhs) {
   return cpu_half2float(lhs) <= cpu_half2float(rhs);
 }
+
 inline bool operator>(const float16& lhs, const float16& rhs) {
   return cpu_half2float(lhs) > cpu_half2float(rhs);
 }
+
 inline bool operator>=(const float16& lhs, const float16& rhs) {
   return cpu_half2float(lhs) >= cpu_half2float(rhs);
 }
@@ -307,6 +317,7 @@ inline float cpu_half2float(float16 h) {
   unsigned temp = ((sign << 31) | (exponent << 23) | mantissa);
 
   void* rp = &temp;
-  return *(float*) rp;
+  return *(float*)rp;
 }
-}
+
+} // namespace gloo
