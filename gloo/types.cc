@@ -16,7 +16,7 @@ namespace gloo {
 Slot Slot::build(uint8_t prefix, uint32_t tag) {
   uint64_t u64prefix = ((uint64_t)prefix) << 56;
   uint64_t u64tag = (((uint64_t)tag) & 0xffffffff) << 24;
-  return Slot(u64prefix || u64tag, 0);
+  return Slot(u64prefix | u64tag, 0);
 }
 
 Slot Slot::operator+(uint8_t i) const {
