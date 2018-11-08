@@ -130,6 +130,64 @@ TEST_P(SendRecvTest, AllToAllOffset) {
     });
 }
 
+TEST_P(SendRecvTest, AllToAllEmptyThenNonEmpty) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+      auto elementSize = sizeof(int);
+      std::vector<int> input(contextSize);
+      std::vector<int> output(contextSize);
+      using buffer_ptr = std::unique_ptr<::gloo::transport::UnboundBuffer>;
+      std::vector<buffer_ptr> emptyInputBuffers(contextSize);
+      std::vector<buffer_ptr> emptyOutputBuffers(contextSize);
+      std::vector<buffer_ptr> nonEmptyInputBuffers(contextSize);
+      std::vector<buffer_ptr> nonEmptyOutputBuffers(contextSize);
+
+      // Initialize
+      for (auto i = 0; i < context->size; i++) {
+        input[i] = context->rank;
+        output[i] = -1;
+        emptyInputBuffers[i] =
+          context->createUnboundBuffer(nullptr, 0);
+        emptyOutputBuffers[i] =
+          context->createUnboundBuffer(nullptr, 0);
+        nonEmptyInputBuffers[i] =
+          context->createUnboundBuffer(&input[i], elementSize);
+        nonEmptyOutputBuffers[i] =
+          context->createUnboundBuffer(&output[i], elementSize);
+      }
+
+      // Kick off all sends and receives
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        emptyOutputBuffers[i]->recv(i, i);
+        emptyInputBuffers[i]->send(i, context->rank);
+        nonEmptyOutputBuffers[i]->recv(i, i);
+        nonEmptyInputBuffers[i]->send(i, context->rank);
+      }
+
+      // Wait for send and recv to complete
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        emptyInputBuffers[i]->waitSend();
+        emptyOutputBuffers[i]->waitRecv();
+        nonEmptyInputBuffers[i]->waitSend();
+        nonEmptyOutputBuffers[i]->waitRecv();
+      }
+
+      // Verify output
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        ASSERT_EQ(i, output[i]) << "Mismatch at index " << i;
+      }
+    });
+}
+
 TEST_P(SendRecvTest, RecvFromAny) {
   auto contextSize = std::get<0>(GetParam());
   spawn(contextSize, [&](std::shared_ptr<Context> context) {

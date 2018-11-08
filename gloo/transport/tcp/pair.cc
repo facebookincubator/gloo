@@ -399,6 +399,15 @@ bool Pair::write(Op& op) {
   return true;
 }
 
+// Populates the iovec struct. May populate the 'buf' or 'ubuf' member field
+// in the op if the preamble indicates the operation is one of type SEND_BUFFER
+// or SEND_UNBOUND_BUFFER.
+//
+// Returns a boolean indicating whether or not the caller (the read function)
+// should continue trying to read from the socket. This is not the case if the
+// buffer this message is intended for has not yet been registered (this can
+// only be the case for unbound buffers).
+//
 bool Pair::readBuildIov(Op& op, struct iovec& iov) {
   // Read preamble
   if (op.nread < sizeof(op.preamble)) {
@@ -408,6 +417,7 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
   }
 
   auto opcode = op.getOpcode();
+  auto offset = op.nread - sizeof(op.preamble);
 
   // Remote side is sending data to a buffer; read payload
   if (opcode == Op::SEND_BUFFER) {
@@ -419,18 +429,11 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
       }
     }
 
-    auto offset = op.nread - sizeof(op.preamble);
     iov.iov_base = ((char*)op.buf->ptr_) + offset + op.preamble.roffset;
     iov.iov_len = op.preamble.length - offset;
 
-    // There must always be a non-zero number of bytes to read
-    GLOO_ENFORCE_GT(iov.iov_len, 0);
-
     // Bytes read must be in bounds for target buffer
-    GLOO_ENFORCE_LE(
-        op.preamble.roffset + op.preamble.length,
-        op.buf->size_);
-
+    GLOO_ENFORCE_LE(op.preamble.roffset + op.preamble.length, op.buf->size_);
     return true;
   }
 
@@ -445,19 +448,15 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
       tuples.pop_front();
     }
 
-    auto offset = op.nread - sizeof(op.preamble);
     iov.iov_base = ((char*)op.ubuf->ptr) + op.offset + offset;
     iov.iov_len = op.preamble.length - offset;
-
-    // There must always be a non-zero number of bytes to read
-    GLOO_ENFORCE_GT(iov.iov_len, 0);
 
     // Bytes read must be in bounds for target buffer
     GLOO_ENFORCE_LE(op.preamble.length, op.nbytes);
     return true;
   }
 
-  GLOO_ENFORCE(false, "Invalid opcode on read: ", opcode);
+  return true;
 }
 
 // read is called from:
@@ -474,9 +473,19 @@ bool Pair::read() {
   auto& op = rx_;
 
   for (;;) {
-    struct iovec iov;
+    struct iovec iov = {
+      .iov_base = nullptr,
+      .iov_len = 0,
+    };
     if (!readBuildIov(op, iov)) {
       return false;
+    }
+
+    // Break from loop if the op is complete.
+    // Note that this means that the buffer pointer has been
+    // set, per the call to readBuildIov.
+    if (iov.iov_len == 0) {
+      break;
     }
 
     // If busy-poll has been requested AND sync mode has been enabled for pair
@@ -542,11 +551,6 @@ bool Pair::read() {
     }
 
     op.nread += rv;
-
-    // Return if op is complete
-    if (op.nread == op.preamble.nbytes) {
-      break;
-    }
   }
 
   // Read completed
@@ -966,8 +970,8 @@ void Pair::send(
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LT(offset, buf->size);
-  GLOO_ENFORCE_GT(nbytes, 0);
+  GLOO_ENFORCE_LE(offset, buf->size);
+  GLOO_ENFORCE_GE(nbytes, 0);
   GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
@@ -999,8 +1003,8 @@ void Pair::recv(
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LT(offset, buf->size);
-  GLOO_ENFORCE_GT(nbytes, 0);
+  GLOO_ENFORCE_LE(offset, buf->size);
+  GLOO_ENFORCE_GE(nbytes, 0);
   GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);

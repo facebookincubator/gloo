@@ -75,7 +75,7 @@ void UnboundBuffer::send(
     size_t offset,
     size_t nbytes) {
   if (nbytes == 0) {
-    GLOO_ENFORCE_LT(offset, this->size);
+    GLOO_ENFORCE_LE(offset, this->size);
     nbytes = this->size - offset;
   }
   context_->getPair(dstRank)->send(this, slot, offset, nbytes);
@@ -87,7 +87,7 @@ void UnboundBuffer::recv(
     size_t offset,
     size_t nbytes) {
   if (nbytes == 0) {
-    GLOO_ENFORCE_LT(offset, this->size);
+    GLOO_ENFORCE_LE(offset, this->size);
     nbytes = this->size - offset;
   }
   context_->getPair(srcRank)->recv(this, slot, offset, nbytes);
