@@ -27,7 +27,9 @@ class Store {
 
   virtual void set(const std::string& key, const std::vector<char>& data) = 0;
 
-  virtual std::vector<char> get(const std::string& key) = 0;
+  virtual std::vector<char> get(
+      const std::string& key,
+      const std::chrono::milliseconds& timeout=kDefaultTimeout) = 0;
 
   virtual void wait(
       const std::vector<std::string>& keys) = 0;

@@ -84,12 +84,13 @@ void FileStore::set(const std::string& key, const std::vector<char>& data) {
   GLOO_ENFORCE_EQ(rv, 0, "rename: ", strerror(errno));
 }
 
-std::vector<char> FileStore::get(const std::string& key) {
+std::vector<char> FileStore::get(
+    const std::string& key, const std::chrono::milliseconds& timeout) {
   auto path = objectPath(key);
   std::vector<char> result;
 
   // Block until key is set
-  wait({key});
+  wait({key}, timeout);
 
   std::ifstream ifs(path.c_str(), std::ios::in);
   if (!ifs) {

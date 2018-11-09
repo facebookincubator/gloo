@@ -22,7 +22,8 @@ void HashStore::set(const std::string& key, const std::vector<char>& data) {
   cv_.notify_all();
 }
 
-std::vector<char> HashStore::get(const std::string& key) {
+std::vector<char> HashStore::get(
+    const std::string& key, const std::chrono::milliseconds& /* timeout */) {
   std::unique_lock<std::mutex> lock(m_);
   auto it = map_.find(key);
   if (it == map_.end()) {

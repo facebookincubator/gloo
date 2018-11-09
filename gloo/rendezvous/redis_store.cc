@@ -55,9 +55,10 @@ void RedisStore::set(const std::string& key, const std::vector<char>& data) {
   freeReplyObject(reply);
 }
 
-std::vector<char> RedisStore::get(const std::string& key) {
+std::vector<char> RedisStore::get(
+    const std::string& key, const std::chrono::milliseconds& timeout) {
   // Block until key is set
-  wait({key});
+  wait({key}, timeout);
 
   // Get value
   void* ptr = redisCommand(redis_, "GET %b", key.c_str(), (size_t)key.size());

@@ -29,7 +29,8 @@ void PrefixStore::set(const std::string& key, const std::vector<char>& data) {
   store_.set(joinKey(key), data);
 }
 
-std::vector<char> PrefixStore::get(const std::string& key) {
+std::vector<char> PrefixStore::get(
+    const std::string& key, const std::chrono::milliseconds& /* timeout */) {
   return store_.get(joinKey(key));
 }
 
