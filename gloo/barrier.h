@@ -10,7 +10,8 @@
 #pragma once
 
 #include "gloo/algorithm.h"
-#include "gloo/common/logging.h"
+#include "gloo/context.h"
+#include "gloo/transport/unbound_buffer.h"
 
 namespace gloo {
 
@@ -21,5 +22,26 @@ class Barrier : public Algorithm {
 
   virtual ~Barrier(){};
 };
+
+class BarrierOptions {
+ public:
+  explicit BarrierOptions(const std::shared_ptr<Context>& context);
+
+  void setTag(uint32_t tag) {
+    this->tag = tag;
+  }
+
+ protected:
+  std::shared_ptr<Context> context;
+  std::unique_ptr<transport::UnboundBuffer> buffer;
+
+  // Tag for this operation.
+  // Must be unique across operations executing in parallel.
+  uint32_t tag = 0;
+
+  friend void barrier(BarrierOptions&);
+};
+
+void barrier(BarrierOptions& opts);
 
 } // namespace gloo

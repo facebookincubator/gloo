@@ -64,6 +64,45 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Range(2, 16),
         ::testing::Values(barrierAllToOne)));
 
+using NewParam = std::tuple<int>;
+
+class BarrierNewTest : public BaseTest,
+                       public ::testing::WithParamInterface<NewParam> {};
+
+TEST_P(BarrierNewTest, Default) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    BarrierOptions opts(context);
+
+    // Run barrier to synchronize processes after starting.
+    barrier(opts);
+
+    // Take turns in sleeping for a bit and checking that all processes
+    // saw that artificial delay through the barrier.
+    auto singleProcessDelay = std::chrono::milliseconds(10);
+    for (size_t i = 0; i < context->size; i++) {
+      const auto start = std::chrono::high_resolution_clock::now();
+      if (i == context->rank) {
+        /* sleep override */
+        std::this_thread::sleep_for(singleProcessDelay);
+      }
+
+      barrier(opts);
+
+      // Expect all processes to have taken at least as long as the sleep
+      auto stop = std::chrono::high_resolution_clock::now();
+      auto delta = std::chrono::duration_cast<decltype(singleProcessDelay)>(
+          stop - start);
+      ASSERT_GE(delta.count(), singleProcessDelay.count());
+    }
+  });
+}
+
+INSTANTIATE_TEST_CASE_P(
+    BarrierNewDefault,
+    BarrierNewTest,
+    ::testing::Values(2, 4, 7));
+
 } // namespace
 } // namespace test
 } // namespace gloo
