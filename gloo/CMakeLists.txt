@@ -150,7 +150,6 @@ if(GLOO_INSTALL)
     install(TARGETS gloo_cuda EXPORT GlooTargets
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   endif()
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h
   if(USE_HIP)
     install(TARGETS gloo_hip EXPORT GlooTargets
             DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
