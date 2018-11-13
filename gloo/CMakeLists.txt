@@ -58,13 +58,13 @@ endif()
 if(USE_HIP)
   file(GLOB GLOO_HIP_SRCS
           "${CMAKE_CURRENT_SOURCE_DIR}/hip*.cc"
-          "${CMAKE_CURRENT_SOURCE_DIR}/hip*.cu"
           )
 
   file(GLOB GLOO_HIP_HDRS
           "${CMAKE_CURRENT_SOURCE_DIR}/hip*.h"
           )
 endif()
+
 # The builder links to both the base gloo library and gloo_cuda if
 # USE_CUDA is set. It can therefore not be part of either.
 list(APPEND GLOO_BUILDER_SRCS

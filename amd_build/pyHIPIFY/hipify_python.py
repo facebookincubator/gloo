@@ -720,22 +720,25 @@ def get_hip_file_path(filepath, hipify_caffe2, hip_suffix, extensions_to_hip_suf
     dirpath, filename = os.path.split(filepath)
     filename_without_ext, ext = os.path.splitext(filename)
 
-    if 'gpu' in filename_without_ext:
-        filename_without_ext = filename_without_ext.replace('gpu', 'hip')
+    if 'cuda' in filename_without_ext:
+        filename_without_ext = filename_without_ext.replace('cuda', 'hip')
     else:
         filename_without_ext += '_hip'
+
+    if 'nccl' in filename_without_ext:
+        filename_without_ext = filename_without_ext.replace('nccl', 'rccl')
 
     # extensions are either specified, or .cu
     if ext in extensions_to_hip_suffix or ext == '.cu':
         ext = '.' + hip_suffix
 
-    return os.path.join(dirpath, 'hip', filename_without_ext + ext)
+    return os.path.join(dirpath, filename_without_ext + ext)
 
 
 def is_caffe2_gpu_file(filepath):
     filename = os.path.basename(filepath)
     _, ext = os.path.splitext(filename)
-    return ('gpu' in filename or ext in ['.cu', '.cuh']) and ('cudnn' not in filename)
+    return (('cuda' in filename and ext in ['.cc', '.h', '.cu']) and filename not in ['cuda_private.cu']) or ('builder' in filename and ext in ['.cc', '.h'])
 
 
 def preprocessor(filepath, stats, hipify_caffe2, hip_suffix, extensions_to_hip_suffix):

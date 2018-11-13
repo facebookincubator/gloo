@@ -241,7 +241,7 @@ CUDA_TYPE_NAME_MAP = collections.OrderedDict([
 ])
 
 CUDA_INCLUDE_MAP = collections.OrderedDict([
-    ("cuda.h", ("hip/hip_runtime.h", CONV_INCLUDE_CUDA_MAIN_H, API_DRIVER)),
+    ("cuda.h", ("hip.h", CONV_INCLUDE_CUDA_MAIN_H, API_DRIVER)),
     ("cuda_runtime.h", ("hip/hip_runtime.h", CONV_INCLUDE_CUDA_MAIN_H, API_RUNTIME)),
     ("cuda_runtime_api.h", ("hip/hip_runtime_api.h", CONV_INCLUDE, API_RUNTIME)),
     ("channel_descriptor.h", ("hip/channel_descriptor.h", CONV_INCLUDE, API_RUNTIME)),
@@ -2243,10 +2243,13 @@ CAFFE2_SPECIFIC_MAPPINGS = collections.OrderedDict([
     ("CaffeCudaGetDevice" , ("CaffeHipGetDevice", API_CAFFE2)),
     ("CUDA" ,("HIP", API_CAFFE2)),
     ("Cuda" ,("Hip", API_CAFFE2)),
+    ("cuda" ,("hip", API_CAFFE2)),
     ("cuda_" ,("hip_", API_CAFFE2)),
     ("CUDNN" ,("MIOPEN", API_CAFFE2)),
     ("CuDNN" ,("MIOPEN", API_CAFFE2)),
     ("cudnn" ,("miopen", API_CAFFE2)),
+    ("NCCL" ,("RCCL", API_CAFFE2)),
+    ("nccl" ,("rccl", API_CAFFE2)),
 ])
 
 CUDA_TO_HIP_MAPPINGS = [CUDA_IDENTIFIER_MAP, CUDA_TYPE_NAME_MAP,

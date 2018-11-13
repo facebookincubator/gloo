@@ -8,8 +8,6 @@
  */
 
 #include "gloo/hip_private.h"
-#include <hip/hip_runtime.h>
-#include <hip/hip_fp16.h>
 #include "gloo/common/common.h"
 #include "gloo/types.h"
 
@@ -26,7 +24,7 @@ __global__ void initializeMemory(
     ptr[i] = (i * stride) + val;
   }
 }
-
+/*
 template<>
 __global__ void initializeMemory<float16>(
     float16* ptr,
@@ -39,7 +37,7 @@ __global__ void initializeMemory<float16>(
     ptrAsHalf[i] = __float2half(static_cast<float>((i * stride) + val));
   }
 }
-
+*/
 template<typename T>
 HipMemory<T>::HipMemory(size_t elements)
     : elements(elements),
@@ -70,30 +68,9 @@ HipMemory<T>::~HipMemory() {
   }
 }
 
-template<typename T>
-void HipMemory<T>::set(int val, size_t stride, hipStream_t stream) {
-  HipDeviceScope scope(device_);
-  if (stream == kStreamNotSet) {
-   hipLaunchKernelGGL( initializeMemory<T>, dim3(1), dim3(32), 0, 0, ptr_, val, elements, stride);
-  } else {
-   hipLaunchKernelGGL( initializeMemory<T>, dim3(1), dim3(32), 0, stream, ptr_, val, elements, stride);
-  }
-}
-
-template<typename T>
-std::unique_ptr<T[]> HipMemory<T>::copyToHost() const {
-  HipDeviceScope scope(device_);
-  auto host = make_unique<T[]>(elements);
-  // Synchronize to ensure that the copy has completed.
-  // The caller needs to be able to use the result immediately.
-  HIP_CHECK(hipMemcpyAsync(host.get(), ptr_, bytes, hipMemcpyDefault, 0));
-  HIP_CHECK(hipStreamSynchronize(0));
-  return host;
-}
-
 // Instantiate template
 template class HipMemory<float>;
-template class HipMemory<float16>;
+//template class HipMemory<float16>;
 
 // Lookup PCI bus IDs for device.
 // As the number of available devices won't change at

@@ -28,3 +28,16 @@ if(USE_CUDA)
   cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
   target_link_libraries(gloo_test_cuda gloo_cuda gloo_builder gtest)
 endif()
+
+if(USE_HIP)
+    set(GLOO_TEST_HIP_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/hip_allreduce_builder_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hip_allreduce_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hip_broadcast_builder_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hip_broadcast_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+    )
+
+  hip_add_executable(gloo_test_hip ${GLOO_TEST_HIP_SRCS})
+  target_link_libraries(gloo_test_hip gloo_hip gloo_builder gtest)
+endif()

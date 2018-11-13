@@ -11,11 +11,15 @@ amd_build_dir = os.path.dirname(os.path.realpath(__file__))
 proj_dir = os.path.join(os.path.dirname(os.path.dirname(amd_build_dir)))
 
 includes = [
-    "gloo/*"
+    "gloo/*allreduce*",
+    "gloo/*broadcast*",
+    "gloo/*collectives*",
+    "gloo/*private*",
+    "gloo/*workspace*"
 ]
 
 ignores = [
-    '**/hip/**',
+    "gloo/cuda_collectives_nccl.h",
 ]
 
 file_extensions = ['.cc', '.cu', '.h', '.cuh']

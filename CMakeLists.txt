@@ -61,7 +61,7 @@ include_directories(${PROJECT_BINARY_DIR})
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
-set(HIP_HIPCC_FLAGS "${HIP_HIPCC_FLAGS} -fPIC -D__HIP_PLATFORM_HCC__=1")
+set(HIP_HIPCC_FLAGS "${HIP_HIPCC_FLAGS} -fPIC -D__HIP_PLATFORM_HCC__=1 -Wno-macro-redefined -Wno-exceptions")
 
 # Recurse into main project directory
 add_subdirectory(gloo)
