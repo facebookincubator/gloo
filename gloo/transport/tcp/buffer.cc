@@ -58,7 +58,7 @@ void Buffer::waitRecv() {
     // hasn't arrived yet, wait until it does or read times out.
     auto timeout = pair_->getTimeout();
     auto pred = [&]{
-      checkErrorState();
+      throwIfException();
       return recvCompletions_ > 0;
     };
     std::unique_lock<std::mutex> lock(m_);
@@ -69,12 +69,9 @@ void Buffer::waitRecv() {
       auto done = recvCv_.wait_for(lock, timeout, pred);
       if (!done) {
         // Release the mutex before calling into the pair to avoid deadlock.
-        // Calling signalIoFailureExternal() will throw, so no need to
-        // reacquire.
         lock.unlock();
-        pair_->signalIoFailureExternal(
-            GLOO_ERROR_MSG("Read timeout ", pair_->peer().str()));
-        GLOO_ENFORCE(false, "Unexpected code path");
+        std::rethrow_exception(pair_->signalExceptionExternal(
+            GLOO_ERROR_MSG("Read timeout ", pair_->peer().str())));
       }
     }
     recvCompletions_--;
@@ -100,7 +97,7 @@ void Buffer::waitSend() {
     // hasn't arrived yet, wait until it does or write times out.
     auto timeout = pair_->getTimeout();
     auto pred = [&]{
-      checkErrorState();
+      throwIfException();
       return sendCompletions_ > 0;
     };
     std::unique_lock<std::mutex> lock(m_);
@@ -112,13 +109,10 @@ void Buffer::waitSend() {
       } else {
         auto done = sendCv_.wait_for(lock, timeout, pred);
         if (!done) {
-          // Release the mutex before calling into the pair to avoid
-          // deadlock. Calling signalIoFailureExternal() will throw,
-          // so no need to reacquire.
+          // Release the mutex before calling into the pair to avoid deadlock.
           lock.unlock();
-          pair_->signalIoFailureExternal(
-              GLOO_ERROR_MSG("Write timeout ", pair_->peer().str()));
-          GLOO_ENFORCE(false, "Unexpected code path");
+          std::rethrow_exception(pair_->signalExceptionExternal(
+              GLOO_ERROR_MSG("Write timeout ", pair_->peer().str())));
         }
       }
     }
@@ -158,14 +152,14 @@ void Buffer::send(size_t offset, size_t length, size_t roffset) {
   pair_->send(op);
 }
 
-void Buffer::signalError(const std::exception_ptr& ex) {
+void Buffer::signalException(std::exception_ptr ex) {
   std::lock_guard<std::mutex> lock(m_);
-  ex_ = ex;
+  ex_ = std::move(ex);
   recvCv_.notify_all();
   sendCv_.notify_all();
 }
 
-void Buffer::checkErrorState() {
+void Buffer::throwIfException() {
   if (ex_ != nullptr) {
     std::rethrow_exception(ex_);
   }

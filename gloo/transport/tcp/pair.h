@@ -209,7 +209,7 @@ class Pair : public ::gloo::transport::Pair {
     return timeout_;
   }
 
-  void signalIoFailureExternal(const std::string& msg);
+  std::exception_ptr signalExceptionExternal(const std::string& msg);
 
   friend class Buffer;
 
@@ -244,9 +244,18 @@ class Pair : public ::gloo::transport::Pair {
   void waitUntilConnected(std::unique_lock<std::mutex>& lock, bool useTimeout);
   void verifyConnected();
 
-  // Used to signal IO exceptions from one thread and propagate onto others.
-  void signalIoFailure(const std::string& msg);
-  void checkErrorState();
+  // Throws if an exception if set.
+  void throwIfException();
+
+  // Set exception and signal all pending buffers.
+  // This moves the pair to the CLOSED state which means that the
+  // handleEvents function is no longer called by the device loop.
+  void signalException(const std::string& msg);
+  void signalException(std::exception_ptr);
+
+  // Like signalException, but throws exception as well.
+  void signalAndThrowException(const std::string& msg);
+  void signalAndThrowException(std::exception_ptr ex);
 };
 
 } // namespace tcp
