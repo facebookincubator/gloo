@@ -13,6 +13,7 @@
 
 #include "gloo/barrier_all_to_all.h"
 #include "gloo/barrier_all_to_one.h"
+#include "gloo/broadcast.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
@@ -64,6 +65,21 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Range(2, 16),
         ::testing::Values(barrierAllToOne)));
 
+// Synchronized version of std::chrono::clock::now().
+// All processes participating in the specified context will
+// see the same value.
+template <typename clock>
+std::chrono::time_point<clock> syncNow(
+  std::shared_ptr<Context> context) {
+  const typename clock::time_point now = clock::now();
+  typename clock::duration::rep count = now.time_since_epoch().count();
+  BroadcastOptions opts(context);
+  opts.setRoot(0);
+  opts.setOutput(&count, 1);
+  broadcast(opts);
+  return typename clock::time_point(typename clock::duration(count));
+}
+
 using NewParam = std::tuple<int>;
 
 class BarrierNewTest : public BaseTest,
@@ -81,7 +97,7 @@ TEST_P(BarrierNewTest, Default) {
     // saw that artificial delay through the barrier.
     auto singleProcessDelay = std::chrono::milliseconds(10);
     for (size_t i = 0; i < context->size; i++) {
-      const auto start = std::chrono::high_resolution_clock::now();
+      const auto start = syncNow<std::chrono::high_resolution_clock>(context);
       if (i == context->rank) {
         /* sleep override */
         std::this_thread::sleep_for(singleProcessDelay);
