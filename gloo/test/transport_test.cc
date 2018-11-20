@@ -86,9 +86,14 @@ TEST_P(TransportMultiProcTest, IoErrors) {
     std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
   }
 
-  // Kill one of the processes and wait for all to exit
+  // Kill one of the processes and wait for all to exit.
+  // Expect this to take less time than the default timeout.
+  const auto start = std::chrono::high_resolution_clock::now();
   signalProcess(0, SIGKILL);
   wait();
+  const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::high_resolution_clock::now() - start);
+  ASSERT_LT(delta.count(), kMultiProcTimeout.count() / 2);
 
   for (auto i = 0; i < processCount; i++) {
     if (i != 0) {

@@ -25,6 +25,7 @@ namespace gloo {
 namespace test {
 
 const int kExitWithIoException = 10;
+const auto kMultiProcTimeout = std::chrono::milliseconds(200);
 
 class MultiProcTest : public ::testing::Test {
  protected:
@@ -77,7 +78,7 @@ class MultiProcWorker {
       std::function<void(std::shared_ptr<Context>)> fn) {
     auto context =
       std::make_shared<::gloo::rendezvous::Context>(rank, size);
-    context->setTimeout(std::chrono::milliseconds(300));
+    context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
     context->connectFullMesh(*store_, device_);
     sem_post(semaphore_);
     fn(std::move(context));

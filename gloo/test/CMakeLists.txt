@@ -8,12 +8,14 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/gather_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/linux_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/multiproc_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/reduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/transport_test.cc"
   )
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
-target_link_libraries(gloo_test gloo gloo_builder gtest)
+target_link_libraries(gloo_test gloo gloo_builder gtest rt)
 
 if(USE_CUDA)
   set(GLOO_TEST_CUDA_SRCS

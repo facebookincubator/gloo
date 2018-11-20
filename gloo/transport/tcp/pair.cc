@@ -128,7 +128,7 @@ void Pair::setSync(bool sync, bool busyPoll) {
   // necessary, the connect path will timeout and signal this thread.
   waitUntilConnected(lock, false);
   if (state_ == CLOSED) {
-    signalIoFailure(
+    signalAndThrowException(
         GLOO_ERROR_MSG("Socket unexpectedly closed ", peer_.str()));
   }
 
@@ -140,7 +140,12 @@ void Pair::setSync(bool sync, bool busyPoll) {
     // If the pair was still flushing writes, finish them.
     for (auto& op : tx_) {
       auto rv = write(op);
-      GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
+      if (!rv) {
+        GLOO_ENFORCE(
+            ex_ != nullptr,
+            "write() returned false in sync mode; ex_ must be set");
+        std::rethrow_exception(ex_);
+      }
     }
     tx_.clear();
   }
@@ -156,7 +161,7 @@ void Pair::listen() {
   const auto& attr = dev_->attr_;
   auto fd = socket(attr.ai_family, attr.ai_socktype, attr.ai_protocol);
   if (fd == -1) {
-    signalIoFailure(GLOO_ERROR_MSG("socket: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("socket: ", strerror(errno)));
   }
 
   // Set SO_REUSEADDR to signal that reuse of the listening port is OK.
@@ -164,13 +169,13 @@ void Pair::listen() {
   rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   if (rv == -1) {
     ::close(fd);
-    signalIoFailure(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
   }
 
   rv = bind(fd, (const sockaddr*)&attr.ai_addr, attr.ai_addrlen);
   if (rv == -1) {
     ::close(fd);
-    signalIoFailure(GLOO_ERROR_MSG("bind: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("bind: ", strerror(errno)));
   }
 
   // listen(2) on socket
@@ -179,7 +184,7 @@ void Pair::listen() {
   if (rv == -1) {
     ::close(fd_);
     fd_ = FD_INVALID;
-    signalIoFailure(GLOO_ERROR_MSG("listen: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("listen: ", strerror(errno)));
   }
 
   // Keep copy of address
@@ -196,7 +201,7 @@ void Pair::connect(const Address& peer) {
   std::unique_lock<std::mutex> lock(m_);
   int rv;
   socklen_t addrlen;
-  checkErrorState();
+  throwIfException();
 
   peer_ = peer;
 
@@ -243,7 +248,7 @@ void Pair::connect(const Address& peer) {
   // Create new socket to connect to peer.
   fd_ = socket(peer_.ss_.ss_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
   if (fd_ == -1) {
-    signalIoFailure(GLOO_ERROR_MSG("socket: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("socket: ", strerror(errno)));
   }
 
   // Set SO_REUSEADDR to signal that reuse of the source port is OK.
@@ -252,7 +257,7 @@ void Pair::connect(const Address& peer) {
   if (rv == -1) {
     ::close(fd_);
     fd_ = FD_INVALID;
-    signalIoFailure(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
   }
 
   // Connect to peer
@@ -260,7 +265,7 @@ void Pair::connect(const Address& peer) {
   if (rv == -1 && errno != EINPROGRESS) {
     ::close(fd_);
     fd_ = FD_INVALID;
-    signalIoFailure(GLOO_ERROR_MSG("connect: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("connect: ", strerror(errno)));
   }
 
   // Register with device so we're called when connection completes.
@@ -332,8 +337,6 @@ bool Pair::write(Op& op) {
   int ioc;
   ssize_t rv;
 
-  verifyConnected();
-
   for (;;) {
     auto nbytes = writeBuildIov(op, iov.data(), ioc);
 
@@ -342,12 +345,12 @@ bool Pair::write(Op& op) {
     if (rv == -1) {
       if (errno == EAGAIN) {
         if (sync_) {
-          // Blocking call returning with EAGAIN indicates timeout
-          signalIoFailure(GLOO_ERROR_MSG("Write timeout ", peer_.str()));
+          // Sync mode: blocking call returning with EAGAIN indicates timeout.
+          signalException(GLOO_ERROR_MSG("Write timeout ", peer_.str()));
         } else {
-          // Async. This write is done.
-          return false;
+          // Async mode: can't write more than this.
         }
+        return false;
       }
 
       // Retry on EINTR
@@ -356,8 +359,9 @@ bool Pair::write(Op& op) {
       }
 
       // Unexpected error
-      signalIoFailure(
+      signalException(
           GLOO_ERROR_MSG("writev ", peer_.str(), ": ", strerror(errno)));
+      return false;
     }
 
     // From write(2) man page (NOTES section):
@@ -467,15 +471,13 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
 // below inherits it.
 //
 bool Pair::read() {
-  verifyConnected();
-
   auto start = std::chrono::steady_clock::now();
   auto& op = rx_;
 
   for (;;) {
     struct iovec iov = {
-      .iov_base = nullptr,
-      .iov_len = 0,
+        .iov_base = nullptr,
+        .iov_len = 0,
     };
     if (!readBuildIov(op, iov)) {
       return false;
@@ -502,9 +504,10 @@ bool Pair::read() {
         // to read or (2) blocking and timeout occurs.
         if (errno == EAGAIN) {
           if (sync_) {
-            auto hasTimedOut = [&]{
+            // Sync mode: EAGAIN indicates nothing to read right now.
+            auto hasTimedOut = [&] {
               return (timeout_ != kNoTimeout) &&
-                ((std::chrono::steady_clock::now() - start) >= timeout_);
+                  ((std::chrono::steady_clock::now() - start) >= timeout_);
             };
             if (busyPoll_ && !hasTimedOut()) {
               // Keep looping on EAGAIN if busy-poll flag has been set and the
@@ -513,13 +516,12 @@ bool Pair::read() {
             } else {
               // Either timeout on poll or blocking call returning with EAGAIN
               // indicates timeout
-              signalIoFailure(
-                  GLOO_ERROR_MSG("Read timeout ", peer_.str()));
+              signalException(GLOO_ERROR_MSG("Read timeout ", peer_.str()));
             }
           } else {
-            // Async. This read is done.
-            return false;
+            // Async mode: can't read more than this.
           }
+          return false;
         }
 
         // Retry on EINTR
@@ -527,27 +529,19 @@ bool Pair::read() {
           continue;
         }
 
-        // ECONNRESET happens when the remote peer unexpectedly terminates
-        if (errno == ECONNRESET) {
-          changeState(CLOSED);
-        }
-
         // Unexpected error
-        signalIoFailure(GLOO_ERROR_MSG(
-            "Read error ", peer_.str(), ": ", strerror(errno)));
+        signalException(
+            GLOO_ERROR_MSG("Read error ", peer_.str(), ": ", strerror(errno)));
+        return false;
       }
       break;
     }
 
     // Transition to CLOSED on EOF
     if (rv == 0) {
-      changeState(CLOSED);
-      if (sync_) {
-        signalIoFailure(GLOO_ERROR_MSG(
-            "Remote socket closed during sync read ", peer_.str()));
-      } else {
-        return false;
-      }
+      signalException(
+          GLOO_ERROR_MSG("Connection closed by peer ", peer_.str()));
+      return false;
     }
 
     op.nread += rv;
@@ -645,52 +639,52 @@ void Pair::handleEvents(int events) {
     return;
   }
 
-  try {
-    checkErrorState();
+  // State must be <= CONNECTED.
+  // If state is CLOSED; this function will NOT be called. Refer to
+  // Pair::changeState and Device::unregisterDescriptor for more info.
+  GLOO_ENFORCE_LE(state_, CONNECTED);
 
-    if (state_ == CONNECTED) {
-      if (events & EPOLLOUT) {
-        GLOO_ENFORCE(
-            !tx_.empty(),
-            "tx_ cannot be empty because EPOLLOUT happened");
-        while (!tx_.empty()) {
-          auto& op = tx_.front();
-          if (!write(op)) {
-            // Write did not complete; wait for epoll.
-            break;
-          }
-          // Write completed; remove from queue.
-          tx_.pop_front();
-        }
+  // Exception must not be set.
+  // If exception is set, state must advance to CLOSED state.
+  GLOO_ENFORCE(ex_ == nullptr);
 
-        // If there is nothing to transmit; remove EPOLLOUT.
-        if (tx_.empty()) {
-          dev_->registerDescriptor(fd_, EPOLLIN, this);
+  if (state_ == CONNECTED) {
+    if (state_ == CONNECTED && (events & EPOLLOUT)) {
+      GLOO_ENFORCE(
+          !tx_.empty(), "tx_ cannot be empty because EPOLLOUT happened");
+      while (!tx_.empty()) {
+        auto& op = tx_.front();
+        if (!write(op)) {
+          // Write did not complete; wait for epoll.
+          break;
         }
+        // Write completed; remove from queue.
+        tx_.pop_front();
       }
-      if (events & EPOLLIN) {
-        while (read()) {
-          // Keep going
-        }
+      // If there is nothing to transmit; remove EPOLLOUT.
+      if (tx_.empty()) {
+        dev_->registerDescriptor(fd_, EPOLLIN, this);
       }
-      return;
     }
-
-    if (state_ == LISTENING) {
-      handleListening();
-      return;
+    if (state_ == CONNECTED && (events & EPOLLIN)) {
+      while (read()) {
+        // Keep going
+      }
     }
-
-    if (state_ == CONNECTING) {
-      handleConnecting();
-      return;
-    }
-
-    GLOO_ENFORCE(false, "Unexpected state: ", state_);
-  } catch (const ::gloo::IoException&) {
-    // Catch IO exceptions on the event handling thread. The exception has
-    // already been saved and user threads signaled.
+    return;
   }
+
+  if (state_ == LISTENING) {
+    handleListening();
+    return;
+  }
+
+  if (state_ == CONNECTING) {
+    handleConnecting();
+    return;
+  }
+
+  GLOO_ENFORCE(false, "Unexpected state: ", state_);
 }
 
 void Pair::handleListening() {
@@ -707,7 +701,7 @@ void Pair::handleListening() {
   fd_ = FD_INVALID;
 
   if (rv == -1) {
-    signalIoFailure(GLOO_ERROR_MSG("accept: ", strerror(errno)));
+    signalAndThrowException(GLOO_ERROR_MSG("accept: ", strerror(errno)));
   }
 
   // Connected, replace file descriptor
@@ -726,7 +720,7 @@ void Pair::handleConnecting() {
   rv = getsockopt(fd_, SOL_SOCKET, SO_ERROR, &optval, &optlen);
   GLOO_ENFORCE_NE(rv, -1);
   if (optval != 0) {
-    signalIoFailure(
+    signalAndThrowException(
         GLOO_ERROR_MSG("connect ", peer_.str(), ": ", strerror(optval)));
   }
 
@@ -844,7 +838,7 @@ void Pair::waitUntilConnected(
     std::unique_lock<std::mutex>& lock,
     bool useTimeout) {
   auto pred = [&] {
-    checkErrorState();
+    throwIfException();
     return state_ >= CONNECTED;
   };
   auto timeoutSet = timeout_ != kNoTimeout;
@@ -852,7 +846,7 @@ void Pair::waitUntilConnected(
     // Use a longer timeout when waiting for initial connect
     auto done = cv_.wait_for(lock, timeout_ * 5, pred);
     if (!done) {
-      signalIoFailure(GLOO_ERROR_MSG("Connect timeout ", peer_.str()));
+      signalAndThrowException(GLOO_ERROR_MSG("Connect timeout ", peer_.str()));
     }
   } else {
     cv_.wait(lock, pred);
@@ -872,7 +866,7 @@ void Pair::verifyConnected() {
   // Check if the socket has been closed. We were unable to tell if this was an
   // error or normal tear down, but now throw since we are trying to do IO.
   if (state_ == CLOSED) {
-    signalIoFailure(GLOO_ERROR_MSG("Socket closed ", peer_.str()));
+    signalAndThrowException(GLOO_ERROR_MSG("Socket closed ", peer_.str()));
   }
 }
 
@@ -882,7 +876,10 @@ void Pair::verifyConnected() {
 void Pair::sendSyncMode(Op& op) {
   GLOO_ENFORCE(sync_);
   auto rv = write(op);
-  GLOO_ENFORCE(rv, "Write must always succeed in sync mode");
+  if (!rv) {
+    GLOO_ENFORCE(ex_ != nullptr);
+    std::rethrow_exception(ex_);
+  }
 }
 
 // Sends contents of operation to the remote side of the pair.
@@ -904,6 +901,9 @@ void Pair::sendAsyncMode(Op& op) {
     return;
   }
 
+  // Write may have resulted in an error.
+  throwIfException();
+
   // Write didn't complete; pass to event loop
   tx_.push_back(std::move(op));
   dev_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
@@ -911,11 +911,7 @@ void Pair::sendAsyncMode(Op& op) {
 
 void Pair::send(Op& op) {
   std::unique_lock<std::mutex> lock(m_);
-  checkErrorState();
-
-  // The connect function already wait for the pair to become
-  // connected (both in listening and connecting mode).
-  // No need to wait again here.
+  throwIfException();
   verifyConnected();
 
   // Try to size the send buffer such that the write below completes
@@ -942,20 +938,29 @@ void Pair::send(Op& op) {
 
 void Pair::recv() {
   std::unique_lock<std::mutex> lock(m_);
-  checkErrorState();
+  throwIfException();
+  verifyConnected();
 
   auto rv = read();
-  GLOO_ENFORCE(rv, "Read must always succeed in sync mode");
+  if (!rv) {
+    GLOO_ENFORCE(
+        ex_ != nullptr, "read() returned false in sync mode; ex_ must be set");
+    std::rethrow_exception(ex_);
+  }
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createSendBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createSendBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   auto buffer = new Buffer(this, slot, ptr, size);
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createRecvBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   auto buffer = new Buffer(this, slot, ptr, size);
   registerBuffer(buffer);
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
@@ -975,7 +980,7 @@ void Pair::send(
   GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
-  checkErrorState();
+  throwIfException();
 
   // Execute this send if there is a remote pending receive.
   if (remotePendingRecv_[slot] > 0) {
@@ -1008,7 +1013,7 @@ void Pair::recv(
   GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
-  checkErrorState();
+  throwIfException();
 
   // Notify peer of this pending recv.
   localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
@@ -1029,7 +1034,7 @@ bool Pair::tryRecv(
   GLOO_ENFORCE_LE(nbytes, buf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
-  checkErrorState();
+  throwIfException();
 
   // Return early if there is no remote pending send.
   if (remotePendingSend_[slot] <= 0) {
@@ -1077,33 +1082,64 @@ void Pair::sendNotifySendReady(uint64_t slot, size_t nbytes) {
   sendAsyncMode(op);
 }
 
-void Pair::signalIoFailureExternal(const std::string& msg) {
-  std::unique_lock<std::mutex> lock(m_);
-  signalIoFailure(msg);
-};
-
-void Pair::signalIoFailure(const std::string& msg) {
-  auto ex = ::gloo::IoException(msg);
-  if (ex_ == nullptr) {
-    // If we haven't seen an error yet, store the exception to throw on future
-    // calling threads.
-    ex_ = std::make_exception_ptr(ex);
-    // Loop through the buffers and signal that an error has occurred.
-    for (auto it = buffers_.begin(); it != buffers_.end(); it++) {
-      it->second->signalError(ex_);
-    }
-    // Signal any threads in the async path
-    cv_.notify_all();
-  }
-  // Finally, throw the exception on this thread.
-  throw ex;
-};
-
-void Pair::checkErrorState() {
+void Pair::throwIfException() {
   // If we previously encountered an error, rethrow here.
   if (ex_ != nullptr) {
     std::rethrow_exception(ex_);
   }
+}
+
+std::exception_ptr Pair::signalExceptionExternal(const std::string& msg) {
+  std::lock_guard<std::mutex> lock(m_);
+
+  // This function may be called by a buffer upon timing out waiting
+  // for some operation to complete. It may race with the device
+  // thread performing read/write operations, detecting a failure, and
+  // setting an exception as well. Therefore, check if an exception is
+  // already set, and ignore this call if it is.
+  if (ex_ == nullptr) {
+    signalException(msg);
+  }
+  return ex_;
+}
+
+void Pair::signalException(const std::string& msg) {
+  signalException(std::make_exception_ptr(::gloo::IoException(msg)));
+}
+
+void Pair::signalException(std::exception_ptr ex) {
+  GLOO_ENFORCE(ex_ == nullptr);
+
+  // Loop through the buffers and signal that an error has occurred.
+  for (auto it = buffers_.begin(); it != buffers_.end(); it++) {
+    it->second->signalException(ex);
+  }
+
+  // Loop through pending send operations.
+  for (auto& op : tx_) {
+    if (op.buf != nullptr) {
+      op.buf->signalException(ex);
+    }
+  }
+
+  // Store exception_ptr and signal any threads in the async path.
+  ex_ = ex;
+  cv_.notify_all();
+
+  // Move to closed state.
+  // Either this error is an underlying socket error and the socket
+  // must be closed, or this error is an application side timeout, and
+  // we are no longer guaranteed that buffer pointers will be valid.
+  changeState(CLOSED);
+}
+
+void Pair::signalAndThrowException(const std::string& msg) {
+  signalAndThrowException(std::make_exception_ptr(::gloo::IoException(msg)));
+}
+
+void Pair::signalAndThrowException(std::exception_ptr ex) {
+  signalException(ex);
+  std::rethrow_exception(ex);
 }
 
 } // namespace tcp
