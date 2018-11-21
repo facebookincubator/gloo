@@ -119,6 +119,21 @@ INSTANTIATE_TEST_CASE_P(
     BarrierNewTest,
     ::testing::Values(2, 4, 7));
 
+TEST_F(BarrierNewTest, TestTimeout) {
+  spawn(2, [&](std::shared_ptr<Context> context) {
+    BarrierOptions opts(context);
+    opts.setTimeout(std::chrono::milliseconds(10));
+    if (context->rank == 0) {
+      try {
+        barrier(opts);
+        FAIL() << "Expected exception to be thrown";
+      } catch (::gloo::IoException& e) {
+        ASSERT_NE(std::string(e.what()).find("Timed out"), std::string::npos);
+      }
+    }
+  });
+}
+
 } // namespace
 } // namespace test
 } // namespace gloo

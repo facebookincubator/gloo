@@ -78,7 +78,7 @@ void reduce(ReduceOptions& opts) {
   // For example, if maxSegmentSize = 10, and elementSize = 4,
   // then after rounding up: segmentSize = 12;
   const size_t maxSegmentSize =
-    opts.elementSize * (opts.maxSegmentSize / opts.elementSize);
+      opts.elementSize * (opts.maxSegmentSize / opts.elementSize);
 
   // The number of bytes per segment must be a multiple of the bytes
   // per element for the reduction to work; round up if necessary.
@@ -166,7 +166,7 @@ void reduce(ReduceOptions& opts) {
       // to reduce the contents of the temporary buffer.
       auto prev = computeReduceScatterOffsets(i - 2);
       if (prev.recvLength > 0) {
-        tmp->waitRecv();
+        tmp->waitRecv(opts.timeout);
         opts.reduce(
             static_cast<uint8_t*>(out->ptr) + prev.recvOffset,
             static_cast<const uint8_t*>(in->ptr) + prev.recvOffset,
@@ -175,9 +175,9 @@ void reduce(ReduceOptions& opts) {
       }
       if (prev.sendLength > 0) {
         if ((i - 2) < numSegmentsPerRank) {
-          in->waitSend();
+          in->waitSend(opts.timeout);
         } else {
-          out->waitSend();
+          out->waitSend(opts.timeout);
         }
       }
     }
@@ -223,7 +223,7 @@ void reduce(ReduceOptions& opts) {
       }
     }
     for (size_t i = 0; i < numRecv; i++) {
-      out->waitRecv();
+      out->waitRecv(opts.timeout);
     }
   } else {
     size_t sendOffset = context->rank * numSegmentsPerRank * segmentBytes;
@@ -231,7 +231,7 @@ void reduce(ReduceOptions& opts) {
         (ssize_t)chunkBytes, (ssize_t)totalBytes - (ssize_t)sendOffset);
     if (sendLength > 0) {
       out->send(opts.root, slot, sendOffset, sendLength);
-      out->waitSend();
+      out->waitSend(opts.timeout);
     }
   }
 }

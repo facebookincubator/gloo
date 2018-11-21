@@ -97,6 +97,31 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(genMemorySizes()),
         ::testing::Values(true, false)));
 
+template <typename T>
+ReduceOptions::Func getFunction() {
+  void (*func)(void*, const void*, const void*, size_t) = &::gloo::sum<T>;
+  return ReduceOptions::Func(func);
+}
+
+TEST_F(ReduceTest, TestTimeout) {
+  spawn(2, [&](std::shared_ptr<Context> context) {
+    Fixture<uint64_t> outputs(context, 1, 1);
+    ReduceOptions opts(context);
+    opts.setOutput(outputs.getPointer(), 1);
+    opts.setRoot(0);
+    opts.setReduceFunction(getFunction<uint64_t>());
+    opts.setTimeout(std::chrono::milliseconds(10));
+    if (context->rank == 0) {
+      try {
+        reduce(opts);
+        FAIL() << "Expected exception to be thrown";
+      } catch (::gloo::IoException& e) {
+        ASSERT_NE(std::string(e.what()).find("Timed out"), std::string::npos);
+      }
+    }
+  });
+}
+
 } // namespace
 } // namespace test
 } // namespace gloo

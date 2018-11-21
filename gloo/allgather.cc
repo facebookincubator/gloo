@@ -78,16 +78,16 @@ void allgather(AllgatherOptions& opts) {
     // Wait for pending operations to complete to synchronize with the
     // previous iteration. Because we kick off two operations before
     // getting here we always wait for the next-to-last operation.
-    out->waitSend();
-    out->waitRecv();
+    out->waitSend(opts.timeout);
+    out->waitRecv(opts.timeout);
     out->send(sendRank, slot, sendOffset, size);
     out->recv(recvRank, slot, recvOffset, size);
   }
 
   // Wait for completes
   for (auto i = 0; i < 2; i++) {
-    out->waitSend();
-    out->waitRecv();
+    out->waitSend(opts.timeout);
+    out->waitRecv(opts.timeout);
   }
 }
 

@@ -212,7 +212,7 @@ void allreduce(AllreduceOptions& opts) {
           reduceInputs(prev.recvOffset, prev.recvLength, opts.elementSize);
         }
         // Wait for segment from neighbor.
-        tmp->waitRecv();
+        tmp->waitRecv(opts.timeout);
         // Reduce segment from neighbor into out->ptr.
         opts.reduce(
             static_cast<uint8_t*>(out[0]->ptr) + prev.recvOffset,
@@ -221,7 +221,7 @@ void allreduce(AllreduceOptions& opts) {
             prev.recvLength / opts.elementSize);
       }
       if (prev.sendLength > 0) {
-        out[0]->waitSend();
+        out[0]->waitSend(opts.timeout);
       }
     }
 
@@ -285,10 +285,10 @@ void allreduce(AllreduceOptions& opts) {
     if (i >= 2) {
       auto prev = computeAllgatherOffsets(i - 2);
       if (prev.recvLength > 0) {
-        out[0]->waitRecv();
+        out[0]->waitRecv(opts.timeout);
       }
       if (prev.sendLength > 0) {
-        out[0]->waitSend();
+        out[0]->waitSend(opts.timeout);
       }
     }
 

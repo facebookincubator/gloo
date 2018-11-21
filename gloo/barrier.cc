@@ -12,7 +12,9 @@
 namespace gloo {
 
 BarrierOptions::BarrierOptions(const std::shared_ptr<Context>& context)
-    : context(context), buffer(context->createUnboundBuffer(nullptr, 0)) {}
+    : context(context),
+      buffer(context->createUnboundBuffer(nullptr, 0)),
+      timeout(context->getTimeout()) {}
 
 void barrier(BarrierOptions& opts) {
   const auto& context = opts.context;
@@ -29,8 +31,8 @@ void barrier(BarrierOptions& opts) {
   for (size_t d = 1; d < context->size; d <<= 1) {
     buffer->recv((context->size + context->rank - d) % context->size, slot);
     buffer->send((context->size + context->rank + d) % context->size, slot);
-    buffer->waitRecv();
-    buffer->waitSend();
+    buffer->waitRecv(opts.timeout);
+    buffer->waitSend(opts.timeout);
   }
 }
 

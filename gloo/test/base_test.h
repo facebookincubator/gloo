@@ -88,7 +88,14 @@ class BaseTest : public ::testing::Test {
       if (size > 1) {
         context->connectFullMesh(*store_, device_);
       }
-      fn(context);
+
+      try {
+        fn(context);
+      } catch (std::exception& e) {
+        // Unblock barrier and rethrow
+        barrier.wait();
+        throw;
+      }
 
       // Since the test suite only deals with threads within a
       // process, we can cheat and use an in-process barrier to

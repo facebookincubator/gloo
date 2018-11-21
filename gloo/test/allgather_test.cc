@@ -167,6 +167,24 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(genMemorySizes()),
         ::testing::Values(false, true)));
 
+TEST_F(AllgatherNewTest, TestTimeout) {
+  spawn(2, [&](std::shared_ptr<Context> context) {
+    Fixture<uint64_t> input(context, 1, 1);
+    Fixture<uint64_t> output(context, 1, context->size);
+    AllgatherOptions opts(context);
+    opts.setInput(input.getPointer(), 1);
+    opts.setOutput(output.getPointer(), context->size);
+    opts.setTimeout(std::chrono::milliseconds(10));
+    if (context->rank == 0) {
+      try {
+        allgather(opts);
+        FAIL() << "Expected exception to be thrown";
+      } catch (::gloo::IoException& e) {
+        ASSERT_NE(std::string(e.what()).find("Timed out"), std::string::npos);
+      }
+    }
+  });
+}
 
 } // namespace
 } // namespace test

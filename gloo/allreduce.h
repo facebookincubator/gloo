@@ -19,12 +19,11 @@
 namespace gloo {
 
 class AllreduceOptions {
-public:
+ public:
   using Func = std::function<void(void*, const void*, const void*, size_t)>;
 
   explicit AllreduceOptions(const std::shared_ptr<Context>& context)
-      : context(context) {
-  }
+      : context(context), timeout(context->getTimeout()) {}
 
   template <typename T>
   void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
@@ -57,7 +56,7 @@ public:
     this->in.reserve(len);
     for (size_t i = 0; i < len; i++) {
       this->in.push_back(
-        context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
+          context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
     }
   }
 
@@ -92,7 +91,7 @@ public:
     this->out.reserve(len);
     for (size_t i = 0; i < len; i++) {
       this->out.push_back(
-        context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
+          context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
     }
   }
 
@@ -108,7 +107,11 @@ public:
     this->maxSegmentSize = maxSegmentSize;
   }
 
-protected:
+  void setTimeout(std::chrono::milliseconds timeout) {
+    this->timeout = timeout;
+  }
+
+ protected:
   std::shared_ptr<Context> context;
   std::vector<std::unique_ptr<transport::UnboundBuffer>> in;
   std::vector<std::unique_ptr<transport::UnboundBuffer>> out;
@@ -136,6 +139,9 @@ protected:
   // (because they would require millions of elements if the default
   // were not configurable).
   size_t maxSegmentSize = kMaxSegmentSize;
+
+  // End-to-end timeout for this operation.
+  std::chrono::milliseconds timeout;
 
   friend void allreduce(AllreduceOptions&);
 };

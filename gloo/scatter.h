@@ -20,7 +20,7 @@ namespace gloo {
 class ScatterOptions {
  public:
   explicit ScatterOptions(const std::shared_ptr<Context>& context)
-      : context(context) {}
+      : context(context), timeout(context->getTimeout()) {}
 
   template <typename T>
   void setInputs(std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs) {
@@ -63,6 +63,10 @@ class ScatterOptions {
     this->tag = tag;
   }
 
+  void setTimeout(std::chrono::milliseconds timeout) {
+    this->timeout = timeout;
+  }
+
  protected:
   std::shared_ptr<Context> context;
 
@@ -83,6 +87,9 @@ class ScatterOptions {
   // Tag for this operation.
   // Must be unique across operations executing in parallel.
   uint32_t tag = 0;
+
+  // End-to-end timeout for this operation.
+  std::chrono::milliseconds timeout;
 
   friend void scatter(ScatterOptions&);
 };

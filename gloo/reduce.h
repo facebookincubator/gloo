@@ -18,12 +18,11 @@
 namespace gloo {
 
 class ReduceOptions {
-public:
+ public:
   using Func = std::function<void(void*, const void*, const void*, size_t)>;
 
   explicit ReduceOptions(const std::shared_ptr<Context>& context)
-      : context(context) {
-  }
+      : context(context), timeout(context->getTimeout()) {}
 
   template <typename T>
   void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
@@ -69,7 +68,11 @@ public:
     this->maxSegmentSize = maxSegmentSize;
   }
 
-protected:
+  void setTimeout(std::chrono::milliseconds timeout) {
+    this->timeout = timeout;
+  }
+
+ protected:
   std::shared_ptr<Context> context;
   std::unique_ptr<transport::UnboundBuffer> in;
   std::unique_ptr<transport::UnboundBuffer> out;
@@ -100,6 +103,9 @@ protected:
   // (because they would require millions of elements if the default
   // were not configurable).
   size_t maxSegmentSize = kMaxSegmentSize;
+
+  // End-to-end timeout for this operation.
+  std::chrono::milliseconds timeout;
 
   friend void reduce(ReduceOptions&);
 };

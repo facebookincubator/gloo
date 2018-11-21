@@ -80,7 +80,7 @@ void broadcast(BroadcastOptions& opts) {
       numSends++;
     } else {
       out->recv(peer, slot);
-      out->waitRecv();
+      out->waitRecv(opts.timeout);
     }
   }
 
@@ -91,7 +91,7 @@ void broadcast(BroadcastOptions& opts) {
 
   // Wait on pending sends.
   for (auto i = 0; i < numSends; i++) {
-    in->waitSend();
+    in->waitSend(opts.timeout);
   }
 }
 

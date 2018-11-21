@@ -53,11 +53,11 @@ void scatter(ScatterOptions& opts) {
       if (i == context->rank) {
         continue;
       }
-      in[i]->waitSend();
+      in[i]->waitSend(opts.timeout);
     }
   } else {
     out->recv(opts.root, slot);
-    out->waitRecv();
+    out->waitRecv(opts.timeout);
   }
 }
 

@@ -355,6 +355,30 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(1, 10, 100, 1000, 10000),
         ::testing::Values(true, false)));
 
+template <typename T>
+AllreduceOptions::Func getFunction() {
+  void (*func)(void*, const void*, const void*, size_t) = &::gloo::sum<T>;
+  return AllreduceOptions::Func(func);
+}
+
+TEST_F(AllreduceNewTest, TestTimeout) {
+  spawn(2, [&](std::shared_ptr<Context> context) {
+    Fixture<uint64_t> outputs(context, 1, 1);
+    AllreduceOptions opts(context);
+    opts.setOutputs(outputs.getPointers(), 1);
+    opts.setReduceFunction(getFunction<uint64_t>());
+    opts.setTimeout(std::chrono::milliseconds(10));
+    if (context->rank == 0) {
+      try {
+        allreduce(opts);
+        FAIL() << "Expected exception to be thrown";
+      } catch (::gloo::IoException& e) {
+        ASSERT_NE(std::string(e.what()).find("Timed out"), std::string::npos);
+      }
+    }
+  });
+}
+
 } // namespace
 } // namespace test
 } // namespace gloo

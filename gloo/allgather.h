@@ -15,10 +15,9 @@
 namespace gloo {
 
 class AllgatherOptions {
-public:
+ public:
   explicit AllgatherOptions(const std::shared_ptr<Context>& context)
-      : context(context) {
-  }
+      : context(context), timeout(context->getTimeout()) {}
 
   template <typename T>
   void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
@@ -48,7 +47,11 @@ public:
     this->tag = tag;
   }
 
-protected:
+  void setTimeout(std::chrono::milliseconds timeout) {
+    this->timeout = timeout;
+  }
+
+ protected:
   std::shared_ptr<Context> context;
   std::unique_ptr<transport::UnboundBuffer> in;
   std::unique_ptr<transport::UnboundBuffer> out;
@@ -59,6 +62,9 @@ protected:
   // Tag for this operation.
   // Must be unique across operations executing in parallel.
   uint32_t tag = 0;
+
+  // End-to-end timeout for this operation.
+  std::chrono::milliseconds timeout;
 
   friend void allgather(AllgatherOptions&);
 };

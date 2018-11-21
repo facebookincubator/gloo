@@ -52,11 +52,11 @@ void gather(GatherOptions& opts) {
       if (i == context->rank) {
         continue;
       }
-      out->waitRecv();
+      out->waitRecv(opts.timeout);
     }
   } else {
     in->send(opts.root, slot);
-    in->waitSend();
+    in->waitSend(opts.timeout);
   }
 }
 
