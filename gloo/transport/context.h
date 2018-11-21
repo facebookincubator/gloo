@@ -39,9 +39,7 @@ class Context {
 
   virtual std::unique_ptr<Pair>& getPair(int rank);
 
-  virtual std::unique_ptr<Pair>& createPair(
-      int rank,
-      std::chrono::milliseconds timeout) = 0;
+  virtual std::unique_ptr<Pair>& createPair(int rank) = 0;
 
   // Creates unbound buffer to be used with the ranks in this context.
   // It is not bound to a specific rank, but still bound to this
@@ -52,6 +50,14 @@ class Context {
       void* ptr,
       size_t size) = 0;
 
+  void setTimeout(std::chrono::milliseconds timeout) {
+    timeout_ = timeout;
+  }
+
+  std::chrono::milliseconds getTimeout() const {
+    return timeout_;
+  }
+
  protected:
   // Lifecycle of the pairs is managed by a std::unique_ptr of the
   // base class. This is done because the public context API dictates
@@ -59,6 +65,10 @@ class Context {
   // internal to this class can cast these points to the native
   // transport specific type.
   std::vector<std::unique_ptr<Pair>> pairs_;
+
+  // Default timeout for new pairs (e.g. during initialization) and
+  // any kind of send/recv operation.
+  std::chrono::milliseconds timeout_;
 };
 
 } // namespace transport

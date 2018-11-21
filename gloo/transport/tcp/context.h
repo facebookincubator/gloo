@@ -34,9 +34,7 @@ class Context : public ::gloo::transport::Context,
 
   virtual ~Context();
 
-  std::unique_ptr<transport::Pair>& createPair(
-      int rank,
-      std::chrono::milliseconds timeout) override;
+  std::unique_ptr<transport::Pair>& createPair(int rank) override;
 
   std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
       void* ptr,
@@ -78,7 +76,10 @@ class Context : public ::gloo::transport::Context,
       size_t* offset,
       size_t* nbytes);
 
-  friend class Pair;
+  // Set exception on every pair in this context. This is called when
+  // waiting for a send or recv operation on an unbound buffer times
+  // out. All pairs should be signaled and closed in that event.
+  void signalException(const std::string& msg);
 
   friend class UnboundBuffer;
 };

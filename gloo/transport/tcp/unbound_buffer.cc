@@ -11,6 +11,7 @@
 
 #include <stdexcept>
 
+#include "gloo/common/error.h"
 #include "gloo/common/logging.h"
 #include "gloo/transport/tcp/context.h"
 
@@ -38,12 +39,40 @@ void UnboundBuffer::handleRecvCompletion(int rank) {
   recvCv_.notify_one();
 }
 
-void UnboundBuffer::waitRecv(int* rank) {
+void UnboundBuffer::waitRecv(int* rank, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(m_);
-  auto pred = [&]{
-    return recvCompletions_ > 0;
-  };
-  recvCv_.wait(lock, pred);
+  if (timeout == kUnsetTimeout) {
+    timeout = context_->getTimeout();
+  }
+
+  if (recvCompletions_ == 0) {
+    auto done = recvCv_.wait_for(lock, timeout, [&] {
+      throwIfException();
+      return recvCompletions_ > 0;
+    });
+    if (!done) {
+      // Below, we let all pairs in the transport context know about this
+      // application side timeout. This in turn will call into all pending
+      // operations to let them know about the error. This includes the
+      // operation that is pending for this buffer, so in order for a call to
+      // this instance its 'signalException' function to not deadlock, we need
+      // to first release the instance wide lock.
+      lock.unlock();
+
+      // Signal all pairs about this application timeout.
+      // Note that the exception that they see indicates it was another
+      // operation that timed out. This this exception surfaces anywhere,n
+      // be sure to look for the actual cause (seen below).
+      context_->signalException("Application timeout caused pair closure");
+
+      throw ::gloo::IoException(
+              GLOO_ERROR_MSG(
+                  "Timed out waiting ",
+                  timeout.count(),
+                  "ms for recv operation to complete"));
+    }
+  }
+
   recvCompletions_--;
   if (rank != nullptr) {
     *rank = recvRank_;
@@ -57,12 +86,40 @@ void UnboundBuffer::handleSendCompletion(int rank) {
   sendCv_.notify_one();
 }
 
-void UnboundBuffer::waitSend(int* rank) {
+void UnboundBuffer::waitSend(int* rank, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(m_);
-  auto pred = [&]{
-    return sendCompletions_ > 0;
-  };
-  sendCv_.wait(lock, pred);
+  if (timeout == kUnsetTimeout) {
+    timeout = context_->getTimeout();
+  }
+
+  if (sendCompletions_ == 0) {
+    auto done = sendCv_.wait_for(lock, timeout, [&] {
+        throwIfException();
+        return sendCompletions_ > 0;
+      });
+    if (!done) {
+      // Below, we let all pairs in the transport context know about this
+      // application side timeout. This in turn will call into all pending
+      // operations to let them know about the error. This includes the
+      // operation that is pending for this buffer, so in order for a call to
+      // this instance its 'signalException' function to not deadlock, we need
+      // to first release the instance wide lock.
+      lock.unlock();
+
+      // Signal all pairs about this application timeout.
+      // Note that the exception that they see indicates it was another
+      // operation that timed out. This this exception surfaces anywhere,n
+      // be sure to look for the actual cause (seen below).
+      context_->signalException("Application timeout caused pair closure");
+
+      throw ::gloo::IoException(
+          GLOO_ERROR_MSG(
+              "Timed out waiting ",
+              timeout.count(),
+              "ms for send operation to complete"));
+    }
+  }
+
   sendCompletions_--;
   if (rank != nullptr) {
     *rank = sendRank_;
@@ -103,6 +160,19 @@ void UnboundBuffer::recv(
     nbytes = this->size - offset;
   }
   context_->recvFromAny(this, slot, offset, nbytes, srcRanks);
+}
+
+void UnboundBuffer::signalException(std::exception_ptr ex) {
+  std::lock_guard<std::mutex> lock(m_);
+  ex_ = std::move(ex);
+  recvCv_.notify_all();
+  sendCv_.notify_all();
+}
+
+void UnboundBuffer::throwIfException() {
+  if (ex_ != nullptr) {
+    std::rethrow_exception(ex_);
+  }
 }
 
 } // namespace tcp

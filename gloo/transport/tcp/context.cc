@@ -20,22 +20,15 @@ namespace transport {
 namespace tcp {
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
-    : ::gloo::transport::Context(rank, size), device_(device) {
-}
+    : ::gloo::transport::Context(rank, size), device_(device) {}
 
-Context::~Context() {
-}
+Context::~Context() {}
 
-std::unique_ptr<transport::Pair>& Context::createPair(
-    int rank,
-    std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
+std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
   pairs_[rank] = std::unique_ptr<transport::Pair>(new tcp::Pair(
       device_,
       rank,
-      timeout,
+      getTimeout(),
       [=](uint64_t slot, size_t* offset, size_t* nbytes) -> UnboundBuffer* {
         return recvFromAnyCallback(rank, slot, offset, nbytes);
       }));
@@ -149,6 +142,15 @@ UnboundBuffer* Context::recvFromAnyCallback(
   // No candidates; register rank for pending remote send.
   pendingRemoteSend_[slot][rank]++;
   return nullptr;
+}
+
+void Context::signalException(const std::string& msg) {
+  std::unique_lock<std::mutex> lock(m_);
+  for (auto& pair : pairs_) {
+    if (pair) {
+      reinterpret_cast<tcp::Pair*>(pair.get())->signalExceptionExternal(msg);
+    }
+  }
 }
 
 } // namespace tcp

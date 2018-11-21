@@ -157,6 +157,158 @@ TEST_P(TransportMultiProcTest, IoTimeouts) {
   waitProcess(0);
 }
 
+TEST_P(TransportMultiProcTest, UnboundIoErrors) {
+  const auto processCount = std::get<0>(GetParam());
+  const auto sleepMs = std::get<2>(GetParam());
+  const auto mode = std::get<3>(GetParam());
+
+  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+    int sendScratch = 0;
+    int recvScratch = 0;
+    auto sendBuf =
+        context->createUnboundBuffer(&sendScratch, sizeof(sendScratch));
+    auto recvBuf =
+        context->createUnboundBuffer(&recvScratch, sizeof(recvScratch));
+    const auto leftRank = (context->size + context->rank - 1) % context->size;
+    const auto rightRank = (context->rank + 1) % context->size;
+    while (true) {
+      sendBuf->send(leftRank, 0);
+      recvBuf->recv(rightRank, 0);
+      sendBuf->waitSend();
+      recvBuf->waitRecv();
+    }
+  });
+
+  if (sleepMs > 0) {
+    // The test is specifically delaying before killing dependent processes.
+    // The absolute time does not need to be deterministic.
+    /* sleep override */
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+  }
+
+  // Kill one of the processes and wait for all to exit.
+  // Expect this to take less time than the default timeout.
+  const auto start = std::chrono::high_resolution_clock::now();
+  signalProcess(0, SIGKILL);
+  wait();
+  const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::high_resolution_clock::now() - start);
+  ASSERT_LT(delta.count(), kMultiProcTimeout.count() / 2);
+
+  for (auto i = 0; i < processCount; i++) {
+    if (i != 0) {
+      const auto result = getResult(i);
+      ASSERT_TRUE(WIFEXITED(result)) << result;
+      ASSERT_EQ(kExitWithIoException, WEXITSTATUS(result));
+    }
+  }
+}
+
+TEST_P(TransportMultiProcTest, UnboundIoTimeout) {
+  const auto processCount = std::get<0>(GetParam());
+  const auto sleepMs = std::get<2>(GetParam());
+  const auto mode = std::get<3>(GetParam());
+
+  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+    int sendScratch = 0;
+    int recvScratch = 0;
+    auto sendBuf =
+        context->createUnboundBuffer(&sendScratch, sizeof(sendScratch));
+    auto recvBuf =
+        context->createUnboundBuffer(&recvScratch, sizeof(recvScratch));
+    const auto leftRank = (context->size + context->rank - 1) % context->size;
+    const auto rightRank = (context->rank + 1) % context->size;
+    while (true) {
+      sendBuf->send(leftRank, 0);
+      recvBuf->recv(rightRank, 0);
+      sendBuf->waitSend();
+      recvBuf->waitRecv();
+    }
+  });
+
+  if (sleepMs > 0) {
+    // The test is specifically delaying before killing dependent processes.
+    // The absolute time does not need to be deterministic.
+    /* sleep override */
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+  }
+
+  // Stop one process and wait for the others to exit.
+  const auto start = std::chrono::high_resolution_clock::now();
+  signalProcess(0, SIGSTOP);
+  for (auto i = 0; i < processCount; i++) {
+    if (i != 0) {
+      waitProcess(i);
+      const auto result = getResult(i);
+      ASSERT_TRUE(WIFEXITED(result)) << result;
+      ASSERT_EQ(kExitWithIoException, WEXITSTATUS(result));
+    }
+  }
+
+  // Expect this to take more time than the default timeout.
+  const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::high_resolution_clock::now() - start);
+  ASSERT_GE(delta.count(), kMultiProcTimeout.count());
+
+  // Kill the stopped process
+  signalProcess(0, SIGKILL);
+  waitProcess(0);
+}
+
+TEST_P(TransportMultiProcTest, UnboundIoTimeoutOverride) {
+  const auto processCount = std::get<0>(GetParam());
+  const auto sleepMs = std::get<2>(GetParam());
+  const auto mode = std::get<3>(GetParam());
+
+  // Use lower timeout than default and pass directly to waitSend/waitRecv.
+  const auto timeout = kMultiProcTimeout / 2;
+
+  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+    int sendScratch = 0;
+    int recvScratch = 0;
+    auto sendBuf =
+        context->createUnboundBuffer(&sendScratch, sizeof(sendScratch));
+    auto recvBuf =
+        context->createUnboundBuffer(&recvScratch, sizeof(recvScratch));
+    const auto leftRank = (context->size + context->rank - 1) % context->size;
+    const auto rightRank = (context->rank + 1) % context->size;
+    while (true) {
+      sendBuf->send(leftRank, 0);
+      recvBuf->recv(rightRank, 0);
+      sendBuf->waitSend(timeout);
+      recvBuf->waitRecv(timeout);
+    }
+  });
+
+  if (sleepMs > 0) {
+    // The test is specifically delaying before killing dependent processes.
+    // The absolute time does not need to be deterministic.
+    /* sleep override */
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+  }
+
+  // Stop one process and wait for the others to exit.
+  const auto start = std::chrono::high_resolution_clock::now();
+  signalProcess(0, SIGSTOP);
+  for (auto i = 0; i < processCount; i++) {
+    if (i != 0) {
+      waitProcess(i);
+      const auto result = getResult(i);
+      ASSERT_TRUE(WIFEXITED(result)) << result;
+      ASSERT_EQ(kExitWithIoException, WEXITSTATUS(result));
+    }
+  }
+
+  // Expect this to take more time than the used timeout.
+  const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::high_resolution_clock::now() - start);
+  ASSERT_GE(delta.count(), timeout.count());
+
+  // Kill the stopped process
+  signalProcess(0, SIGKILL);
+  waitProcess(0);
+}
+
 std::vector<int> genMemorySizes() {
   std::vector<int> v;
   v.push_back(sizeof(float));

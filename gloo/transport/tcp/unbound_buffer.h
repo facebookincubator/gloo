@@ -32,9 +32,11 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   virtual ~UnboundBuffer();
 
-  void waitRecv(int* rank) override;
+  // If specified, the source of this recv is stored in the rank pointer.
+  void waitRecv(int* rank, std::chrono::milliseconds timeout) override;
 
-  void waitSend(int* rank) override;
+  // If specified, the destination of this send is stored in the rank pointer.
+  void waitSend(int* rank, std::chrono::milliseconds timeout) override;
 
   void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes = 0)
       override;
@@ -62,6 +64,14 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   int recvRank_;
   int sendCompletions_;
   int sendRank_;
+
+  std::exception_ptr ex_;
+
+  // Throws if an exception if set.
+  void throwIfException();
+
+  // Set exception and wake up any waitRecv/waitSend threads.
+  void signalException(std::exception_ptr);
 
   friend class Pair;
 };

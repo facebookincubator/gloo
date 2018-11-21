@@ -18,20 +18,13 @@ namespace transport {
 namespace ibverbs {
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
-    : ::gloo::transport::Context(rank, size), device_(device) {
-}
+    : ::gloo::transport::Context(rank, size), device_(device) {}
 
-Context::~Context() {
-}
+Context::~Context() {}
 
-std::unique_ptr<transport::Pair>& Context::createPair(
-    int rank,
-    std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
+std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
   pairs_[rank] = std::unique_ptr<transport::Pair>(
-      new ibverbs::Pair(device_, timeout));
+      new ibverbs::Pair(device_, getTimeout()));
   return pairs_[rank];
 }
 

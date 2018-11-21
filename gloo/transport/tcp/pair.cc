@@ -1115,10 +1115,26 @@ void Pair::signalException(std::exception_ptr ex) {
     it->second->signalException(ex);
   }
 
-  // Loop through pending send operations.
+  // Loop through posted send operations.
   for (auto& op : tx_) {
     if (op.buf != nullptr) {
       op.buf->signalException(ex);
+    }
+  }
+
+  // Loop through pending send operations.
+  for (auto& it : localPendingSend_) {
+    for (auto& op : it.second) {
+      tcp::UnboundBuffer* buf = std::get<0>(op);
+      buf->signalException(ex);
+    }
+  }
+
+  // Loop through pending recv operations.
+  for (auto& it : localPendingRecv_) {
+    for (auto& op : it.second) {
+      tcp::UnboundBuffer* buf = std::get<0>(op);
+      buf->signalException(ex);
     }
   }
 

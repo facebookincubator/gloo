@@ -38,6 +38,9 @@ namespace tcp {
 class Buffer;
 
 // Forward declaration
+class Context;
+
+// Forward declaration
 class UnboundBuffer;
 
 struct Op {
@@ -212,6 +215,8 @@ class Pair : public ::gloo::transport::Pair {
   std::exception_ptr signalExceptionExternal(const std::string& msg);
 
   friend class Buffer;
+
+  friend class Context;
 
  private:
   // Maintain state of a single operation for receiving operations

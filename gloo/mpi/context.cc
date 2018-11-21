@@ -93,12 +93,13 @@ void Context::connectFullMesh(std::shared_ptr<transport::Device>& dev) {
 
   // Create pair to connect to every other node in the collective
   auto transportContext = dev->createContext(rank, size);
+  transportContext->setTimeout(getTimeout());
   for (int i = 0; i < size; i++) {
     if (i == rank) {
       continue;
     }
 
-    auto& pair = transportContext->createPair(i, getTimeout());
+    auto& pair = transportContext->createPair(i);
 
     // Store address for pair for this rank
     auto address = pair->address().bytes();

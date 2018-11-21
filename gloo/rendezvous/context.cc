@@ -39,12 +39,13 @@ void Context::connectFullMesh(
 
   // Create pairs
   auto transportContext = dev->createContext(rank, size);
+  transportContext->setTimeout(getTimeout());
   for (int i = 0; i < size; i++) {
     if (i == rank) {
       continue;
     }
 
-    auto& pair = transportContext->createPair(i, getTimeout());
+    auto& pair = transportContext->createPair(i);
     auto addrBytes = pair->address().bytes();
     allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
   }
@@ -150,12 +151,13 @@ std::shared_ptr<::gloo::Context> ContextFactory::makeContext(
 
   // Create pairs
   auto transportContext = dev->createContext(context->rank, context->size);
+  transportContext->setTimeout(context->getTimeout());
   for (auto i = 0; i < context->size; i++) {
     if (i == context->rank) {
       continue;
     }
 
-    auto& pair = transportContext->createPair(i, context->getTimeout());
+    auto& pair = transportContext->createPair(i);
     auto address = pair->address().bytes();
     addressSize = address.size();
 
