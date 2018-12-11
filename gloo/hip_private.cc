@@ -24,7 +24,8 @@ __global__ void initializeMemory(
     ptr[i] = (i * stride) + val;
   }
 }
-/*
+
+#ifdef ROCM_FP16_SUPPORT
 template<>
 __global__ void initializeMemory<float16>(
     float16* ptr,
@@ -37,7 +38,8 @@ __global__ void initializeMemory<float16>(
     ptrAsHalf[i] = __float2half(static_cast<float>((i * stride) + val));
   }
 }
-*/
+#endif
+
 template<typename T>
 HipMemory<T>::HipMemory(size_t elements)
     : elements(elements),
@@ -70,8 +72,9 @@ HipMemory<T>::~HipMemory() {
 
 // Instantiate template
 template class HipMemory<float>;
-//template class HipMemory<float16>;
-
+#ifdef ROCM_FP16_SUPPORT
+template class HipMemory<float16>;
+#endif
 // Lookup PCI bus IDs for device.
 // As the number of available devices won't change at
 // runtime we can seed this cache on the first call.
