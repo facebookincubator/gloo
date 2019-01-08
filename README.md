@@ -146,4 +146,4 @@ Example output (running on 4 machines with a 40GbE network):
 
 ## License
 
-Gloo is BSD-licensed. We also provide an additional patent grant.
+Gloo is BSD-licensed.
