@@ -22,6 +22,7 @@ namespace {
 using BufferVector = std::vector<std::unique_ptr<transport::UnboundBuffer>>;
 using ReductionFunction = AllreduceOptions::Func;
 using ReduceRangeFunction = std::function<void(size_t, size_t)>;
+using BroadcastRangeFunction = std::function<void(size_t, size_t)>;
 
 // Returns function that computes local reduction over inputs and
 // stores it in the output for a given range in those buffers.
@@ -66,6 +67,20 @@ ReduceRangeFunction genLocalReduceFunction(
   }
 }
 
+// Returns function that performs a local broadcast over outputs for a
+// given range in the buffers. This is executed after receiving every
+// globally reduced chunk.
+BroadcastRangeFunction genLocalBroadcastFunction(BufferVector& out) {
+  return [&out](size_t offset, size_t length) {
+    for (size_t i = 1; i < out.size(); i++) {
+      memcpy(
+          static_cast<uint8_t*>(out[i]->ptr) + offset,
+          static_cast<const uint8_t*>(out[0]->ptr) + offset,
+          length);
+    }
+  };
+}
+
 } // namespace
 
 void allreduce(AllreduceOptions& opts) {
@@ -89,15 +104,17 @@ void allreduce(AllreduceOptions& opts) {
     GLOO_ENFORCE_EQ(in[i]->size, totalBytes);
   }
 
-  // Initialize local reduction functions.
+  // Initialize local reduction and broadcast functions.
   // Note that these are a no-op if only a single output is specified
   // and is used as both input and output.
   const auto reduceInputs =
       genLocalReduceFunction(in, out, opts.elementSize, opts.reduce);
+  const auto broadcastOutputs = genLocalBroadcastFunction(out);
 
   // Simple circuit if there is only a single process.
   if (context->size == 1) {
     reduceInputs(0, totalBytes);
+    broadcastOutputs(0, totalBytes);
     return;
   }
 
@@ -306,6 +323,8 @@ void allreduce(AllreduceOptions& opts) {
       auto prev = computeAllgatherOffsets(i - 2);
       if (prev.recvLength > 0) {
         out[0]->waitRecv(opts.timeout);
+        // Broadcast received segments to output buffers.
+        broadcastOutputs(prev.recvOffset, prev.recvLength);
       }
       if (prev.sendLength > 0) {
         out[0]->waitSend(opts.timeout);
@@ -323,6 +342,10 @@ void allreduce(AllreduceOptions& opts) {
       }
       if (cur.sendLength > 0) {
         out[0]->send(sendRank, slot, cur.sendOffset, cur.sendLength);
+        // Broadcast first segments to outputs buffers.
+        if (i < numSegmentsPerRank) {
+          broadcastOutputs(cur.sendOffset, cur.sendLength);
+        }
       }
     }
   }

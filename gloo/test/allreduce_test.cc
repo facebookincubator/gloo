@@ -338,9 +338,11 @@ TEST_P(AllreduceNewTest, Default) {
     const auto stride = contextSize * numPointers;
     const auto base = (stride * (stride - 1)) / 2;
     const auto out = outputs.getPointers();
-    for (auto j = 0; j < dataSize; j++) {
-      ASSERT_EQ(j * stride * stride + base, out[0][j])
-          << "Mismatch at index " << j;
+    for (auto j = 0; j < numPointers; j++) {
+      for (auto k = 0; k < dataSize; k++) {
+        ASSERT_EQ(k * stride * stride + base, out[j][k])
+          << "Mismatch at out[" << j << "][" << k << "]";
+      }
     }
   });
 }
