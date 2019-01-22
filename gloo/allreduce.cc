@@ -17,6 +17,57 @@
 
 namespace gloo {
 
+namespace {
+
+using BufferVector = std::vector<std::unique_ptr<transport::UnboundBuffer>>;
+using ReductionFunction = AllreduceOptions::Func;
+using ReduceRangeFunction = std::function<void(size_t, size_t)>;
+
+// Returns function that computes local reduction over inputs and
+// stores it in the output for a given range in those buffers.
+// This is done prior to either sending a region to a neighbor, or
+// reducing a region received from a neighbor.
+ReduceRangeFunction genLocalReduceFunction(
+    BufferVector& in,
+    BufferVector& out,
+    size_t elementSize,
+    ReductionFunction fn) {
+  if (in.size() > 0) {
+    if (in.size() == 1) {
+      return [&in, &out](size_t offset, size_t length) {
+        memcpy(
+            static_cast<uint8_t*>(out[0]->ptr) + offset,
+            static_cast<const uint8_t*>(in[0]->ptr) + offset,
+            length);
+      };
+    } else {
+      return [&in, &out, elementSize, fn](size_t offset, size_t length) {
+        fn(static_cast<uint8_t*>(out[0]->ptr) + offset,
+           static_cast<const uint8_t*>(in[0]->ptr) + offset,
+           static_cast<const uint8_t*>(in[1]->ptr) + offset,
+           length / elementSize);
+        for (size_t i = 2; i < in.size(); i++) {
+          fn(static_cast<uint8_t*>(out[0]->ptr) + offset,
+             static_cast<const uint8_t*>(out[0]->ptr) + offset,
+             static_cast<const uint8_t*>(in[i]->ptr) + offset,
+             length / elementSize);
+        }
+      };
+    }
+  } else {
+    return [&out, elementSize, fn](size_t offset, size_t length) {
+      for (size_t i = 1; i < out.size(); i++) {
+        fn(static_cast<uint8_t*>(out[0]->ptr) + offset,
+           static_cast<const uint8_t*>(out[0]->ptr) + offset,
+           static_cast<const uint8_t*>(out[i]->ptr) + offset,
+           length / elementSize);
+      }
+    };
+  }
+}
+
+} // namespace
+
 void allreduce(AllreduceOptions& opts) {
   const auto& context = opts.context;
   std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
@@ -28,26 +79,39 @@ void allreduce(AllreduceOptions& opts) {
   GLOO_ENFORCE(opts.elements > 0);
   GLOO_ENFORCE(opts.elementSize > 0);
   GLOO_ENFORCE(opts.reduce != nullptr);
+
+  // Assert the size of all inputs and outputs is identical.
   const size_t totalBytes = opts.elements * opts.elementSize;
+  for (size_t i = 0; i < out.size(); i++) {
+    GLOO_ENFORCE_EQ(out[i]->size, totalBytes);
+  }
+  for (size_t i = 0; i < in.size(); i++) {
+    GLOO_ENFORCE_EQ(in[i]->size, totalBytes);
+  }
+
+  // Initialize local reduction functions.
+  // Note that these are a no-op if only a single output is specified
+  // and is used as both input and output.
+  const auto reduceInputs =
+      genLocalReduceFunction(in, out, opts.elementSize, opts.reduce);
+
+  // Simple circuit if there is only a single process.
+  if (context->size == 1) {
+    reduceInputs(0, totalBytes);
+    return;
+  }
+
+  // Note: context->size > 1
   const auto recvRank = (context->size + context->rank + 1) % context->size;
+  const auto sendRank = (context->size + context->rank - 1) % context->size;
   GLOO_ENFORCE(
       context->getPair(recvRank),
       "missing connection between rank " + std::to_string(context->rank) +
-          " (this process) and rank " + std::to_string(recvRank));
-  const auto sendRank = (context->size + context->rank - 1) % context->size;
+      " (this process) and rank " + std::to_string(recvRank));
   GLOO_ENFORCE(
       context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
-          " (this process) and rank " + std::to_string(sendRank));
-
-  // Assert the size of all inputs and outputs is identical.
-  size_t size = out[0]->size;
-  for (size_t i = 1; i < out.size(); i++) {
-    GLOO_ENFORCE_EQ(out[i]->size, size);
-  }
-  for (size_t i = 0; i < in.size(); i++) {
-    GLOO_ENFORCE_EQ(in[i]->size, size);
-  }
+      " (this process) and rank " + std::to_string(sendRank));
 
   // The ring algorithm works as follows.
   //
@@ -157,47 +221,6 @@ void allreduce(AllreduceOptions& opts) {
     return result;
   };
 
-  // Function that computes local reduction over inputs and stores it
-  // in the output for a given range in those buffers. This is done
-  // prior to either sending a region to a neighbor, or reducing a
-  // region received from a neighbor.
-  std::function<void(size_t, size_t, size_t)> reduceInputs;
-  if (in.size() > 0) {
-    if (in.size() == 1) {
-      reduceInputs = [&](size_t offset, size_t length, size_t /* unused */) {
-        memcpy(
-            static_cast<uint8_t*>(out[0]->ptr) + offset,
-            static_cast<const uint8_t*>(in[0]->ptr) + offset,
-            length);
-      };
-    } else {
-      reduceInputs = [&](size_t offset, size_t length, size_t elementSize) {
-        opts.reduce(
-            static_cast<uint8_t*>(out[0]->ptr) + offset,
-            static_cast<const uint8_t*>(in[0]->ptr) + offset,
-            static_cast<const uint8_t*>(in[1]->ptr) + offset,
-            length / elementSize);
-        for (size_t i = 2; i < in.size(); i++) {
-          opts.reduce(
-              static_cast<uint8_t*>(out[0]->ptr) + offset,
-              static_cast<const uint8_t*>(out[0]->ptr) + offset,
-              static_cast<const uint8_t*>(in[i]->ptr) + offset,
-              length / elementSize);
-        }
-      };
-    }
-  } else {
-    reduceInputs = [&](size_t offset, size_t length, size_t elementSize) {
-      for (size_t i = 1; i < out.size(); i++) {
-        opts.reduce(
-            static_cast<uint8_t*>(out[0]->ptr) + offset,
-            static_cast<const uint8_t*>(out[0]->ptr) + offset,
-            static_cast<const uint8_t*>(out[i]->ptr) + offset,
-            length / elementSize);
-      }
-    };
-  }
-
   for (auto i = 0; i < numSegments; i++) {
     if (i >= 2) {
       // Compute send and receive offsets and lengths two iterations
@@ -206,10 +229,8 @@ void allreduce(AllreduceOptions& opts) {
       // to reduce the contents of the temporary buffer.
       auto prev = computeReduceScatterOffsets(i - 2);
       if (prev.recvLength > 0) {
-        // Prepare out->ptr to hold the local reduction
-        if (reduceInputs) {
-          reduceInputs(prev.recvOffset, prev.recvLength, opts.elementSize);
-        }
+        // Prepare out[0]->ptr to hold the local reduction
+        reduceInputs(prev.recvOffset, prev.recvLength);
         // Wait for segment from neighbor.
         tmp->waitRecv(opts.timeout);
         // Reduce segment from neighbor into out->ptr.
@@ -235,9 +256,9 @@ void allreduce(AllreduceOptions& opts) {
         tmp->recv(recvRank, slot, segmentOffset[i & 0x1], cur.recvLength);
       }
       if (cur.sendLength > 0) {
-        // Prepare out->ptr to hold the local reduction for this segment
-        if (i < numSegmentsPerRank && reduceInputs) {
-          reduceInputs(cur.sendOffset, cur.sendLength, opts.elementSize);
+        // Prepare out[0]->ptr to hold the local reduction for this segment
+        if (i < numSegmentsPerRank) {
+          reduceInputs(cur.sendOffset, cur.sendLength);
         }
         out[0]->send(sendRank, slot, cur.sendOffset, cur.sendLength);
       }

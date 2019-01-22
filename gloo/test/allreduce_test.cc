@@ -349,7 +349,7 @@ INSTANTIATE_TEST_CASE_P(
     AllreduceNewDefault,
     AllreduceNewTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::Values(1, 2, 3),
         ::testing::Values(1, 10, 100, 1000, 10000),
         ::testing::Values(true, false)));

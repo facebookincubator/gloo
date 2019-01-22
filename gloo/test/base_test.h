@@ -48,8 +48,6 @@ class BaseTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
     device_ = ::gloo::transport::tcp::CreateDevice("localhost");
-    store_ = std::unique_ptr<::gloo::rendezvous::Store>(
-        new ::gloo::rendezvous::HashStore);
   }
 
   void spawnThreads(int size, std::function<void(int)> fn) {
@@ -81,12 +79,11 @@ class BaseTest : public ::testing::Test {
       std::function<void(std::shared_ptr<Context>)> fn,
       int base = 2) {
     Barrier barrier(size);
+    ::gloo::rendezvous::HashStore store;
     spawnThreads(size, [&](int rank) {
       auto context =
           std::make_shared<::gloo::rendezvous::Context>(rank, size, base);
-      if (size > 1) {
-        context->connectFullMesh(*store_, device_);
-      }
+      context->connectFullMesh(store, device_);
 
       try {
         fn(context);
@@ -113,7 +110,6 @@ class BaseTest : public ::testing::Test {
   }
 
   std::shared_ptr<::gloo::transport::Device> device_;
-  std::unique_ptr<::gloo::rendezvous::Store> store_;
 };
 
 template <typename T>
