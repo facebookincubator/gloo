@@ -700,7 +700,8 @@ void Pair::handleListening() {
   fd_ = FD_INVALID;
 
   if (rv == -1) {
-    signalAndThrowException(GLOO_ERROR_MSG("accept: ", strerror(errno)));
+    signalException(GLOO_ERROR_MSG("accept: ", strerror(errno)));
+    return;
   }
 
   // Connected, replace file descriptor
@@ -719,8 +720,9 @@ void Pair::handleConnecting() {
   rv = getsockopt(fd_, SOL_SOCKET, SO_ERROR, &optval, &optlen);
   GLOO_ENFORCE_NE(rv, -1);
   if (optval != 0) {
-    signalAndThrowException(
+    signalException(
         GLOO_ERROR_MSG("connect ", peer_.str(), ": ", strerror(optval)));
+    return;
   }
 
   // Common connection-made code
