@@ -29,11 +29,15 @@ HipStream::HipStream(int deviceId, hipStream_t stream)
 
   // Create new stream if it wasn't specified
   if (stream_ == kStreamNotSet) {
-    int loPri, hiPri;
-    //Note hipStreamCreateWithPriority() supported in rocm 2.0 + 
-    HIP_CHECK(hipDeviceGetStreamPriorityRange(&loPri, &hiPri));
-    HIP_CHECK(hipStreamCreateWithPriority(
-                 &stream_, hipStreamNonBlocking, hiPri));
+    #ifdef ROCM_2
+      int loPri, hiPri;
+      //Note hipStreamCreateWithPriority() supported in rocm 2.0 + 
+      HIP_CHECK(hipDeviceGetStreamPriorityRange(&loPri, &hiPri));
+      HIP_CHECK(hipStreamCreateWithPriority(
+                   &stream_, hipStreamNonBlocking, hiPri));
+    #else               
+      HIP_CHECK(hipStreamCreate(&stream_)); 
+    #endif
     streamOwner_ = true;
   }
 
