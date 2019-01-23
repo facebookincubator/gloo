@@ -8,18 +8,22 @@ import sys
 from pyHIPIFY import hipify_python
 
 amd_build_dir = os.path.dirname(os.path.realpath(__file__))
-proj_dir = os.path.join(os.path.dirname(os.path.dirname(amd_build_dir)))
+proj_dir = os.path.join(os.path.dirname(amd_build_dir))
 
 includes = [
-    "gloo/*allreduce*",
-    "gloo/*broadcast*",
-    "gloo/*collectives*",
-    "gloo/*private*",
-    "gloo/*workspace*"
+    #"gloo/*allreduce*",
+    #"gloo/*broadcast*",
+    #"gloo/*collectives*",
+    #"gloo/*private*",
+    #"gloo/*workspace*",
+    "gloo/cuda*",
+    "gloo/test/cuda*",
 ]
 
 ignores = [
     "gloo/cuda_collectives_nccl.h",
+    "gloo/cuda.cu",
+    "gloo/cuda.h",
 ]
 
 file_extensions = ['.cc', '.cu', '.h', '.cuh']
