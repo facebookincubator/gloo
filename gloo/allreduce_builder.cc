@@ -24,6 +24,13 @@
 #include "gloo/cuda_allreduce_local.h"
 #include "gloo/cuda_allreduce_ring.h"
 #include "gloo/cuda_allreduce_ring_chunked.h"
+#elif GLOO_USE_HIP
+#include "gloo/hip_allreduce_bcube.h"
+#include "gloo/hip_allreduce_halving_doubling.h"
+#include "gloo/hip_allreduce_halving_doubling_pipelined.h"
+#include "gloo/hip_allreduce_local.h"
+#include "gloo/hip_allreduce_ring.h"
+#include "gloo/hip_allreduce_ring_chunked.h"
 #endif
 
 namespace gloo {
@@ -35,7 +42,7 @@ AllreduceBuilder<T>::AllreduceBuilder() :
     reductionType_(SUM),
     implementation_(HalvingDoubling) {
   // Expect downstream code to set all properties
-#if GLOO_USE_CUDA
+#if GLOO_USE_CUDA || GLOO_USE_HIP
   streams_.clear();
   gpuDirect_ = false;
 #endif
@@ -104,7 +111,42 @@ std::unique_ptr<Algorithm> getAlgorithmCuda(
 }
 
 } // namespace
+#elif GLOO_USE_HIP
 
+template <typename T>
+AllreduceBuilder<T>& AllreduceBuilder<T>::setStreams(
+    const std::vector<hipStream_t>& streams) {
+  streams_ = streams;
+  return *this;
+}
+
+template <typename T>
+AllreduceBuilder<T>& AllreduceBuilder<T>::setGPUDirect(bool on) {
+  gpuDirect_ = on;
+  return *this;
+}
+
+namespace {
+
+template <
+  template <typename T, typename W> class A,
+  typename T,
+  typename ...Params>
+std::unique_ptr<Algorithm> getAlgorithmHip(
+    bool gpuDirect,
+    Params&&... params) {
+  if (gpuDirect) {
+    return std::unique_ptr<::gloo::Algorithm>(
+      new A<T, HipDeviceWorkspace<T>>(
+        std::forward<Params>(params)...));
+  } else {
+    return std::unique_ptr<::gloo::Algorithm>(
+      new A<T, HipHostWorkspace<T>>(
+        std::forward<Params>(params)...));
+  }
+}
+
+} // namespace
 #endif
 
 template <typename T>
@@ -148,6 +190,47 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
         break;
       case RingChunked:
         return getAlgorithmCuda<CudaAllreduceRingChunked, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
+        break;
+      default:
+        GLOO_ENFORCE(false, "Unhandled implementation: ", implementation_);
+        break;
+    }
+  }
+#elif GLOO_USE_HIP
+  // Instantiate HIP algorithm if all pointers are GPU pointers
+  if (gloo::BuilderHelpers<T>::checkAllPointersGPU(inputs_)) {
+    // TODO(pietern): Pass through the right reduction function to algorithm.
+    // The HIP algorithms are still hardcoded to use SUM.
+    GLOO_ENFORCE_EQ(reductionType_, SUM);
+
+    if (context->size == 1) {
+      return std::unique_ptr<::gloo::Algorithm>(
+        new CudaAllreduceLocal<T>(
+          context,
+          inputs_,
+          count_,
+          streams_));
+    }
+
+    switch (implementation_) {
+      case Bcube:
+        return getAlgorithmHip<CudaAllreduceBcube, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
+      case HalvingDoubling:
+        return getAlgorithmHip<CudaAllreduceHalvingDoubling, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
+        break;
+      case HalvingDoublingPipelined:
+        return getAlgorithmHip<CudaAllreduceHalvingDoublingPipelined, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
+        break;
+      case Ring:
+        return getAlgorithmHip<CudaAllreduceRing, T>(
+          gpuDirect_, context, inputs_, count_, streams_);
+        break;
+      case RingChunked:
+        return getAlgorithmHip<CudaAllreduceRingChunked, T>(
           gpuDirect_, context, inputs_, count_, streams_);
         break;
       default:
