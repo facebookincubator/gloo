@@ -10,7 +10,7 @@
 #include "gloo/test/base_test.h"
 
 #include <unordered_set>
-
+#include <algorithm>
 #include "gloo/transport/tcp/unbound_buffer.h"
 
 namespace gloo {
