@@ -15,6 +15,8 @@
 
 #if GLOO_USE_CUDA
 #include "gloo/cuda_broadcast_one_to_all.h"
+#elif GLOO_USE_HIP
+#include "gloo/hip_broadcast_one_to_all.h"
 #endif
 
 namespace gloo {
@@ -26,7 +28,7 @@ BroadcastBuilder<T>::BroadcastBuilder() :
     rootRank_(0),
     rootPointerRank_(0) {
   // Expect downstream code to set all properties
-#if GLOO_USE_CUDA
+#if GLOO_USE_CUDA || GLOO_USE_HIP
   streams_.clear();
   gpuDirect_ = false;
 #endif
@@ -94,7 +96,42 @@ std::unique_ptr<Algorithm> getAlgorithmCuda(
 }
 
 } // namespace
+#elif GLOO_USE_HIP
 
+template <typename T>
+BroadcastBuilder<T>& BroadcastBuilder<T>::setStreams(
+    const std::vector<hipStream_t>& streams) {
+  streams_ = streams;
+  return *this;
+}
+
+template <typename T>
+BroadcastBuilder<T>& BroadcastBuilder<T>::setGPUDirect(bool on) {
+  gpuDirect_ = on;
+  return *this;
+}
+
+namespace {
+
+template <
+  template <typename T, typename W> class A,
+  typename T,
+  typename ...Params>
+std::unique_ptr<Algorithm> getAlgorithmHip(
+    bool gpuDirect,
+    Params&&... params) {
+  if (gpuDirect) {
+    return std::unique_ptr<::gloo::Algorithm>(
+      new A<T, HipDeviceWorkspace<T>>(
+        std::forward<Params>(params)...));
+  } else {
+    return std::unique_ptr<::gloo::Algorithm>(
+      new A<T, HipHostWorkspace<T>>(
+        std::forward<Params>(params)...));
+  }
+}
+
+} // namespace
 #endif
 
 template <typename T>
@@ -105,6 +142,12 @@ std::unique_ptr<Algorithm> BroadcastBuilder<T>::getAlgorithm(
   // Instantiate CUDA algorithm if all pointers are GPU pointers
   if (gloo::BuilderHelpers<T>::checkAllPointersGPU(inputs_)) {
     return getAlgorithmCuda<CudaBroadcastOneToAll, T>(
+      gpuDirect_, context, inputs_, count_, rootRank_, rootPointerRank_, streams_);
+  }
+#elif GLOO_USE_HIP
+  // Instantiate HIP algorithm if all pointers are GPU pointers
+  if (gloo::BuilderHelpers<T>::checkAllPointersGPU(inputs_)) {
+    return getAlgorithmHip<HipBroadcastOneToAll, T>(
       gpuDirect_, context, inputs_, count_, rootRank_, rootPointerRank_, streams_);
   }
 #endif
