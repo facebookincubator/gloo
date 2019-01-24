@@ -33,11 +33,16 @@ if(USE_HIP)
     set(GLOO_TEST_HIP_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/hip_allreduce_builder_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/hip_allreduce_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hip_base_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/hip_broadcast_builder_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/hip_broadcast_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
 
   hip_add_executable(gloo_test_hip ${GLOO_TEST_HIP_SRCS})
+  set_source_files_properties(${GLOO_TEST_HIP_SRCS} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+  set_target_properties(gloo_test_hip PROPERTIES COMPILE_FLAGS ${HIP_HIPCC_FLAGS})
   target_link_libraries(gloo_test_hip gloo_hip gloo_builder gtest)
+  set_target_properties(gloo_test_hip PROPERTIES LINKER_LANGUAGE HIP)
+
 endif()

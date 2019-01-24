@@ -131,7 +131,7 @@ if(USE_CUDA)
   target_include_directories(gloo_cuda INTERFACE $<INSTALL_INTERFACE:include>)
 endif()
 if(USE_HIP)
-  target_include_directories(gloo_hip INTERFACE $<INSTALL_INTERFACE:include>)
+  target_include_directories(gloo_hip INTERFACE $<INSTALL_INTERFACE:include> ${HIP_ROOT_DIR}/include)
 endif()
 
 # Install if necessary.
