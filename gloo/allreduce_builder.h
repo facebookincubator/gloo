@@ -17,6 +17,8 @@
 
 #if GLOO_USE_CUDA
 #include "gloo/cuda.h"
+#elif
+#include "gloo/hip.h"
 #endif
 
 namespace gloo {
@@ -47,7 +49,7 @@ class AllreduceBuilder {
 
   AllreduceBuilder<T>& setImplementation(Implementation implementation);
 
-#if GLOO_USE_CUDA
+#if GLOO_USE_CUDA || GLOO_USE_HIP
   AllreduceBuilder<T>& setStreams(const std::vector<cudaStream_t>& streams);
 
   AllreduceBuilder<T>& setGPUDirect(bool on);
@@ -61,7 +63,7 @@ class AllreduceBuilder {
   ReductionType reductionType_;
   Implementation implementation_;
 
-#if GLOO_USE_CUDA
+#if GLOO_USE_CUDA || GLOO_USE_HIP
   std::vector<cudaStream_t> streams_;
   bool gpuDirect_;
 #endif
