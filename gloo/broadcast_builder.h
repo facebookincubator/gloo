@@ -17,6 +17,8 @@
 
 #if GLOO_USE_CUDA
 #include "gloo/cuda.h"
+#elif GLOO_USE_HIP
+#include "gloo/hip.h"
 #endif
 
 namespace gloo {
@@ -42,6 +44,11 @@ class BroadcastBuilder {
   BroadcastBuilder<T>& setStreams(const std::vector<cudaStream_t>& streams);
 
   BroadcastBuilder<T>& setGPUDirect(bool on);
+#elif GLOO_USE_HIP
+
+  BroadcastBuilder<T>& setStreams(const std::vector<hipStream_t>& streams);
+
+  BroadcastBuilder<T>& setGPUDirect(bool on);
 #endif
 
   std::unique_ptr<Algorithm> getAlgorithm(std::shared_ptr<Context>& context);
@@ -54,6 +61,9 @@ class BroadcastBuilder {
 
 #if GLOO_USE_CUDA
   std::vector<cudaStream_t> streams_;
+  bool gpuDirect_;
+#elif GLOO_USE_HIP
+  std::vector<hipStream_t> streams_;
   bool gpuDirect_;
 #endif
 };
