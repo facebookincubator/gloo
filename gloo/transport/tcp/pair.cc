@@ -27,6 +27,7 @@
 #include "gloo/common/error.h"
 #include "gloo/common/logging.h"
 #include "gloo/transport/tcp/buffer.h"
+#include "gloo/transport/tcp/context.h"
 #include "gloo/transport/tcp/unbound_buffer.h"
 
 #define FD_INVALID (-1)
@@ -50,11 +51,12 @@ Op::Op() {
 }
 
 Pair::Pair(
-    const std::shared_ptr<Device>& dev,
+    std::shared_ptr<Device> dev,
+    std::shared_ptr<Context> context,
     const int rank,
-    std::chrono::milliseconds timeout,
-    recvCallbackType fn)
-    : dev_(dev),
+    std::chrono::milliseconds timeout)
+    : dev_(std::move(dev)),
+      context_(std::move(context)),
       rank_(rank),
       state_(INITIALIZING),
       sync_(false),
@@ -62,7 +64,6 @@ Pair::Pair(
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
-      recvFromAnyCallback_(fn),
       ex_(nullptr) {
   listen();
 }
@@ -445,10 +446,13 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
     if (op.ubuf == nullptr) {
       auto it = localPendingRecv_.find(op.preamble.slot);
       GLOO_ENFORCE(it != localPendingRecv_.end());
-      auto& tuples = it->second;
-      GLOO_ENFORCE(!tuples.empty());
-      std::tie(op.ubuf, op.offset, op.nbytes) = tuples.front();
-      tuples.pop_front();
+      std::deque<UnboundBufferOp>& queue = it->second;
+      GLOO_ENFORCE(!queue.empty());
+      std::tie(op.ubuf, op.offset, op.nbytes) = queue.front();
+      queue.pop_front();
+      if (queue.empty()) {
+        localPendingRecv_.erase(it);
+      }
     }
 
     iov.iov_base = ((char*)op.ubuf->ptr) + op.offset + offset;
@@ -576,24 +580,27 @@ bool Pair::read() {
 void Pair::handleRemotePendingSend(const Op& op) {
   const auto& slot = op.preamble.slot;
 
-  // Increase balance of remote pending sends.
   // Note that the current value may be negative if the
   // corresponding recv's have already been posted.
-  remotePendingSend_[slot]++;
+  ContextMutator mutator(*context_, slot, rank_);
+  auto remotePendingSend = mutator.getRemotePendingSend();
 
-  // If the balance of remote pending sends is positive, check with
-  // the context whether or not there are any recv-from-any operations
-  // that this send can fulfill.
-  if (remotePendingSend_[slot] > 0) {
+  // If the balance of remote pending sends is not negative, check
+  // with the context whether or not there are any recv-from-any
+  // operations that this send can fulfill.
+  if (remotePendingSend >= 0) {
     size_t offset;
     size_t nbytes;
-    auto buf = recvFromAnyCallback_(slot, &offset, &nbytes);
+    auto buf = mutator.findRecvFromAny(&offset, &nbytes);
     if (buf != nullptr) {
       localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
-      remotePendingSend_[slot]--;
       sendNotifyRecvReady(slot, nbytes);
+      return;
     }
   }
+
+  // Increase balance of remote pending sends.
+  mutator.updateRemotePendingSend(1);
 }
 
 // This function is called upon receiving a message from the peer
@@ -601,26 +608,29 @@ void Pair::handleRemotePendingSend(const Op& op) {
 void Pair::handleRemotePendingRecv(const Op& op) {
   const auto& slot = op.preamble.slot;
 
-  // Increase balance of remote pending recv.
-  // Note that the current value CANNOT be negative, as sends
-  // cannot execute until the remote side is ready to receive.
-  remotePendingRecv_[slot]++;
-
   // Find local pending send and execute it.
   // Nothing to do if there are none.
   auto it = localPendingSend_.find(slot);
   if (it != localPendingSend_.end()) {
-    auto& pendingSends = it->second;
-    if (!pendingSends.empty()) {
-      UnboundBuffer* buf;
-      size_t offset;
-      size_t nbytes;
-      std::tie(buf, offset, nbytes) = pendingSends.front();
-      pendingSends.pop_front();
-      remotePendingRecv_[slot]--;
-      sendUnboundBuffer(buf, slot, offset, nbytes);
+    std::deque<UnboundBufferOp>& queue = it->second;
+    GLOO_ENFORCE(!queue.empty());
+    UnboundBuffer* buf;
+    size_t offset;
+    size_t nbytes;
+    std::tie(buf, offset, nbytes) = queue.front();
+    queue.pop_front();
+    if (queue.empty()) {
+      localPendingSend_.erase(it);
     }
+    sendUnboundBuffer(buf, slot, offset, nbytes);
+    return;
   }
+
+  // Increase balance of remote pending recv.
+  // Note that the current value CANNOT be negative, as sends
+  // cannot execute until the remote side is ready to receive.
+  ContextMutator mutator(*context_, slot, rank_);
+  mutator.updateRemotePendingRecv(1);
 }
 
 void Pair::handleEvents(int events) {
@@ -984,14 +994,15 @@ void Pair::send(
   throwIfException();
 
   // Execute this send if there is a remote pending receive.
-  if (remotePendingRecv_[slot] > 0) {
+  ContextMutator mutator(*context_, slot, rank_);
+  if (mutator.getRemotePendingRecv() > 0) {
     // We keep a tally of remote pending send and receive operations.
     // In this code path the remote side hasn't seen a notification
     // for this send operation yet so we need to take special care
     // their tally is updated regardless.
     sendNotifySendReady(slot, nbytes);
     sendUnboundBuffer(buf, slot, offset, nbytes);
-    remotePendingRecv_[slot]--;
+    mutator.updateRemotePendingRecv(-1);
     return;
   }
 
@@ -1018,8 +1029,13 @@ void Pair::recv(
 
   // Notify peer of this pending recv.
   localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
-  remotePendingSend_[slot]--;
   sendNotifyRecvReady(slot, nbytes);
+
+  // Decrease balance of remote pending sends.
+  // This results in a negative tally if executed before
+  // receiving the send notification from our peer.
+  ContextMutator mutator(*context_, slot, rank_);
+  mutator.updateRemotePendingSend(-1);
 }
 
 bool Pair::tryRecv(
@@ -1038,14 +1054,17 @@ bool Pair::tryRecv(
   throwIfException();
 
   // Return early if there is no remote pending send.
-  if (remotePendingSend_[slot] <= 0) {
+  ContextMutator mutator(*context_, slot, rank_);
+  if (mutator.getRemotePendingSend() <= 0) {
     return false;
   }
 
   // Notify peer of this pending recv.
   localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
-  remotePendingSend_[slot]--;
   sendNotifyRecvReady(slot, nbytes);
+
+  // Decrease balance of remote pending sends.
+  mutator.updateRemotePendingSend(-1);
   return true;
 }
 
