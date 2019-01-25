@@ -206,7 +206,7 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
 
     if (context->size == 1) {
       return std::unique_ptr<::gloo::Algorithm>(
-        new CudaAllreduceLocal<T>(
+        new HipAllreduceLocal<T>(
           context,
           inputs_,
           count_,
@@ -215,22 +215,22 @@ std::unique_ptr<Algorithm> AllreduceBuilder<T>::getAlgorithm(
 
     switch (implementation_) {
       case Bcube:
-        return getAlgorithmHip<CudaAllreduceBcube, T>(
+        return getAlgorithmHip<HipAllreduceBcube, T>(
           gpuDirect_, context, inputs_, count_, streams_);
       case HalvingDoubling:
-        return getAlgorithmHip<CudaAllreduceHalvingDoubling, T>(
+        return getAlgorithmHip<HipAllreduceHalvingDoubling, T>(
           gpuDirect_, context, inputs_, count_, streams_);
         break;
       case HalvingDoublingPipelined:
-        return getAlgorithmHip<CudaAllreduceHalvingDoublingPipelined, T>(
+        return getAlgorithmHip<HipAllreduceHalvingDoublingPipelined, T>(
           gpuDirect_, context, inputs_, count_, streams_);
         break;
       case Ring:
-        return getAlgorithmHip<CudaAllreduceRing, T>(
+        return getAlgorithmHip<HipAllreduceRing, T>(
           gpuDirect_, context, inputs_, count_, streams_);
         break;
       case RingChunked:
-        return getAlgorithmHip<CudaAllreduceRingChunked, T>(
+        return getAlgorithmHip<HipAllreduceRingChunked, T>(
           gpuDirect_, context, inputs_, count_, streams_);
         break;
       default:
