@@ -13,6 +13,10 @@ set(GLOO_TEST_SRCS
   )
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
+if(USE_HIP)
+  set_source_files_properties(${GLOO_TEST_SRCS} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+  set_target_properties(gloo_test PROPERTIES COMPILE_FLAGS ${HIP_HIPCC_FLAGS})
+endif()
 target_link_libraries(gloo_test gloo gloo_builder gtest)
 
 if(USE_CUDA)
@@ -43,6 +47,5 @@ if(USE_HIP)
   set_source_files_properties(${GLOO_TEST_HIP_SRCS} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
   set_target_properties(gloo_test_hip PROPERTIES COMPILE_FLAGS ${HIP_HIPCC_FLAGS})
   target_link_libraries(gloo_test_hip gloo_hip gloo_builder gtest)
-  set_target_properties(gloo_test_hip PROPERTIES LINKER_LANGUAGE HIP)
 
 endif()
