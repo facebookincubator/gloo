@@ -86,15 +86,12 @@ class Pair : public ::gloo::transport::Pair {
     CLOSED = 5,
   };
 
-  using recvCallbackType = std::function<
-      tcp::UnboundBuffer*(uint64_t slot, size_t* offset, size_t* nbytes)>;
-
  public:
   explicit Pair(
-      const std::shared_ptr<Device>& dev,
-      const int rank,
-      std::chrono::milliseconds timeout,
-      recvCallbackType fn);
+      Context* context,
+      Device* device,
+      int rank,
+      std::chrono::milliseconds timeout);
 
   virtual ~Pair();
 
@@ -146,7 +143,18 @@ class Pair : public ::gloo::transport::Pair {
   void close() override;
 
  protected:
-  std::shared_ptr<Device> dev_;
+  // Refer to parent context using raw pointer. This could be a
+  // weak_ptr, seeing as the context class is a shared_ptr, but:
+  // 1) That means calling std::weak_ptr::lock() everytime we need it,
+  // 2) The context holds a unique_ptr to this pair, so the context
+  //    pointer will be valid for the lifetime of this pair.
+  Context* const context_;
+
+  // Refer to device using raw pointer. The context owns a shared_ptr
+  // to the device, and per the lifetime guarantees of the context,
+  // there is no need to duplicate that shared_ptr in this class.
+  Device* const device_;
+
   const int rank_;
   state state_;
   std::atomic<bool> sync_;
@@ -169,8 +177,6 @@ class Pair : public ::gloo::transport::Pair {
 
   std::unordered_map<uint64_t, std::deque<UnboundBufferOp>> localPendingSend_;
   std::unordered_map<uint64_t, std::deque<UnboundBufferOp>> localPendingRecv_;
-  std::unordered_map<uint64_t, int> remotePendingSend_;
-  std::unordered_map<uint64_t, int> remotePendingRecv_;
 
   void sendUnboundBuffer(
       tcp::UnboundBuffer* buf,
@@ -179,13 +185,6 @@ class Pair : public ::gloo::transport::Pair {
       size_t nbytes);
   void sendNotifyRecvReady(uint64_t slot, size_t nbytes);
   void sendNotifySendReady(uint64_t slot, size_t nbytes);
-
-  // Callback to issue when the remote side of the pair has
-  // notified us that a send operation is ready to go. This is used to
-  // implement recv-from-any on unbound buffers. The callback returns
-  // an unbound buffer if there is a pending recv-from-any that
-  // matches the rank of the remote side of this pair.
-  recvCallbackType recvFromAnyCallback_;
 
   void listen();
   void connect(const Address& peer);

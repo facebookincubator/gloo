@@ -18,19 +18,65 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
+using count_t = PendingOpCount::count_t;
+
+ContextMutator::ContextMutator(Context& context, size_t slot, size_t rank)
+    : lock_(context.m_),
+      context_(context),
+      slot_(slot),
+      rank_(rank),
+      it_(context_.remotePendingOp_.find(slot)) {}
+
+ContextMutator::~ContextMutator() {
+  if (it_ != context_.remotePendingOp_.end() && it_->second.empty()) {
+    context_.remotePendingOp_.erase(it_);
+  }
+}
+
+count_t ContextMutator::getRemotePendingRecv() {
+  if (it_ == context_.remotePendingOp_.end()) {
+    return 0;
+  }
+  return it_->second.getRecv(rank_);
+}
+
+count_t ContextMutator::getRemotePendingSend() {
+  if (it_ == context_.remotePendingOp_.end()) {
+    return 0;
+  }
+  return it_->second.getSend(rank_);
+}
+
+count_t ContextMutator::updateRemotePendingRecv(count_t v) {
+  auto it = insertIfNotExists();
+  return it->second.updateRecv(rank_, v);
+}
+
+count_t ContextMutator::updateRemotePendingSend(count_t v) {
+  auto it = insertIfNotExists();
+  return it->second.updateSend(rank_, v);
+}
+
+ContextMutator::PendingOpCountIterator ContextMutator::insertIfNotExists() {
+  if (it_ == context_.remotePendingOp_.end()) {
+    std::tie(it_, std::ignore) =
+        context_.remotePendingOp_.emplace(slot_, PendingOpCount(context_.size));
+  }
+  return it_;
+}
+
+UnboundBuffer* ContextMutator::findRecvFromAny(size_t* offset, size_t* nbytes) {
+  return context_.findRecvFromAny(slot_, rank_, offset, nbytes);
+}
+
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
     : ::gloo::transport::Context(rank, size), device_(device) {}
 
 Context::~Context() {}
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
-  pairs_[rank] = std::unique_ptr<transport::Pair>(new tcp::Pair(
-      device_,
-      rank,
-      getTimeout(),
-      [=](uint64_t slot, size_t* offset, size_t* nbytes) -> UnboundBuffer* {
-        return recvFromAnyCallback(rank, slot, offset, nbytes);
-      }));
+  pairs_[rank] = std::unique_ptr<transport::Pair>(
+      new tcp::Pair(this, device_.get(), rank, getTimeout()));
   return pairs_[rank];
 }
 
@@ -73,27 +119,19 @@ int Context::recvFromAnyFindRank(
   std::unique_lock<std::mutex> lock(m_);
 
   // See if there is a pending remote send that can fulfill this recv.
-  auto pit = pendingRemoteSend_.find(slot);
-  if (pit != pendingRemoteSend_.end()) {
-    auto& sends = pit->second;
+  auto it = remotePendingOp_.find(slot);
+  if (it != remotePendingOp_.end()) {
+    auto& remotePendingOps = it->second;
 
     // Doing a linear search to find eligible ranks is suboptimal in
     // terms of performance but is functionally correct.
     for (const auto& srcRank : srcRanks) {
-      auto sit = sends.find(srcRank);
-      if (sit != sends.end()) {
+      if (remotePendingOps.getSend(srcRank) > 0) {
         // We've found a rank that could fulfill this recv.
         //
-        // Since the caller of this function will try and attempt the
-        // recv, we can now decrement the number of pending sends for
-        // this rank.
+        // The caller of this function will try and attempt a recv
+        // which will decrement the remote pending sends counter.
         //
-        if (--(sit->second) == 0) {
-          sends.erase(sit);
-          if (sends.empty()) {
-            pendingRemoteSend_.erase(pit);
-          }
-        }
         return srcRank;
       }
     }
@@ -105,13 +143,13 @@ int Context::recvFromAnyFindRank(
   return -1;
 }
 
-UnboundBuffer* Context::recvFromAnyCallback(
-    int rank,
+// Allowed to be called only by ContextMutator::findRecvFromAny,
+// where the context lock is already held.
+UnboundBuffer* Context::findRecvFromAny(
     uint64_t slot,
+    int rank,
     size_t* offset,
     size_t* nbytes) {
-  std::unique_lock<std::mutex> lock(m_);
-
   // See if there is a pending recv for this slot.
   auto pit = pendingRecv_.find(slot);
   if (pit != pendingRecv_.end()) {
@@ -138,8 +176,6 @@ UnboundBuffer* Context::recvFromAnyCallback(
     }
   }
 
-  // No candidates; register rank for pending remote send.
-  pendingRemoteSend_[slot][rank]++;
   return nullptr;
 }
 
