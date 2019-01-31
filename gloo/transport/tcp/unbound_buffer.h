@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "gloo/common/memory.h"
 #include "gloo/transport/unbound_buffer.h"
 
 #include <condition_variable>
@@ -72,6 +73,16 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   // Set exception and wake up any waitRecv/waitSend threads.
   void signalException(std::exception_ptr);
 
+  // Allows for sharing weak (non owning) references to "this" without
+  // affecting the lifetime of this instance.
+  ShareableNonOwningPtr<UnboundBuffer> shareableNonOwningPtr_;
+
+  // Returns weak reference to "this". See pair.{h,cc} for usage.
+  inline WeakNonOwningPtr<UnboundBuffer> getWeakNonOwningPtr() const {
+    return WeakNonOwningPtr<UnboundBuffer>(shareableNonOwningPtr_);
+  }
+
+  friend class Context;
   friend class Pair;
 };
 

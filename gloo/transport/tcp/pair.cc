@@ -272,7 +272,11 @@ void Pair::connect(const Address& peer) {
   waitUntilConnected(lock, true);
 }
 
-ssize_t Pair::writeBuildIov(Op& op, struct iovec* iov, int& ioc) {
+ssize_t Pair::prepareWrite(
+    Op& op,
+    const NonOwningPtr<UnboundBuffer>& buf,
+    struct iovec* iov,
+    int& ioc) {
   ssize_t len = 0;
   ioc = 0;
 
@@ -304,7 +308,7 @@ ssize_t Pair::writeBuildIov(Op& op, struct iovec* iov, int& ioc) {
 
   // Send data to a remote unbound buffer
   if (opcode == Op::SEND_UNBOUND_BUFFER) {
-    char* ptr = (char*)op.ubuf->ptr;
+    char* ptr = (char*)buf->ptr;
     size_t offset = op.offset;
     size_t nbytes = op.nbytes;
     if (op.nwritten > sizeof(op.preamble)) {
@@ -329,12 +333,23 @@ ssize_t Pair::writeBuildIov(Op& op, struct iovec* iov, int& ioc) {
 // below inherits it.
 //
 bool Pair::write(Op& op) {
+  NonOwningPtr<UnboundBuffer> buf;
   std::array<struct iovec, 2> iov;
   int ioc;
   ssize_t rv;
 
+  const auto opcode = op.getOpcode();
+
+  // Acquire pointer to unbound buffer if applicable.
+  if (opcode == Op::SEND_UNBOUND_BUFFER) {
+    buf = NonOwningPtr<UnboundBuffer>(op.ubuf);
+    if (!buf) {
+      return false;
+    }
+  }
+
   for (;;) {
-    auto nbytes = writeBuildIov(op, iov.data(), ioc);
+    const auto nbytes = prepareWrite(op, buf, iov.data(), ioc);
 
     // Write
     rv = writev(fd_, iov.data(), ioc);
@@ -382,13 +397,12 @@ bool Pair::write(Op& op) {
   }
 
   // Write completed
-  auto opcode = op.getOpcode();
   switch (opcode) {
     case Op::SEND_BUFFER:
       op.buf->handleSendCompletion();
       break;
     case Op::SEND_UNBOUND_BUFFER:
-      op.ubuf->handleSendCompletion(rank_);
+      buf->handleSendCompletion(rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       break;
@@ -408,12 +422,18 @@ bool Pair::write(Op& op) {
 // buffer this message is intended for has not yet been registered (this can
 // only be the case for unbound buffers).
 //
-bool Pair::readBuildIov(Op& op, struct iovec& iov) {
+ssize_t Pair::prepareRead(
+    Op& op,
+    NonOwningPtr<UnboundBuffer>& buf,
+    struct iovec& iov) {
+  iov.iov_base = nullptr;
+  iov.iov_len = 0;
+
   // Read preamble
   if (op.nread < sizeof(op.preamble)) {
     iov.iov_base = ((char*)&op.preamble) + op.nread;
     iov.iov_len = sizeof(op.preamble) - op.nread;
-    return true;
+    return iov.iov_len;
   }
 
   auto opcode = op.getOpcode();
@@ -425,7 +445,7 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
       op.buf = getBuffer(op.preamble.slot);
       // Buffer not (yet) registered, leave it for next loop iteration
       if (op.buf == nullptr) {
-        return false;
+        return -1;
       }
     }
 
@@ -434,12 +454,12 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
 
     // Bytes read must be in bounds for target buffer
     GLOO_ENFORCE_LE(op.preamble.roffset + op.preamble.length, op.buf->size_);
-    return true;
+    return iov.iov_len;
   }
 
   // Remote side is sending data to an unbound buffer; read payload
   if (opcode == Op::SEND_UNBOUND_BUFFER) {
-    if (op.ubuf == nullptr) {
+    if (!op.ubuf) {
       auto it = localPendingRecv_.find(op.preamble.slot);
       GLOO_ENFORCE(it != localPendingRecv_.end());
       std::deque<UnboundBufferOp>& queue = it->second;
@@ -451,15 +471,23 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
       }
     }
 
-    iov.iov_base = ((char*)op.ubuf->ptr) + op.offset + offset;
+    // Acquire short lived pointer to unbound buffer.
+    // This is a stack allocated variable in the read function
+    // which is destructed upon that function returning.
+    buf = NonOwningPtr<UnboundBuffer>(op.ubuf);
+    if (!buf) {
+      return -1;
+    }
+
+    iov.iov_base = ((char*)buf->ptr) + op.offset + offset;
     iov.iov_len = op.preamble.length - offset;
 
     // Bytes read must be in bounds for target buffer
     GLOO_ENFORCE_LE(op.preamble.length, op.nbytes);
-    return true;
+    return iov.iov_len;
   }
 
-  return true;
+  return 0;
 }
 
 // read is called from:
@@ -470,6 +498,7 @@ bool Pair::readBuildIov(Op& op, struct iovec& iov) {
 // below inherits it.
 //
 bool Pair::read() {
+  NonOwningPtr<UnboundBuffer> buf;
   auto start = std::chrono::steady_clock::now();
   auto& op = rx_;
 
@@ -478,14 +507,15 @@ bool Pair::read() {
         .iov_base = nullptr,
         .iov_len = 0,
     };
-    if (!readBuildIov(op, iov)) {
+    const auto nbytes = prepareRead(op, buf, iov);
+    if (nbytes < 0) {
       return false;
     }
 
     // Break from loop if the op is complete.
     // Note that this means that the buffer pointer has been
-    // set, per the call to readBuildIov.
-    if (iov.iov_len == 0) {
+    // set, per the call to prepareRead.
+    if (nbytes == 0) {
       break;
     }
 
@@ -547,7 +577,7 @@ bool Pair::read() {
   }
 
   // Read completed
-  auto opcode = op.getOpcode();
+  const auto opcode = op.getOpcode();
   switch (opcode) {
     case Op::SEND_BUFFER:
       // Done sending data to pinned buffer; trigger completion.
@@ -555,7 +585,7 @@ bool Pair::read() {
       break;
     case Op::SEND_UNBOUND_BUFFER:
       // Remote side is sending data to unbound buffer; trigger completion
-      op.ubuf->handleRecvCompletion(rank_);
+      buf->handleRecvCompletion(rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       // Remote side has pending send operation
@@ -585,10 +615,10 @@ void Pair::handleRemotePendingSend(const Op& op) {
   // with the context whether or not there are any recv-from-any
   // operations that this send can fulfill.
   if (remotePendingSend >= 0) {
+    WeakNonOwningPtr<UnboundBuffer> buf;
     size_t offset;
     size_t nbytes;
-    auto buf = mutator.findRecvFromAny(&offset, &nbytes);
-    if (buf != nullptr) {
+    if (mutator.findRecvFromAny(&buf, &offset, &nbytes)) {
       localPendingRecv_[slot].push_back(std::make_tuple(buf, offset, nbytes));
       sendNotifyRecvReady(slot, nbytes);
       return;
@@ -610,7 +640,7 @@ void Pair::handleRemotePendingRecv(const Op& op) {
   if (it != localPendingSend_.end()) {
     std::deque<UnboundBufferOp>& queue = it->second;
     GLOO_ENFORCE(!queue.empty());
-    UnboundBuffer* buf;
+    WeakNonOwningPtr<UnboundBuffer> buf;
     size_t offset;
     size_t nbytes;
     std::tie(buf, offset, nbytes) = queue.front();
@@ -618,7 +648,7 @@ void Pair::handleRemotePendingRecv(const Op& op) {
     if (queue.empty()) {
       localPendingSend_.erase(it);
     }
-    sendUnboundBuffer(buf, slot, offset, nbytes);
+    sendUnboundBuffer(std::move(buf), slot, offset, nbytes);
     return;
   }
 
@@ -979,12 +1009,12 @@ void Pair::send(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf)->getWeakNonOwningPtr();
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LE(offset, buf->size);
+  GLOO_ENFORCE_LE(offset, tbuf->size);
   GLOO_ENFORCE_GE(nbytes, 0);
-  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
+  GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
@@ -997,7 +1027,7 @@ void Pair::send(
     // for this send operation yet so we need to take special care
     // their count is updated regardless.
     sendNotifySendReady(slot, nbytes);
-    sendUnboundBuffer(buf, slot, offset, nbytes);
+    sendUnboundBuffer(std::move(buf), slot, offset, nbytes);
     mutator.updateRemotePendingRecv(-1);
     return;
   }
@@ -1013,12 +1043,12 @@ void Pair::recv(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf)->getWeakNonOwningPtr();
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LE(offset, buf->size);
+  GLOO_ENFORCE_LE(offset, tbuf->size);
   GLOO_ENFORCE_GE(nbytes, 0);
-  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
+  GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
@@ -1039,12 +1069,12 @@ bool Pair::tryRecv(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf);
+  auto buf = static_cast<tcp::UnboundBuffer*>(tbuf)->getWeakNonOwningPtr();
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LT(offset, buf->size);
+  GLOO_ENFORCE_LT(offset, tbuf->size);
   GLOO_ENFORCE_GT(nbytes, 0);
-  GLOO_ENFORCE_LE(nbytes, buf->size - offset);
+  GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
@@ -1065,7 +1095,7 @@ bool Pair::tryRecv(
 }
 
 void Pair::sendUnboundBuffer(
-    UnboundBuffer* buf,
+    WeakNonOwningPtr<UnboundBuffer> buf,
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
@@ -1074,7 +1104,7 @@ void Pair::sendUnboundBuffer(
   op.preamble.opcode = Op::SEND_UNBOUND_BUFFER;
   op.preamble.slot = slot;
   op.preamble.length = nbytes;
-  op.ubuf = buf;
+  op.ubuf = std::move(buf);
   op.offset = offset;
   op.nbytes = nbytes;
   sendAsyncMode(op);
@@ -1141,16 +1171,20 @@ void Pair::signalException(std::exception_ptr ex) {
   // Loop through pending send operations.
   for (auto& it : localPendingSend_) {
     for (auto& op : it.second) {
-      tcp::UnboundBuffer* buf = std::get<0>(op);
-      buf->signalException(ex);
+      NonOwningPtr<UnboundBuffer> buf(std::get<0>(op));
+      if (buf) {
+        buf->signalException(ex);
+      }
     }
   }
 
   // Loop through pending recv operations.
   for (auto& it : localPendingRecv_) {
     for (auto& op : it.second) {
-      tcp::UnboundBuffer* buf = std::get<0>(op);
-      buf->signalException(ex);
+      NonOwningPtr<UnboundBuffer> buf(std::get<0>(op));
+      if (buf) {
+        buf->signalException(ex);
+      }
     }
   }
 

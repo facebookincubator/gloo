@@ -27,7 +27,8 @@ UnboundBuffer::UnboundBuffer(
       recvCompletions_(0),
       recvRank_(-1),
       sendCompletions_(0),
-      sendRank_(-1) {}
+      sendRank_(-1),
+      shareableNonOwningPtr_(this) {}
 
 UnboundBuffer::~UnboundBuffer() {}
 

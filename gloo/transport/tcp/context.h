@@ -8,14 +8,15 @@
 
 #pragma once
 
-#include "gloo/transport/context.h"
-
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+
+#include "gloo/common/memory.h"
+#include "gloo/transport/context.h"
 
 namespace gloo {
 namespace transport {
@@ -145,7 +146,10 @@ class ContextMutator {
   count_t updateRemotePendingSend(count_t v);
 
   // Find buffer for which we should execute a recv operation.
-  UnboundBuffer* findRecvFromAny(size_t* offset, size_t* nbytes);
+  bool findRecvFromAny(
+      WeakNonOwningPtr<UnboundBuffer>* buf,
+      size_t* offset,
+      size_t* nbytes);
 
  protected:
   std::lock_guard<std::mutex> lock_;
@@ -181,8 +185,11 @@ class Context final : public ::gloo::transport::Context,
 
   std::mutex m_;
 
-  using pendingRecvTuple =
-      std::tuple<UnboundBuffer*, size_t, size_t, std::unordered_set<int>>;
+  using pendingRecvTuple = std::tuple<
+      WeakNonOwningPtr<UnboundBuffer>,
+      size_t,
+      size_t,
+      std::unordered_set<int>>;
 
   // Buffers with pending receive operation by slot.
   std::unordered_map<uint64_t, std::deque<pendingRecvTuple>> pendingRecv_;
@@ -204,13 +211,14 @@ class Context final : public ::gloo::transport::Context,
       uint64_t slot,
       size_t offset,
       size_t nbytes,
-      std::vector<int> srcRanks);
+      const std::vector<int>& srcRanks);
 
   // Allowed to be called only by ContextMutator::findRecvFromAny,
   // where the context lock is already held.
-  UnboundBuffer* findRecvFromAny(
+  bool findRecvFromAny(
       uint64_t slot,
       int rank,
+      WeakNonOwningPtr<tcp::UnboundBuffer>* buf,
       size_t* offset,
       size_t* nbytes);
 

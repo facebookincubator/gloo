@@ -65,8 +65,11 @@ ContextMutator::PendingOpCountIterator ContextMutator::insertIfNotExists() {
   return it_;
 }
 
-UnboundBuffer* ContextMutator::findRecvFromAny(size_t* offset, size_t* nbytes) {
-  return context_.findRecvFromAny(slot_, rank_, offset, nbytes);
+bool ContextMutator::findRecvFromAny(
+    WeakNonOwningPtr<UnboundBuffer>* buf,
+    size_t* offset,
+    size_t* nbytes) {
+  return context_.findRecvFromAny(slot_, rank_, buf, offset, nbytes);
 }
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
@@ -115,7 +118,7 @@ int Context::recvFromAnyFindRank(
     uint64_t slot,
     size_t offset,
     size_t nbytes,
-    std::vector<int> srcRanks) {
+    const std::vector<int>& srcRanks) {
   std::unique_lock<std::mutex> lock(m_);
 
   // See if there is a pending remote send that can fulfill this recv.
@@ -138,16 +141,20 @@ int Context::recvFromAnyFindRank(
   }
 
   // No candidates; register buffer for recv
-  auto set = std::unordered_set<int>(srcRanks.begin(), srcRanks.end());
-  pendingRecv_[slot].emplace_back(std::make_tuple(buf, offset, nbytes, set));
+  pendingRecv_[slot].emplace_back(
+      buf->getWeakNonOwningPtr(),
+      offset,
+      nbytes,
+      std::unordered_set<int>(srcRanks.begin(), srcRanks.end()));
   return -1;
 }
 
 // Allowed to be called only by ContextMutator::findRecvFromAny,
 // where the context lock is already held.
-UnboundBuffer* Context::findRecvFromAny(
+bool Context::findRecvFromAny(
     uint64_t slot,
     int rank,
+    WeakNonOwningPtr<UnboundBuffer>* buf,
     size_t* offset,
     size_t* nbytes) {
   // See if there is a pending recv for this slot.
@@ -163,7 +170,7 @@ UnboundBuffer* Context::findRecvFromAny(
       // this slot we can proceed and return the buffer to recv into.
       if (ranks.count(rank) > 0) {
         // Capture values to return.
-        auto buf = std::get<0>(*rit);
+        *buf = std::get<0>(*rit);
         *offset = std::get<1>(*rit);
         *nbytes = std::get<2>(*rit);
         // Cleanup.
@@ -171,12 +178,12 @@ UnboundBuffer* Context::findRecvFromAny(
         if (recvs.empty()) {
           pendingRecv_.erase(pit);
         }
-        return buf;
+        return true;
       }
     }
   }
 
-  return nullptr;
+  return false;
 }
 
 void Context::signalException(const std::string& msg) {

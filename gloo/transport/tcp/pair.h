@@ -25,6 +25,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#include "gloo/common/memory.h"
 #include "gloo/transport/pair.h"
 #include "gloo/transport/tcp/address.h"
 #include "gloo/transport/tcp/device.h"
@@ -65,7 +66,7 @@ struct Op {
 
   // Used internally
   Buffer* buf = nullptr;
-  UnboundBuffer* ubuf = nullptr;
+  WeakNonOwningPtr<UnboundBuffer> ubuf;
   size_t nread = 0;
   size_t nwritten = 0;
 
@@ -170,13 +171,14 @@ class Pair : public ::gloo::transport::Pair {
   std::map<int, Buffer*> buffers_;
 
   // Tuple captures pointer to unbound buffer, byte offset, and byte count.
-  using UnboundBufferOp = std::tuple<tcp::UnboundBuffer*, size_t, size_t>;
+  using UnboundBufferOp =
+      std::tuple<WeakNonOwningPtr<UnboundBuffer>, size_t, size_t>;
 
   std::unordered_map<uint64_t, std::deque<UnboundBufferOp>> localPendingSend_;
   std::unordered_map<uint64_t, std::deque<UnboundBufferOp>> localPendingRecv_;
 
   void sendUnboundBuffer(
-      tcp::UnboundBuffer* buf,
+      WeakNonOwningPtr<UnboundBuffer> buf,
       uint64_t slot,
       size_t offset,
       size_t nbytes);
@@ -228,9 +230,16 @@ class Pair : public ::gloo::transport::Pair {
 
   std::exception_ptr ex_;
 
-  ssize_t writeBuildIov(Op& op, struct iovec* iov, int& ioc);
+  ssize_t prepareWrite(
+      Op&,
+      const NonOwningPtr<UnboundBuffer>&,
+      struct iovec*,
+      int&);
   bool write(Op& op);
-  bool readBuildIov(Op& op, struct iovec& iov);
+  ssize_t prepareRead(
+      Op&,
+      NonOwningPtr<UnboundBuffer>&,
+      struct iovec&);
   bool read();
 
   void handleRemotePendingSend(const Op& op);
