@@ -43,9 +43,6 @@ class Context;
 class UnboundBuffer;
 
 struct Op {
-  // Default constructor initializes everything to 0.
-  explicit Op();
-
   enum Opcode {
     SEND_BUFFER = 0,
     SEND_UNBOUND_BUFFER = 1,
@@ -58,23 +55,23 @@ struct Op {
   }
 
   struct {
-    size_t nbytes;
-    size_t opcode;
-    size_t slot;
-    size_t offset;
-    size_t length;
-    size_t roffset;
+    size_t nbytes = 0;
+    size_t opcode = 0;
+    size_t slot = 0;
+    size_t offset = 0;
+    size_t length = 0;
+    size_t roffset = 0;
   } preamble;
 
   // Used internally
-  Buffer* buf;
-  UnboundBuffer* ubuf;
-  size_t nread;
-  size_t nwritten;
+  Buffer* buf = nullptr;
+  UnboundBuffer* ubuf = nullptr;
+  size_t nread = 0;
+  size_t nwritten = 0;
 
   // Byte offset to read from/write to and byte count.
-  size_t offset;
-  size_t nbytes;
+  size_t offset = 0;
+  size_t nbytes = 0;
 };
 
 class Pair : public ::gloo::transport::Pair {

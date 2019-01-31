@@ -134,8 +134,6 @@ void Buffer::send(size_t offset, size_t length, size_t roffset) {
     std::cout << std::endl;
   }
 
-  memset(&op, 0, sizeof(op));
-
   op.preamble.nbytes = sizeof(op.preamble) + length;
   op.preamble.opcode = Op::SEND_BUFFER;
   op.preamble.slot = slot_;

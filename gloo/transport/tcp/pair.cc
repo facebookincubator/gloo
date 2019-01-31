@@ -46,10 +46,6 @@ constexpr size_t kMaxRecvBufferSize = 32 * 1024 * 1024;
 
 } // namespace
 
-Op::Op() {
-  memset(this, 0, sizeof(*this));
-}
-
 Pair::Pair(
     Context* context,
     Device* device,
@@ -571,7 +567,7 @@ bool Pair::read() {
       break;
   }
 
-  memset(&op, 0, sizeof(op));
+  rx_ = Op();
   return true;
 }
 
