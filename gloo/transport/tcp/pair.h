@@ -228,29 +228,72 @@ class Pair : public ::gloo::transport::Pair {
   // in place, it must be queued and executed later.
   std::deque<Op> tx_;
 
-  std::exception_ptr ex_;
-
+  // Helper function for the `write` function below.
   ssize_t prepareWrite(
-      Op&,
-      const NonOwningPtr<UnboundBuffer>&,
-      struct iovec*,
-      int&);
+      Op& op,
+      const NonOwningPtr<UnboundBuffer>& buf,
+      struct iovec* iov,
+      int& ioc);
+
+  // Write specified operation to socket.
+  //
+  // The pair mutex is expected to be held when called.
+  //
   bool write(Op& op);
+
+  // Helper function for the `read` function below.
   ssize_t prepareRead(
-      Op&,
-      NonOwningPtr<UnboundBuffer>&,
-      struct iovec&);
+      Op& op,
+      NonOwningPtr<UnboundBuffer>& buf,
+      struct iovec& iov);
+
+  // Read operation from socket into argument.
+  //
+  // The pair mutex is expected to be held when called.
+  //
   bool read();
 
+  // Helper function that is called from the `read` function.
   void handleRemotePendingSend(const Op& op);
+
+  // Helper function that is called from the `read` function.
   void handleRemotePendingRecv(const Op& op);
 
+  // Finishes connection setup if this side of the pair is on the
+  // listening side of connection initiation. This is called from
+  // `handleEvents` if the listening file descriptor is readable, i.e.
+  // if there is an incoming connection.
+  //
+  // The pair mutex is expected to be held when called.
+  //
   void handleListening();
+
+  // Finishes connection setup if this side of the pair is on the
+  // connecting side of the connection initiation. This is called from
+  // `handleEvents` if the file descriptor associated with the
+  // connection is writable or in an error state, i.e. the connection
+  // has been established or failed to establish.
+  //
+  // The pair mutex is expected to be held when called.
+  //
   void handleConnecting();
+
+  // Helper function called from `handleListening` or `handleConnecting`.
   void handleConnected();
 
+  // Advances this pair's state. See the `Pair::state` enum for
+  // possible states. State can only move forward, i.e. from
+  // initializing, to connected, to closed.
+  //
+  // The pair mutex is expected to be held when called.
+  //
   void changeState(state nextState);
+
+  // Helper function to block execution until the pair has advanced to
+  // the `CONNECTED` state. Expected to be called from `Pair::connect`.
   void waitUntilConnected(std::unique_lock<std::mutex>& lock, bool useTimeout);
+
+  // Helper function to assert the current state is `CONNECTED`.
   void verifyConnected();
 
   // Throws if an exception if set.
@@ -265,6 +308,10 @@ class Pair : public ::gloo::transport::Pair {
   // Like signalException, but throws exception as well.
   void signalAndThrowException(const std::string& msg);
   void signalAndThrowException(std::exception_ptr ex);
+
+  // Cache exception such that it can be rethrown if any function on
+  // this instance is called again when it is in an error state.
+  std::exception_ptr ex_;
 };
 
 } // namespace tcp
