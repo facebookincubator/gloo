@@ -61,12 +61,12 @@ class MultiProcWorker {
   explicit MultiProcWorker(
       const std::string& storePath,
       const std::string& semaphoreName) {
-    device_ = ::gloo::transport::tcp::CreateDevice("localhost");
     store_ = std::unique_ptr<::gloo::rendezvous::Store>(
         new ::gloo::rendezvous::FileStore(storePath));
     semaphore_ = sem_open(semaphoreName.c_str(), 0);
     GLOO_ENFORCE_NE(semaphore_, (sem_t*)nullptr, strerror(errno));
   }
+
   ~MultiProcWorker() {
     sem_close(semaphore_);
   }
@@ -77,14 +77,15 @@ class MultiProcWorker {
       std::function<void(std::shared_ptr<Context>)> fn) {
     auto context =
       std::make_shared<::gloo::rendezvous::Context>(rank, size);
+    auto device = ::gloo::transport::tcp::CreateDevice("localhost");
     context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
-    context->connectFullMesh(*store_, device_);
+    context->connectFullMesh(*store_, device);
+    device.reset();
     sem_post(semaphore_);
     fn(std::move(context));
   }
 
  protected:
-  std::shared_ptr<::gloo::transport::Device> device_;
   std::unique_ptr<::gloo::rendezvous::Store> store_;
   sem_t* semaphore_;
 };

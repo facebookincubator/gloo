@@ -73,9 +73,14 @@ bool ContextMutator::findRecvFromAny(
 }
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
-    : ::gloo::transport::Context(rank, size), device_(device) {}
+    : ::gloo::transport::Context(rank, size), device_(std::move(device)) {}
 
-Context::~Context() {}
+Context::~Context() {
+  // Pairs refer to device by raw pointer.
+  // Ensure they are destructed before the device.
+  pairs_.clear();
+  device_.reset();
+}
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
   pairs_[rank] = std::unique_ptr<transport::Pair>(

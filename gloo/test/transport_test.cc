@@ -308,6 +308,56 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeoutOverride) {
   waitProcess(0);
 }
 
+TEST_P(TransportMultiProcTest, UnboundNoErrors) {
+  const auto processCount = std::get<0>(GetParam());
+  const auto sleepMs = std::get<2>(GetParam());
+  const auto mode = std::get<3>(GetParam());
+
+  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+    int sendScratch = 0;
+    int recvScratch = 0;
+    auto sendBuf =
+        context->createUnboundBuffer(&sendScratch, sizeof(sendScratch));
+    auto recvBuf =
+        context->createUnboundBuffer(&recvScratch, sizeof(recvScratch));
+    const auto leftRank = (context->size + context->rank - 1) % context->size;
+    const auto rightRank = (context->rank + 1) % context->size;
+    for (auto i = 0; i < 10; i++) {
+      sendBuf->send(leftRank, 0);
+      recvBuf->recv(rightRank, 0);
+      sendBuf->waitSend();
+      recvBuf->waitRecv();
+    }
+
+    // Number of references to the underlying device:
+    // 1) Local variable
+    // 2) Member variable in top level context
+    // 3) Member variable in transport context
+    auto device = context->getDevice();
+    ASSERT_EQ(3, device.use_count());
+
+    // Destroy the top level context before everything else.
+    //
+    // The unbound buffers still have a reference to the underlying
+    // transport context and can continue to send/recv.
+    //
+    // This triggers a path where the transport context holds the
+    // only reference to the device and destruction order between
+    // pairs and the device is important.
+    //
+    ASSERT_EQ(1, context.use_count());
+    context.reset();
+  });
+
+  // Wait for all processes to terminate with success.
+  for (auto i = 0; i < processCount; i++) {
+    waitProcess(i);
+    const auto result = getResult(i);
+    ASSERT_TRUE(WIFEXITED(result)) << result;
+    ASSERT_EQ(0, WEXITSTATUS(result));
+  }
+}
+
 std::vector<int> genMemorySizes() {
   std::vector<int> v;
   v.push_back(sizeof(float));
