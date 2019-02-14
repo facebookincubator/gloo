@@ -35,7 +35,7 @@ template <typename T>
 class AllgatherBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto inPtrs = this->allocate(this->options_.inputs, elements);
     GLOO_ENFORCE_EQ(inPtrs.size(), this->options_.inputs);
     outputs_.resize(this->options_.inputs * this->context_->size * elements);
@@ -43,7 +43,7 @@ class AllgatherBenchmark : public Benchmark<T> {
         this->context_, this->getInputs(), outputs_.data(), elements));
   }
 
-  virtual void verify() override {
+  void verify() override {
     const auto stride = this->context_->size * this->inputs_.size();
     const auto elements = this->inputs_[0].size();
     for (int rank = 0; rank < this->context_->size; rank++) {
@@ -69,12 +69,12 @@ template <class A, typename T>
 class AllreduceBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_.reset(new A(this->context_, ptrs, elements));
   }
 
-  virtual void verify() override {
+  void verify() override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
     // Expected is set to the expected value at ptr[0]
@@ -97,7 +97,7 @@ template <typename T>
 class BarrierAllToAllBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t /* unused */) override {
+  void initialize(size_t /* unused */) override {
     this->algorithm_.reset(new BarrierAllToAll(this->context_));
   }
 };
@@ -106,7 +106,7 @@ template <typename T>
 class BarrierAllToOneBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t /* unused */) override {
+  void initialize(size_t /* unused */) override {
     // This tool measures at rank=0, so use root=1 for the all to one
     // barrier to measure the end-to-end latency (otherwise we might
     // not account for the send-to-root part of the algorithm).
@@ -118,13 +118,13 @@ template <typename T>
 class BroadcastOneToAllBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_.reset(
         new BroadcastOneToAll<T>(this->context_, ptrs, elements, rootRank_));
   }
 
-  virtual void verify() override {
+  void verify() override {
     const auto stride = this->context_->size * this->inputs_.size();
     for (const auto& input : this->inputs_) {
       for (int i = 0; i < input.size(); i++) {
@@ -143,7 +143,7 @@ template <typename T>
 class PairwiseExchangeBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     this->algorithm_.reset(new PairwiseExchange(
         this->context_, elements, this->getOptions().destinations));
   }
@@ -153,7 +153,7 @@ template <typename T>
 class ReduceScatterBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     auto rem = elements;
     auto chunkSize =
@@ -167,7 +167,7 @@ class ReduceScatterBenchmark : public Benchmark<T> {
             this->context_, ptrs, elements, recvCounts_));
   }
 
-  virtual void verify() override {
+  void verify() override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
     // Expected is set to the expected value at ptr[0]

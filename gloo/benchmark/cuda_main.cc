@@ -33,7 +33,7 @@ class CudaBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
 
  public:
-  virtual ~CudaBenchmark() {}
+  ~CudaBenchmark() override {}
 
  protected:
   // Allocates memory for algorithm under benchmark to use. It calls
@@ -42,7 +42,7 @@ class CudaBenchmark : public Benchmark<T> {
   // duplicating initialization code here. The host side memory is
   // reused when the benchmark runs in verification mode and memory
   // contents is checked after an algorithm has run.
-  virtual std::vector<T*> allocate(int inputs, size_t elements) override {
+  std::vector<T*> allocate(int inputs, size_t elements) override {
     auto rawHostPtrs = Benchmark<T>::allocate(inputs, elements);
 
     // Initialize allocations, streams, CUDA pointer wrappers
@@ -102,7 +102,7 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
         builder_(builder) {
   }
 
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_ = builder_.
       setInputs(ptrs).
@@ -110,7 +110,7 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
       getAlgorithm(this->context_);
   }
 
-  virtual void verify() override {
+  void verify() override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
     // Expected is set to the expected value at ptr[0]
@@ -146,7 +146,7 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
    }
 
  public:
-  virtual void initialize(size_t elements) override {
+  void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
     this->algorithm_ = builder_.
       setInputs(ptrs).
@@ -155,9 +155,9 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
       setRootPointerRank(rootPointerRank_).
       setStreams({}).
       getAlgorithm(this->context_);
-    }
+  }
 
-  virtual void verify() override {
+  void verify() override {
     const auto rootOffset = rootRank_ * this->inputs_.size() + rootPointerRank_;
     const auto stride = this->context_->size * this->inputs_.size();
     const auto ptrs = this->copyToHost();
