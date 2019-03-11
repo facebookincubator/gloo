@@ -8,6 +8,7 @@
 
 #include "gloo/transport/tcp/pair.h"
 
+#include <array>
 #include <algorithm>
 #include <sstream>
 
