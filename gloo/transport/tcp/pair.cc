@@ -501,14 +501,13 @@ ssize_t Pair::prepareRead(
 bool Pair::read() {
   NonOwningPtr<UnboundBuffer> buf;
   auto start = std::chrono::steady_clock::now();
-  auto& op = rx_;
 
   for (;;) {
     struct iovec iov = {
         .iov_base = nullptr,
         .iov_len = 0,
     };
-    const auto nbytes = prepareRead(op, buf, iov);
+    const auto nbytes = prepareRead(rx_, buf, iov);
     if (nbytes < 0) {
       return false;
     }
@@ -574,15 +573,15 @@ bool Pair::read() {
       return false;
     }
 
-    op.nread += rv;
+    rx_.nread += rv;
   }
 
   // Read completed
-  const auto opcode = op.getOpcode();
+  const auto opcode = rx_.getOpcode();
   switch (opcode) {
     case Op::SEND_BUFFER:
       // Done sending data to pinned buffer; trigger completion.
-      op.buf->handleRecvCompletion();
+      rx_.buf->handleRecvCompletion();
       break;
     case Op::SEND_UNBOUND_BUFFER:
       // Remote side is sending data to unbound buffer; trigger completion
@@ -590,14 +589,15 @@ bool Pair::read() {
       break;
     case Op::NOTIFY_SEND_READY:
       // Remote side has pending send operation
-      handleRemotePendingSend(op);
+      handleRemotePendingSend(rx_);
       break;
     case Op::NOTIFY_RECV_READY:
       // Remote side has pending recv operation
-      handleRemotePendingRecv(op);
+      handleRemotePendingRecv(rx_);
       break;
   }
 
+  // Reset read operation state.
   rx_ = Op();
   return true;
 }
