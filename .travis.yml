@@ -10,6 +10,9 @@ matrix:
     - os: linux
       compiler: gcc
       env: BUILD_CUDA=ON
+    - os: linux
+      compiler: clang
+      env: BUILD_CUDA=OFF
 
 cache:
   apt: true
