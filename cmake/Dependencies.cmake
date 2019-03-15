@@ -1,5 +1,6 @@
 set(gloo_DEPENDENCY_LIBS "")
 set(gloo_cuda_DEPENDENCY_LIBS "")
+set(gloo_hip_DEPENDENCY_LIBS "")
 
 # Configure path to modules (for find_package)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/Modules/")
@@ -62,6 +63,57 @@ if(USE_CUDA AND USE_NCCL)
       message(WARNING "Not compiling with NCCL support. Suppress this warning with -DUSE_NCCL=OFF.")
       set(USE_NCCL OFF)
     endif()
+  endif()
+endif()
+
+if(USE_ROCM)
+  include(cmake/Hip.cmake)
+  if(HAVE_HIP)
+    include(cmake/Hipify.cmake)
+    list(APPEND HIP_CXX_FLAGS -fPIC)
+    list(APPEND HIP_CXX_FLAGS -D__HIP_PLATFORM_HCC__=1)
+    list(APPEND HIP_CXX_FLAGS -DCUDA_HAS_FP16=1)
+    list(APPEND HIP_CXX_FLAGS -D__HIP_NO_HALF_OPERATORS__=1)
+    list(APPEND HIP_CXX_FLAGS -D__HIP_NO_HALF_CONVERSIONS__=1)
+    list(APPEND HIP_CXX_FLAGS -DHIP_VERSION=${HIP_VERSION_MAJOR})
+    list(APPEND HIP_CXX_FLAGS -Wno-macro-redefined)
+    list(APPEND HIP_CXX_FLAGS -Wno-inconsistent-missing-override)
+    list(APPEND HIP_CXX_FLAGS -Wno-exceptions)
+    list(APPEND HIP_CXX_FLAGS -Wno-shift-count-negative)
+    list(APPEND HIP_CXX_FLAGS -Wno-shift-count-overflow)
+    list(APPEND HIP_CXX_FLAGS -Wno-unused-command-line-argument)
+    list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
+    list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
+
+    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    # Ask hcc to generate device code during compilation so we can use
+    # host linker to link.
+    list(APPEND HIP_HCC_FLAGS -fno-gpu-rdc)
+    list(APPEND HIP_HCC_FLAGS -Wno-defaulted-function-deleted)
+    foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
+      list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
+    endforeach()
+
+    set(GLOO_HIP_INCLUDE
+      ${hip_INCLUDE_DIRS} ${hcc_INCLUDE_DIRS} ${hsa_INCLUDE_DIRS} ${rocrand_INCLUDE_DIRS} ${hiprand_INCLUDE_DIRS} ${rocblas_INCLUDE_DIRS} ${miopen_INCLUDE_DIRS} ${thrust_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
+
+    # This is needed for library added by hip_add_library (same for hip_add_executable)
+    hip_include_directories(${GLOO_HIP_INCLUDE})
+
+    set(gloo_hip_DEPENDENCY_LIBS
+      ${rocrand_LIBRARIES} ${hiprand_LIBRARIES} ${hipsparse_LIBRARIES} ${GLOO_HIP_HCC_LIBRARIES} ${GLOO_MIOPEN_LIBRARIES})
+
+    # Note [rocblas & rocfft cmake bug]
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # TODO: There is a bug in rocblas's & rocfft's cmake files that exports the wrong targets name in ${rocblas_LIBRARIES}
+    # If you get this wrong, you'll get a complaint like 'ld: cannot find -lrocblas-targets'
+    list(APPEND gloo_hip_DEPENDENCY_LIBS
+      roc::rocblas roc::rocfft)
+
+    set(GLOO_HIP_INCLUDE ${GLOO_HIP_INCLUDE} PARENT_SCOPE)
+  else(HAVE_HIP)
+    message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
+    set(USE_ROCM OFF)
   endif()
 endif()
 
