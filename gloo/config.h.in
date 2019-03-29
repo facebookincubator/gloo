@@ -25,6 +25,7 @@ static_assert(
 
 #cmakedefine01 GLOO_USE_CUDA
 #cmakedefine01 GLOO_USE_NCCL
+#cmakedefine01 GLOO_USE_ROCM
 #cmakedefine01 GLOO_USE_REDIS
 #cmakedefine01 GLOO_USE_IBVERBS
 #cmakedefine01 GLOO_USE_MPI
