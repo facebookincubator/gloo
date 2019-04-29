@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "gloo/algorithm.h"
 #include "gloo/cuda.h"
 #include "gloo/cuda_workspace.h"
