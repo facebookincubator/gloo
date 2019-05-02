@@ -66,30 +66,6 @@ if(USE_ROCM)
     )
 endif()
 
-if(NOT USE_ROCM)
-  # The builder links to both the base gloo library and gloo_cuda if
-  # USE_CUDA is set. It can therefore not be part of either.
-  list(APPEND GLOO_BUILDER_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.cc"
-    )
-
-  list(APPEND GLOO_BUILDER_HDRS
-    "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_builder.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_builder.h"
-    )
-else(NOT USE_ROCM)
-  list(APPEND GLOO_BUILDER_SRCS
-    "${HIPIFY_OUTPUT_DIR}/allreduce_builder.cc"
-    "${HIPIFY_OUTPUT_DIR}/broadcast_builder.cc"
-    )
-
-  list(APPEND GLOO_BUILDER_HDRS
-    "${HIPIFY_OUTPUT_DIR}/allreduce_builder.h"
-    "${HIPIFY_OUTPUT_DIR}/broadcast_builder.h"
-    )
-endif()
-
 add_subdirectory(common)
 add_subdirectory(mpi)
 if(USE_CUDA AND USE_NCCL)
@@ -121,23 +97,18 @@ set(GLOO_USE_AVX ${USE_AVX})
 configure_file(config.h.in config.h)
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
-add_library(gloo_builder ${GLOO_STATIC_OR_SHARED} ${GLOO_BUILDER_SRCS})
 target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
-target_link_libraries(gloo_builder PUBLIC gloo)
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
-  target_link_libraries(gloo_builder PUBLIC gloo_cuda)
 endif()
 if(USE_ROCM)
   gloo_hip_add_library(gloo_hip ${GLOO_HIP_SRCS})
   target_link_libraries(gloo_hip gloo)
-  target_link_libraries(gloo_builder PUBLIC gloo_hip)
 endif()
 
 # Add Interface include directories that are relocatable.
 target_include_directories(gloo INTERFACE $<INSTALL_INTERFACE:include>)
-target_include_directories(gloo_builder INTERFACE $<INSTALL_INTERFACE:include>)
 if(USE_CUDA)
   target_include_directories(gloo_cuda INTERFACE $<INSTALL_INTERFACE:include>)
 endif()
@@ -151,8 +122,6 @@ endif()
 if(GLOO_INSTALL)
   install(TARGETS gloo EXPORT GlooTargets
       DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-  install(TARGETS gloo_builder EXPORT GlooTargets
-      DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   if(USE_CUDA)
     install(TARGETS gloo_cuda EXPORT GlooTargets
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
@@ -164,11 +133,6 @@ if(GLOO_INSTALL)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/gloo)
   foreach(HEADER ${GLOO_HDRS})
-    string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})
-    string(REGEX REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "gloo" DIR ${DIR})
-    install(FILES ${HEADER} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${DIR})
-  endforeach()
-  foreach(HEADER ${GLOO_BUILDER_HDRS})
     string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})
     string(REGEX REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "gloo" DIR ${DIR})
     install(FILES ${HEADER} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${DIR})

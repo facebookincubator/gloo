@@ -49,10 +49,6 @@ if args.output_directory:
 
 includes = [
     "gloo/*cuda*",
-    "gloo/allreduce_builder.h",
-    "gloo/allreduce_builder.cc",
-    "gloo/broadcast_builder.h",
-    "gloo/broadcast_builder.cc"
 ]
 
 ignores = [

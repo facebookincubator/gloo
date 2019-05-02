@@ -24,7 +24,7 @@ if(USE_CUDA)
     )
 
   cuda_add_executable(benchmark_cuda ${GLOO_BENCHMARK_CUDA_SRCS})
-  target_link_libraries(benchmark_cuda gloo_builder)
+  target_link_libraries(benchmark_cuda gloo_cuda)
 
   if(GLOO_INSTALL)
     install(TARGETS benchmark_cuda DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
@@ -39,7 +39,7 @@ if(USE_ROCM)
     )
 
   gloo_hip_add_executable(benchmark_hip ${GLOO_BENCHMARK_HIP_SRCS})
-  target_link_libraries(benchmark_hip gloo_builder)
+  target_link_libraries(benchmark_hip gloo_hip)
 
   if(GLOO_INSTALL)
     install(TARGETS benchmark_hip DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

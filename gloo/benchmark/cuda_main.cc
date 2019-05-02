@@ -9,11 +9,13 @@
 #include <map>
 #include <memory>
 
-#include "gloo/allreduce_builder.h"
 #include "gloo/benchmark/benchmark.h"
 #include "gloo/benchmark/runner.h"
-#include "gloo/broadcast_builder.h"
 #include "gloo/common/logging.h"
+#include "gloo/cuda_allreduce_bcube.h"
+#include "gloo/cuda_allreduce_halving_doubling.h"
+#include "gloo/cuda_allreduce_halving_doubling_pipelined.h"
+#include "gloo/cuda_allreduce_ring_chunked.h"
 #include "gloo/cuda_broadcast_one_to_all.h"
 #include "gloo/cuda_private.h"
 
@@ -91,23 +93,19 @@ class CudaBenchmark : public Benchmark<T> {
   std::vector<CudaDevicePointer<T>> devicePtrs_;
 };
 
-template <typename T>
+template <typename T, typename Algorithm>
 class CudaAllreduceBenchmark : public CudaBenchmark<T> {
  public:
   CudaAllreduceBenchmark(
     std::shared_ptr<::gloo::Context>& context,
-    struct options& options,
-    ::gloo::AllreduceBuilder<T> builder)
-      : CudaBenchmark<T>(context, options),
-        builder_(builder) {
+    struct options& options)
+      : CudaBenchmark<T>(context, options) {
   }
 
   void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
-    this->algorithm_ = builder_.
-      setInputs(ptrs).
-      setCount(elements).
-      getAlgorithm(this->context_);
+    this->algorithm_ = gloo::make_unique<Algorithm>(
+      this->context_, ptrs, elements);
   }
 
   void verify() override {
@@ -128,33 +126,23 @@ class CudaAllreduceBenchmark : public CudaBenchmark<T> {
       }
     }
   }
-
- protected:
-  ::gloo::AllreduceBuilder<T> builder_;
 };
 
-template <typename T>
-class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
+template <typename T, typename Algorithm>
+class CudaBroadcastBenchmark : public CudaBenchmark<T> {
   using CudaBenchmark<T>::CudaBenchmark;
  public:
-   CudaBroadcastOneToAllBenchmark(
+   CudaBroadcastBenchmark(
      std::shared_ptr<::gloo::Context>& context,
-     struct options& options,
-     ::gloo::BroadcastBuilder<T> builder)
-       : CudaBenchmark<T>(context, options),
-         builder_(builder) {
+     struct options& options)
+       : CudaBenchmark<T>(context, options) {
    }
 
  public:
   void initialize(size_t elements) override {
     auto ptrs = this->allocate(this->options_.inputs, elements);
-    this->algorithm_ = builder_.
-      setInputs(ptrs).
-      setCount(elements).
-      setRootRank(rootRank_).
-      setRootPointerRank(rootPointerRank_).
-      setStreams({}).
-      getAlgorithm(this->context_);
+    this->algorithm_ = gloo::make_unique<Algorithm>(
+      this->context_, ptrs, elements, rootRank_, rootPointerRank_);
   }
 
   void verify() override {
@@ -174,7 +162,6 @@ class CudaBroadcastOneToAllBenchmark : public CudaBenchmark<T> {
  protected:
   const int rootRank_ = 0;
   const int rootPointerRank_ = 0;
-  ::gloo::BroadcastBuilder<T> builder_;
 };
 
 } // namespace
@@ -190,38 +177,33 @@ void runBenchmark(options& x) {
   Runner::BenchmarkFn<T> fn;
 
   if (x.benchmark == "cuda_broadcast_one_to_all") {
-    auto builder = gloo::BroadcastBuilder<T>();
-    if (x.gpuDirect) {
-      builder.setGPUDirect(true);
-    }
-
-    fn = [&, builder](std::shared_ptr<Context>& context) {
+    fn = [&x](std::shared_ptr<Context>& context) {
       return std::unique_ptr<Benchmark<T>>(
-        new CudaBroadcastOneToAllBenchmark<T>(context, x, builder));
+        new CudaBroadcastBenchmark<T, CudaBroadcastOneToAll<T>>(context, x));
     };
-  } else if (beginsWith(x.benchmark, std::string("cuda_allreduce_"))) {
-    auto builder = gloo::AllreduceBuilder<T>();
-    if (x.gpuDirect) {
-      builder.setGPUDirect(true);
-    }
-    if (x.benchmark == "cuda_allreduce_halving_doubling") {
-      builder.setImplementation(
-        gloo::AllreduceBuilder<T>::HalvingDoubling);
-    } else if (x.benchmark == "cuda_allreduce_halving_doubling_pipelined") {
-      builder.setImplementation(
-        gloo::AllreduceBuilder<T>::HalvingDoublingPipelined);
-    } else if (x.benchmark == "cuda_allreduce_ring") {
-      builder.setImplementation(
-        gloo::AllreduceBuilder<T>::Ring);
-    } else if (x.benchmark == "cuda_allreduce_ring_chunked") {
-      builder.setImplementation(
-        gloo::AllreduceBuilder<T>::RingChunked);
-    } else {
-      GLOO_ENFORCE(false, "Invalid algorithm: ", x.benchmark);
-    }
-    fn = [&, builder](std::shared_ptr<Context>& context) {
+  } else if (x.benchmark == "cuda_allreduce_halving_doubling") {
+    fn = [&x](std::shared_ptr<Context>& context) {
       return std::unique_ptr<Benchmark<T>>(
-        new CudaAllreduceBenchmark<T>(context, x, builder));
+        new CudaAllreduceBenchmark<
+          T,
+          CudaAllreduceHalvingDoubling<T>>(context, x));
+    };
+  } else if (x.benchmark == "cuda_allreduce_halving_doubling_pipelined") {
+    fn = [&x](std::shared_ptr<Context>& context) {
+      return std::unique_ptr<Benchmark<T>>(
+        new CudaAllreduceBenchmark<
+          T,
+          CudaAllreduceHalvingDoublingPipelined<T>>(context, x));
+    };
+  } else if (x.benchmark == "cuda_allreduce_bcube") {
+    fn = [&x](std::shared_ptr<Context>& context) {
+      return std::unique_ptr<Benchmark<T>>(
+        new CudaAllreduceBenchmark<T, CudaAllreduceBcube<T>>(context, x));
+    };
+  } else if (x.benchmark == "cuda_allreduce_ring_chunked") {
+    fn = [&x](std::shared_ptr<Context>& context) {
+      return std::unique_ptr<Benchmark<T>>(
+        new CudaAllreduceBenchmark<T, CudaAllreduceRingChunked<T>>(context, x));
     };
   }
 
