@@ -73,6 +73,16 @@ void min(T* a, const T* b, size_t n) {
 }
 
 template <typename T>
+void XOR(void* c_, const void* a_, const void* b_, size_t n) {
+  T* c = static_cast<T*>(c_);
+  const T* a = static_cast<const T*>(a_);
+  const T* b = static_cast<const T*>(b_);
+  for (auto i = 0; i < n; i++) {
+    c[i] = a[i] ^ b[i];
+  }
+}
+
+template <typename T>
 T roundUp(T value, T multiple) {
   T remainder = value % multiple;
   if (remainder == 0) {
