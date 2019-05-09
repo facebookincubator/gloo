@@ -8,6 +8,7 @@ set(GLOO_HDRS)
 list(APPEND GLOO_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgatherv.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier.cc"
@@ -23,6 +24,7 @@ list(APPEND GLOO_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_ring.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgatherv.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_bcube.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_halving_doubling.h"

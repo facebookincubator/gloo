@@ -131,7 +131,7 @@ void UnboundBuffer::send(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  if (nbytes == 0) {
+  if (nbytes == UINT64_MAX) {
     GLOO_ENFORCE_LE(offset, this->size);
     nbytes = this->size - offset;
   }
@@ -143,7 +143,7 @@ void UnboundBuffer::recv(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  if (nbytes == 0) {
+  if (nbytes == UINT64_MAX) {
     GLOO_ENFORCE_LE(offset, this->size);
     nbytes = this->size - offset;
   }
@@ -155,7 +155,7 @@ void UnboundBuffer::recv(
     uint64_t slot,
     size_t offset,
     size_t nbytes) {
-  if (nbytes == 0) {
+  if (nbytes == UINT64_MAX) {
     GLOO_ENFORCE_LT(offset, this->size);
     nbytes = this->size - offset;
   }
