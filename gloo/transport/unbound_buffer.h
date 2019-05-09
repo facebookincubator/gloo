@@ -90,19 +90,19 @@ class UnboundBuffer {
       int dstRank,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = 0) = 0;
+      size_t nbytes = UINT64_MAX) = 0;
 
   virtual void recv(
       int srcRank,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = 0) = 0;
+      size_t nbytes = UINT64_MAX) = 0;
 
   virtual void recv(
       std::vector<int> srcRanks,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = 0) = 0;
+      size_t nbytes = UINT64_MAX) = 0;
 };
 
 } // namespace transport
