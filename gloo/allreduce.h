@@ -171,9 +171,9 @@ class AllreduceOptions {
  protected:
   detail::AllreduceOptionsImpl impl_;
 
-  friend void allreduce(AllreduceOptions&);
+  friend void allreduce(const AllreduceOptions&);
 };
 
-void allreduce(AllreduceOptions& opts);
+void allreduce(const AllreduceOptions& opts);
 
 } // namespace gloo

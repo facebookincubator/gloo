@@ -27,7 +27,7 @@ using BroadcastRangeFunction = std::function<void(size_t, size_t)>;
 
 // Forward declaration of ring algorithm implementation.
 void ring(
-    detail::AllreduceOptionsImpl& opts,
+    const detail::AllreduceOptionsImpl& opts,
     ReduceRangeFunction reduceInputs,
     BroadcastRangeFunction broadcastOutputs);
 
@@ -36,8 +36,8 @@ void ring(
 // This is done prior to either sending a region to a neighbor, or
 // reducing a region received from a neighbor.
 ReduceRangeFunction genLocalReduceFunction(
-    BufferVector& in,
-    BufferVector& out,
+    const BufferVector& in,
+    const BufferVector& out,
     size_t elementSize,
     ReductionFunction fn) {
   if (in.size() > 0) {
@@ -77,7 +77,7 @@ ReduceRangeFunction genLocalReduceFunction(
 // Returns function that performs a local broadcast over outputs for a
 // given range in the buffers. This is executed after receiving every
 // globally reduced chunk.
-BroadcastRangeFunction genLocalBroadcastFunction(BufferVector& out) {
+BroadcastRangeFunction genLocalBroadcastFunction(const BufferVector& out) {
   return [&out](size_t offset, size_t length) {
     for (size_t i = 1; i < out.size(); i++) {
       memcpy(
@@ -88,10 +88,10 @@ BroadcastRangeFunction genLocalBroadcastFunction(BufferVector& out) {
   };
 }
 
-void allreduce(detail::AllreduceOptionsImpl& opts) {
+void allreduce(const detail::AllreduceOptionsImpl& opts) {
   const auto& context = opts.context;
-  std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
-  std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
+  const std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
+  const std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
   const auto slot = Slot::build(kAllreduceSlotPrefix, opts.tag);
 
   // Sanity checks
@@ -127,11 +127,11 @@ void allreduce(detail::AllreduceOptionsImpl& opts) {
 }
 
 void ring(
-    detail::AllreduceOptionsImpl& opts,
+    const detail::AllreduceOptionsImpl& opts,
     ReduceRangeFunction reduceInputs,
     BroadcastRangeFunction broadcastOutputs) {
   const auto& context = opts.context;
-  std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
+  const std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
   const auto slot = Slot::build(kAllreduceSlotPrefix, opts.tag);
   const size_t totalBytes = opts.elements * opts.elementSize;
 
@@ -370,7 +370,7 @@ void ring(
 
 } // namespace
 
-void allreduce(AllreduceOptions& opts) {
+void allreduce(const AllreduceOptions& opts) {
   allreduce(opts.impl_);
 }
 
