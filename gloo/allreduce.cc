@@ -8,8 +8,8 @@
 
 #include "gloo/allreduce.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cstring>
 
 #include "gloo/common/logging.h"
@@ -24,6 +24,12 @@ using BufferVector = std::vector<std::unique_ptr<transport::UnboundBuffer>>;
 using ReductionFunction = AllreduceOptions::Func;
 using ReduceRangeFunction = std::function<void(size_t, size_t)>;
 using BroadcastRangeFunction = std::function<void(size_t, size_t)>;
+
+// Forward declaration of ring algorithm implementation.
+void ring(
+    detail::AllreduceOptionsImpl& opts,
+    ReduceRangeFunction reduceInputs,
+    BroadcastRangeFunction broadcastOutputs);
 
 // Returns function that computes local reduction over inputs and
 // stores it in the output for a given range in those buffers.
@@ -82,9 +88,7 @@ BroadcastRangeFunction genLocalBroadcastFunction(BufferVector& out) {
   };
 }
 
-} // namespace
-
-void allreduce(AllreduceOptions& opts) {
+void allreduce(detail::AllreduceOptionsImpl& opts) {
   const auto& context = opts.context;
   std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
   std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
@@ -119,17 +123,29 @@ void allreduce(AllreduceOptions& opts) {
     return;
   }
 
+  ring(opts, reduceInputs, broadcastOutputs);
+}
+
+void ring(
+    detail::AllreduceOptionsImpl& opts,
+    ReduceRangeFunction reduceInputs,
+    BroadcastRangeFunction broadcastOutputs) {
+  const auto& context = opts.context;
+  std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
+  const auto slot = Slot::build(kAllreduceSlotPrefix, opts.tag);
+  const size_t totalBytes = opts.elements * opts.elementSize;
+
   // Note: context->size > 1
   const auto recvRank = (context->size + context->rank + 1) % context->size;
   const auto sendRank = (context->size + context->rank - 1) % context->size;
   GLOO_ENFORCE(
       context->getPair(recvRank),
       "missing connection between rank " + std::to_string(context->rank) +
-      " (this process) and rank " + std::to_string(recvRank));
+          " (this process) and rank " + std::to_string(recvRank));
   GLOO_ENFORCE(
       context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
-      " (this process) and rank " + std::to_string(sendRank));
+          " (this process) and rank " + std::to_string(sendRank));
 
   // The ring algorithm works as follows.
   //
@@ -350,6 +366,12 @@ void allreduce(AllreduceOptions& opts) {
       }
     }
   }
+}
+
+} // namespace
+
+void allreduce(AllreduceOptions& opts) {
+  allreduce(opts.impl_);
 }
 
 } // namespace gloo

@@ -17,101 +17,34 @@
 
 namespace gloo {
 
-class AllreduceOptions {
- public:
+namespace detail {
+
+struct AllreduceOptionsImpl {
+  // This type describes the function to use for element wise reduction.
+  //
+  // Its arguments are:
+  //   1. non-const output pointer
+  //   2. const input pointer 1 (may be equal to 1)
+  //   3. const input pointer 2 (may be equal to 1)
+  //   4. number of elements to reduce.
+  //
+  // Note that this function is not strictly typed and takes void pointers.
+  // This is specifically done to avoid the need for a templated options class
+  // and templated algorithm implementations. We found this adds very little
+  // value for the increase in compilation time and code size.
+  //
   using Func = std::function<void(void*, const void*, const void*, size_t)>;
 
-  explicit AllreduceOptions(const std::shared_ptr<Context>& context)
+  explicit AllreduceOptionsImpl(const std::shared_ptr<Context>& context)
       : context(context), timeout(context->getTimeout()) {}
 
-  template <typename T>
-  void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
-    std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs(1);
-    bufs[0] = std::move(buf);
-    setInputs<T>(std::move(bufs));
-  }
-
-  template <typename T>
-  void setInputs(std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs) {
-    this->elements = bufs[0]->size / sizeof(T);
-    this->elementSize = sizeof(T);
-    this->in = std::move(bufs);
-  }
-
-  template <typename T>
-  void setInput(T* ptr, size_t elements) {
-    setInputs(&ptr, 1, elements);
-  }
-
-  template <typename T>
-  void setInputs(std::vector<T*> ptrs, size_t elements) {
-    setInputs(ptrs.data(), ptrs.size(), elements);
-  }
-
-  template <typename T>
-  void setInputs(T** ptrs, size_t len, size_t elements) {
-    this->elements = elements;
-    this->elementSize = sizeof(T);
-    this->in.reserve(len);
-    for (size_t i = 0; i < len; i++) {
-      this->in.push_back(
-          context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
-    }
-  }
-
-  template <typename T>
-  void setOutput(std::unique_ptr<transport::UnboundBuffer> buf) {
-    std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs(1);
-    bufs[0] = std::move(buf);
-    setOutputs<T>(std::move(bufs));
-  }
-
-  template <typename T>
-  void setOutputs(std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs) {
-    this->elements = bufs[0]->size / sizeof(T);
-    this->elementSize = sizeof(T);
-    this->out = std::move(bufs);
-  }
-
-  template <typename T>
-  void setOutput(T* ptr, size_t elements) {
-    setOutputs(&ptr, 1, elements);
-  }
-
-  template <typename T>
-  void setOutputs(std::vector<T*> ptrs, size_t elements) {
-    setOutputs(ptrs.data(), ptrs.size(), elements);
-  }
-
-  template <typename T>
-  void setOutputs(T** ptrs, size_t len, size_t elements) {
-    this->elements = elements;
-    this->elementSize = sizeof(T);
-    this->out.reserve(len);
-    for (size_t i = 0; i < len; i++) {
-      this->out.push_back(
-          context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
-    }
-  }
-
-  void setReduceFunction(Func fn) {
-    this->reduce = fn;
-  }
-
-  void setTag(uint32_t tag) {
-    this->tag = tag;
-  }
-
-  void setMaxSegmentSize(size_t maxSegmentSize) {
-    this->maxSegmentSize = maxSegmentSize;
-  }
-
-  void setTimeout(std::chrono::milliseconds timeout) {
-    this->timeout = timeout;
-  }
-
- protected:
   std::shared_ptr<Context> context;
+
+  // End-to-end timeout for this operation.
+  std::chrono::milliseconds timeout;
+
+  // Input and output buffers.
+  // The output is used as input if input is not specified.
   std::vector<std::unique_ptr<transport::UnboundBuffer>> in;
   std::vector<std::unique_ptr<transport::UnboundBuffer>> out;
 
@@ -138,9 +71,105 @@ class AllreduceOptions {
   // (because they would require millions of elements if the default
   // were not configurable).
   size_t maxSegmentSize = kMaxSegmentSize;
+};
 
-  // End-to-end timeout for this operation.
-  std::chrono::milliseconds timeout;
+} // namespace detail
+
+class AllreduceOptions {
+ public:
+  using Func = detail::AllreduceOptionsImpl::Func;
+
+  explicit AllreduceOptions(const std::shared_ptr<Context>& context)
+      : impl_(context) {}
+
+  template <typename T>
+  void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {
+    std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs(1);
+    bufs[0] = std::move(buf);
+    setInputs<T>(std::move(bufs));
+  }
+
+  template <typename T>
+  void setInputs(std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs) {
+    impl_.elements = bufs[0]->size / sizeof(T);
+    impl_.elementSize = sizeof(T);
+    impl_.in = std::move(bufs);
+  }
+
+  template <typename T>
+  void setInput(T* ptr, size_t elements) {
+    setInputs(&ptr, 1, elements);
+  }
+
+  template <typename T>
+  void setInputs(std::vector<T*> ptrs, size_t elements) {
+    setInputs(ptrs.data(), ptrs.size(), elements);
+  }
+
+  template <typename T>
+  void setInputs(T** ptrs, size_t len, size_t elements) {
+    impl_.elements = elements;
+    impl_.elementSize = sizeof(T);
+    impl_.in.reserve(len);
+    for (size_t i = 0; i < len; i++) {
+      impl_.in.push_back(
+          impl_.context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
+    }
+  }
+
+  template <typename T>
+  void setOutput(std::unique_ptr<transport::UnboundBuffer> buf) {
+    std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs(1);
+    bufs[0] = std::move(buf);
+    setOutputs<T>(std::move(bufs));
+  }
+
+  template <typename T>
+  void setOutputs(std::vector<std::unique_ptr<transport::UnboundBuffer>> bufs) {
+    impl_.elements = bufs[0]->size / sizeof(T);
+    impl_.elementSize = sizeof(T);
+    impl_.out = std::move(bufs);
+  }
+
+  template <typename T>
+  void setOutput(T* ptr, size_t elements) {
+    setOutputs(&ptr, 1, elements);
+  }
+
+  template <typename T>
+  void setOutputs(std::vector<T*> ptrs, size_t elements) {
+    setOutputs(ptrs.data(), ptrs.size(), elements);
+  }
+
+  template <typename T>
+  void setOutputs(T** ptrs, size_t len, size_t elements) {
+    impl_.elements = elements;
+    impl_.elementSize = sizeof(T);
+    impl_.out.reserve(len);
+    for (size_t i = 0; i < len; i++) {
+      impl_.out.push_back(
+          impl_.context->createUnboundBuffer(ptrs[i], elements * sizeof(T)));
+    }
+  }
+
+  void setReduceFunction(Func fn) {
+    impl_.reduce = fn;
+  }
+
+  void setTag(uint32_t tag) {
+    impl_.tag = tag;
+  }
+
+  void setMaxSegmentSize(size_t maxSegmentSize) {
+    impl_.maxSegmentSize = maxSegmentSize;
+  }
+
+  void setTimeout(std::chrono::milliseconds timeout) {
+    impl_.timeout = timeout;
+  }
+
+ protected:
+  detail::AllreduceOptionsImpl impl_;
 
   friend void allreduce(AllreduceOptions&);
 };
