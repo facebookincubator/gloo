@@ -35,13 +35,24 @@ struct AllreduceOptionsImpl {
   //
   using Func = std::function<void(void*, const void*, const void*, size_t)>;
 
+  enum Algorithm {
+    UNSPECIFIED = 0,
+    RING = 1,
+    BCUBE = 2,
+  };
+
   explicit AllreduceOptionsImpl(const std::shared_ptr<Context>& context)
-      : context(context), timeout(context->getTimeout()) {}
+      : context(context),
+        timeout(context->getTimeout()),
+        algorithm(UNSPECIFIED) {}
 
   std::shared_ptr<Context> context;
 
   // End-to-end timeout for this operation.
   std::chrono::milliseconds timeout;
+
+  // Algorithm selection.
+  Algorithm algorithm;
 
   // Input and output buffers.
   // The output is used as input if input is not specified.
@@ -78,9 +89,14 @@ struct AllreduceOptionsImpl {
 class AllreduceOptions {
  public:
   using Func = detail::AllreduceOptionsImpl::Func;
+  using Algorithm = detail::AllreduceOptionsImpl::Algorithm;
 
   explicit AllreduceOptions(const std::shared_ptr<Context>& context)
       : impl_(context) {}
+
+  void setAlgorithm(Algorithm algorithm) {
+    impl_.algorithm = algorithm;
+  }
 
   template <typename T>
   void setInput(std::unique_ptr<transport::UnboundBuffer> buf) {

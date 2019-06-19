@@ -294,7 +294,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(allreduceBcube),
         ::testing::Values(4)));
 
-using NewParam = std::tuple<int, int, int, bool>;
+using Algorithm = AllreduceOptions::Algorithm;
+using NewParam = std::tuple<int, int, int, bool, Algorithm>;
 
 class AllreduceNewTest : public BaseTest,
                          public ::testing::WithParamInterface<NewParam> {};
@@ -304,12 +305,14 @@ TEST_P(AllreduceNewTest, Default) {
   auto numPointers = std::get<1>(GetParam());
   auto dataSize = std::get<2>(GetParam());
   auto inPlace = std::get<3>(GetParam());
+  auto algorithm = std::get<4>(GetParam());
 
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> inputs(context, numPointers, dataSize);
     Fixture<uint64_t> outputs(context, numPointers, dataSize);
 
     AllreduceOptions opts(context);
+    opts.setAlgorithm(algorithm);
     opts.setOutputs(outputs.getPointers(), dataSize);
     if (inPlace) {
       outputs.assignValues();
@@ -348,13 +351,24 @@ TEST_P(AllreduceNewTest, Default) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    AllreduceNewDefault,
+    AllreduceNewRing,
     AllreduceNewTest,
     ::testing::Combine(
         ::testing::Values(1, 2, 4, 7),
         ::testing::Values(1, 2, 3),
         ::testing::Values(1, 10, 100, 1000, 10000),
-        ::testing::Values(true, false)));
+        ::testing::Values(true, false),
+        ::testing::Values(Algorithm::RING)));
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceNewBcube,
+    AllreduceNewTest,
+    ::testing::Combine(
+        ::testing::Values(1, 2, 4, 7),
+        ::testing::Values(1, 2, 3),
+        ::testing::Values(1, 10, 100, 1000, 10000),
+        ::testing::Values(true, false),
+        ::testing::Values(Algorithm::BCUBE)));
 
 template <typename T>
 AllreduceOptions::Func getFunction() {

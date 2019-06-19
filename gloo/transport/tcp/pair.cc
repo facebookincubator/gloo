@@ -1013,9 +1013,11 @@ void Pair::send(
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf)->getWeakNonOwningPtr();
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LE(offset, tbuf->size);
   GLOO_ENFORCE_GE(nbytes, 0);
-  GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
+  if (nbytes > 0) {
+    GLOO_ENFORCE_LE(offset, tbuf->size);
+    GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
+  }
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
@@ -1047,9 +1049,11 @@ void Pair::recv(
   auto buf = static_cast<tcp::UnboundBuffer*>(tbuf)->getWeakNonOwningPtr();
 
   GLOO_ENFORCE_GE(offset, 0);
-  GLOO_ENFORCE_LE(offset, tbuf->size);
   GLOO_ENFORCE_GE(nbytes, 0);
-  GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
+  if (nbytes > 0) {
+    GLOO_ENFORCE_LE(offset, tbuf->size);
+    GLOO_ENFORCE_LE(nbytes, tbuf->size - offset);
+  }
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
