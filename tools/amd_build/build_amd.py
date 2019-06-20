@@ -57,6 +57,7 @@ if args.output_directory:
 
 includes = [
     os.path.join(args.root_dir, "*cuda*"),
+    os.path.join(args.root_dir, "*nccl*"),
 ]
 
 ignores = [

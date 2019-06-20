@@ -117,6 +117,22 @@ if(USE_ROCM)
   endif()
 endif()
 
+if(USE_ROCM AND USE_RCCL)
+  # NCCL_EXTERNAL is set if using the Caffe2 bundled version of NCCL
+  if(NCCL_EXTERNAL)
+    include_directories(SYSTEM ${NCCL_INCLUDE_DIRS})
+    list(APPEND gloo_hip_DEPENDENCY_LIBS ${NCCL_LIBRARIES} dl rt)
+  else()
+    find_package(rccl REQUIRED)
+    if(NCCL_FOUND)
+      include_directories(SYSTEM ${NCCL_INCLUDE_DIRS})
+      list(APPEND gloo_hip_DEPENDENCY_LIBS ${NCCL_LIBRARIES} dl rt)
+    else()
+      message(WARNING "Not compiling with RCCL support. Suppress this warning with -DUSE_RCCL=OFF.")
+      set(USE_RCCL OFF)
+    endif()
+  endif()
+endif()
 # Make sure we can find googletest if building the tests
 if(BUILD_TEST)
   # If the gtest target is already defined, we assume upstream knows

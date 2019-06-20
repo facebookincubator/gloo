@@ -61,16 +61,21 @@ if(USE_ROCM)
   file(GLOB GLOO_HIP_SRCS
     "${HIPIFY_OUTPUT_DIR}/hip*.cc"
     "${HIPIFY_OUTPUT_DIR}/hip*.hip"
+    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.hip"
     )
 
   file(GLOB GLOO_HIP_HDRS
     "${HIPIFY_OUTPUT_DIR}/hip*.h"
+    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.h"
     )
 endif()
 
 add_subdirectory(common)
 add_subdirectory(mpi)
 if(USE_CUDA AND USE_NCCL)
+  add_subdirectory(nccl)
+endif()
+if(USE_ROCM)
   add_subdirectory(nccl)
 endif()
 add_subdirectory(rendezvous)
@@ -92,6 +97,7 @@ endif()
 set(GLOO_USE_CUDA ${USE_CUDA})
 set(GLOO_USE_NCCL ${USE_NCCL})
 set(GLOO_USE_ROCM ${USE_ROCM})
+set(GLOO_USE_RCCL ${USE_RCCL})
 set(GLOO_USE_REDIS ${USE_REDIS})
 set(GLOO_USE_IBVERBS ${USE_IBVERBS})
 set(GLOO_USE_MPI ${USE_MPI})
