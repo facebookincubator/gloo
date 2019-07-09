@@ -59,8 +59,8 @@ CudaStream::CudaStream(int deviceId, cudaStream_t stream)
 CudaStream::CudaStream(CudaStream&& other) noexcept
     : deviceId_(other.deviceId_),
       stream_(other.stream_),
-      streamOwner_(other.streamOwner_),
-      event_(other.event_) {
+      event_(other.event_),
+      streamOwner_(other.streamOwner_) {
   other.deviceId_ = kInvalidDeviceId;
   other.stream_ = nullptr;
   other.event_ = nullptr;
