@@ -35,6 +35,14 @@ parser.add_argument(
     action='store_true',
     help="Only print the list of hipify files.")
 
+parser.add_argument(
+    '--root-dir',
+    type=str,
+    default="gloo",
+    help="The root directory of gloo project",
+    required=False)
+
+
 args = parser.parse_args()
 
 amd_build_dir = os.path.dirname(os.path.realpath(__file__))
@@ -48,7 +56,7 @@ if args.output_directory:
     out_dir = args.output_directory
 
 includes = [
-    "gloo/*cuda*",
+    os.path.join(args.root_dir, "*cuda*"),
 ]
 
 ignores = [
