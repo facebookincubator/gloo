@@ -45,10 +45,16 @@ CudaStream::CudaStream(int deviceId, cudaStream_t stream)
 
   // Create new stream if it wasn't specified
   if (stream_ == kStreamNotSet) {
+#ifndef __HIP_PLATFORM_HCC__
     int loPri, hiPri;
     CUDA_CHECK(cudaDeviceGetStreamPriorityRange(&loPri, &hiPri));
     CUDA_CHECK(cudaStreamCreateWithPriority(
                  &stream_, cudaStreamNonBlocking, hiPri));
+#else
+    // hipStreamCreateWithPriority is a new API introduced in ROCm 2.0
+    // it hangs on some distributed runs
+    CUDA_CHECK(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+#endif
     streamOwner_ = true;
   }
 
