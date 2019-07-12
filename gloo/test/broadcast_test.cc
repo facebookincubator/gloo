@@ -185,7 +185,7 @@ INSTANTIATE_TEST_CASE_P(
     BroadcastNewDefault,
     BroadcastNewTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::Values(1, 10, 100),
         ::testing::Values(false, true),
         ::testing::Values(false, true)));

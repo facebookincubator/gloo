@@ -31,12 +31,12 @@ void reduce(ReduceOptions& opts) {
   GLOO_ENFORCE(opts.reduce != nullptr);
   const auto recvRank = (context->size + context->rank + 1) % context->size;
   GLOO_ENFORCE(
-      context->getPair(recvRank),
+      recvRank == context->rank || context->getPair(recvRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(recvRank));
   const auto sendRank = (context->size + context->rank - 1) % context->size;
   GLOO_ENFORCE(
-      context->getPair(sendRank),
+      sendRank == context->rank || context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(sendRank));
 
@@ -47,6 +47,14 @@ void reduce(ReduceOptions& opts) {
 
   GLOO_ENFORCE_EQ(in->size, opts.elements * opts.elementSize);
   GLOO_ENFORCE_EQ(out->size, opts.elements * opts.elementSize);
+
+  // Short circuit if there is only a single process.
+  if (context->size == 1) {
+    if (in != out) {
+      memcpy(out->ptr, in->ptr, opts.elements * opts.elementSize);
+    }
+    return;
+  }
 
   // The ring algorithm works as follows.
   //

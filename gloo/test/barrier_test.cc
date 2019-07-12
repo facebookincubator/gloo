@@ -116,7 +116,7 @@ TEST_P(BarrierNewTest, Default) {
 INSTANTIATE_TEST_CASE_P(
     BarrierNewDefault,
     BarrierNewTest,
-    ::testing::Values(2, 4, 7));
+    ::testing::Values(1, 2, 4, 7));
 
 TEST_F(BarrierNewTest, TestTimeout) {
   spawn(2, [&](std::shared_ptr<Context> context) {

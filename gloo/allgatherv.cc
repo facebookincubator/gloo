@@ -78,12 +78,12 @@ void allgatherv(AllgathervOptions& opts) {
   GLOO_ENFORCE(opts.elementSize > 0);
   const auto recvRank = (context->size + context->rank - 1) % context->size;
   GLOO_ENFORCE(
-      context->getPair(recvRank),
+      recvRank == context->rank || context->getPair(recvRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(recvRank));
   const auto sendRank = (context->size + context->rank + 1) % context->size;
   GLOO_ENFORCE(
-      context->getPair(sendRank),
+      sendRank == context->rank || context->getPair(sendRank),
       "missing connection between rank " + std::to_string(context->rank) +
           " (this process) and rank " + std::to_string(sendRank));
 
@@ -103,10 +103,17 @@ void allgatherv(AllgathervOptions& opts) {
   // If the input buffer is specified, the output buffer needs to be primed.
   if (in != nullptr) {
     GLOO_ENFORCE_EQ(byteCounts[context->rank], in->size);
-    memcpy(
-        static_cast<uint8_t*>(out->ptr) + byteOffsets[context->rank],
-        static_cast<uint8_t*>(in->ptr),
-        in->size);
+    if (byteCounts[context->rank] > 0) {
+      memcpy(
+          static_cast<uint8_t*>(out->ptr) + byteOffsets[context->rank],
+          static_cast<uint8_t*>(in->ptr),
+          in->size);
+    }
+  }
+
+  // Short circuit if there is only a single process.
+  if (context->size == 1) {
+    return;
   }
 
   const auto baseIndex = context->size + context->rank;

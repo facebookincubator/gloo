@@ -67,7 +67,7 @@ INSTANTIATE_TEST_CASE_P(
     ScatterDefault,
     ScatterTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::ValuesIn(genMemorySizes())));
 
 TEST_F(ScatterTest, TestTimeout) {
