@@ -84,7 +84,7 @@ INSTANTIATE_TEST_CASE_P(
     AllgathervDefault,
     AllgathervTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::Values(1, 10, 100, 1000),
         ::testing::Values(false, true)));
 

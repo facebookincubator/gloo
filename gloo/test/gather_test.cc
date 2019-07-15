@@ -73,7 +73,7 @@ INSTANTIATE_TEST_CASE_P(
     GatherDefault,
     GatherTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::ValuesIn(genMemorySizes())));
 
 TEST_F(GatherTest, TestTimeout) {

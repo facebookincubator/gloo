@@ -162,7 +162,7 @@ INSTANTIATE_TEST_CASE_P(
     AllgatherNewDefault,
     AllgatherNewTest,
     ::testing::Combine(
-        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 4, 7),
         ::testing::ValuesIn(genMemorySizes()),
         ::testing::Values(false, true)));
 
