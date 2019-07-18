@@ -84,14 +84,12 @@ if(USE_ROCM)
     list(APPEND HIP_CXX_FLAGS -Wno-unused-command-line-argument)
     list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
     list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
-
-    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    list(APPEND HIP_CXX_FLAGS -fno-gpu-rdc)
+    list(APPEND HIP_CXX_FLAGS -Wno-defaulted-function-deleted)
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
-    list(APPEND HIP_HCC_FLAGS -fno-gpu-rdc)
-    list(APPEND HIP_HCC_FLAGS -Wno-defaulted-function-deleted)
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-      list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
+        list(APPEND HIP_CXX_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
     set(GLOO_HIP_INCLUDE
@@ -111,7 +109,7 @@ if(USE_ROCM)
       roc::rocblas roc::rocfft)
 
     set(GLOO_HIP_INCLUDE ${GLOO_HIP_INCLUDE} PARENT_SCOPE)
-  else(HAVE_HIP)
+  else()
     message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
     set(USE_ROCM OFF)
   endif()
