@@ -14,14 +14,13 @@
 # install RCCL in the same location as the CUDA toolkit.
 # See https://github.com/caffe2/caffe2/issues/1601
 
-set(RCCL_ROOT_DIR $ENV{RCCL_ROOT_DIR} CACHE PATH "Folder contains AMD RCCL")
+set(RCCL_ROOT_DIR $ENV{ROCM_PATH} CACHE PATH "Folder contains AMD RCCL")
 
 find_path(RCCL_INCLUDE_DIR
   NAMES rccl.h
   HINTS
   ${RCCL_INCLUDE_DIR}
-  ${RCCL_ROOT_DIR}
-  ${HIP_ROOT_DIR}/include)
+  ${RCCL_ROOT_DIR}/include)
 
 if ($ENV{USE_STATIC_RCCL})
   message(STATUS "USE_STATIC_RCCL detected. Linking against static RCCL library")
@@ -34,8 +33,7 @@ find_library(RCCL_LIBRARY
   NAMES ${RCCL_LIBNAME}
   HINTS
   ${RCCL_LIB_DIR}
-  ${RCCL_ROOT_DIR}
-  ${HIP_ROOT_DIR}/lib)
+  ${RCCL_ROOT_DIR}/lib)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(RCCL DEFAULT_MSG RCCL_INCLUDE_DIR RCCL_LIBRARY)
