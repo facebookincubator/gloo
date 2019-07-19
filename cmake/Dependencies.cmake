@@ -93,22 +93,14 @@ if(USE_ROCM)
     endforeach()
 
     set(GLOO_HIP_INCLUDE
-      ${hip_INCLUDE_DIRS} ${hcc_INCLUDE_DIRS} ${hsa_INCLUDE_DIRS} ${rocrand_INCLUDE_DIRS} ${hiprand_INCLUDE_DIRS} ${rocblas_INCLUDE_DIRS} ${miopen_INCLUDE_DIRS} ${thrust_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
+      ${hip_INCLUDE_DIRS} )
 
     # This is needed for library added by hip_add_library (same for hip_add_executable)
     hip_include_directories(${GLOO_HIP_INCLUDE})
 
     set(gloo_hip_DEPENDENCY_LIBS
-      ${rocrand_LIBRARIES} ${hiprand_LIBRARIES} ${hipsparse_LIBRARIES} ${GLOO_HIP_HCC_LIBRARIES} ${GLOO_MIOPEN_LIBRARIES})
+      ${GLOO_HIP_HCC_LIBRARIES} )
 
-    # Note [rocblas & rocfft cmake bug]
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # TODO: There is a bug in rocblas's & rocfft's cmake files that exports the wrong targets name in ${rocblas_LIBRARIES}
-    # If you get this wrong, you'll get a complaint like 'ld: cannot find -lrocblas-targets'
-    list(APPEND gloo_hip_DEPENDENCY_LIBS
-      roc::rocblas roc::rocfft)
-
-    set(GLOO_HIP_INCLUDE ${GLOO_HIP_INCLUDE} PARENT_SCOPE)
   else()
     message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
     set(USE_ROCM OFF)
