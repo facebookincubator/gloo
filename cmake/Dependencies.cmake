@@ -89,17 +89,16 @@ if(USE_ROCM)
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-        list(APPEND HIP_CXX_FLAGS --amdgpu-target=${gloo_rocm_arch})
+      list(APPEND HIP_CXX_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
-    set(GLOO_HIP_INCLUDE
-      ${hip_INCLUDE_DIRS} )
+    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS})
 
     # This is needed for library added by hip_add_library (same for hip_add_executable)
     hip_include_directories(${GLOO_HIP_INCLUDE})
 
-    set(gloo_hip_DEPENDENCY_LIBS
-      ${GLOO_HIP_HCC_LIBRARIES} )
+    set(gloo_hip_DEPENDENCY_LIBS ${GLOO_HIP_HCC_LIBRARIES})
 
   else()
     message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
@@ -108,19 +107,13 @@ if(USE_ROCM)
 endif()
 
 if(USE_ROCM AND USE_RCCL)
-  # RCCL_EXTERNAL is set if using the Caffe2 bundled version of RCCL
-  if(RCCL_EXTERNAL)
+  find_package(rccl)
+  if(RCCL_FOUND)
     include_directories(SYSTEM ${RCCL_INCLUDE_DIRS})
     list(APPEND gloo_hip_DEPENDENCY_LIBS ${RCCL_LIBRARIES} dl rt)
   else()
-    find_package(rccl REQUIRED)
-    if(RCCL_FOUND)
-      include_directories(SYSTEM ${RCCL_INCLUDE_DIRS})
-      list(APPEND gloo_hip_DEPENDENCY_LIBS ${RCCL_LIBRARIES} dl rt)
-    else()
-      message(WARNING "Not compiling with RCCL support. Suppress this warning with -DUSE_RCCL=OFF.")
-      set(USE_RCCL OFF)
-    endif()
+    message(WARNING "Not compiling with RCCL support. Suppress this warning with -DUSE_RCCL=OFF.")
+    set(USE_RCCL OFF)
   endif()
 endif()
 # Make sure we can find googletest if building the tests
