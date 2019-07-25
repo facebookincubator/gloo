@@ -84,39 +84,38 @@ if(USE_ROCM)
     list(APPEND HIP_CXX_FLAGS -Wno-unused-command-line-argument)
     list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
     list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
-
-    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    list(APPEND HIP_CXX_FLAGS -fno-gpu-rdc)
+    list(APPEND HIP_CXX_FLAGS -Wno-defaulted-function-deleted)
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
-    list(APPEND HIP_HCC_FLAGS -fno-gpu-rdc)
-    list(APPEND HIP_HCC_FLAGS -Wno-defaulted-function-deleted)
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-      list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
+      list(APPEND HIP_CXX_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
-    set(GLOO_HIP_INCLUDE
-      ${hip_INCLUDE_DIRS} ${hcc_INCLUDE_DIRS} ${hsa_INCLUDE_DIRS} ${rocrand_INCLUDE_DIRS} ${hiprand_INCLUDE_DIRS} ${rocblas_INCLUDE_DIRS} ${miopen_INCLUDE_DIRS} ${thrust_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
+    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS})
 
     # This is needed for library added by hip_add_library (same for hip_add_executable)
     hip_include_directories(${GLOO_HIP_INCLUDE})
 
-    set(gloo_hip_DEPENDENCY_LIBS
-      ${rocrand_LIBRARIES} ${hiprand_LIBRARIES} ${hipsparse_LIBRARIES} ${GLOO_HIP_HCC_LIBRARIES} ${GLOO_MIOPEN_LIBRARIES})
+    set(gloo_hip_DEPENDENCY_LIBS ${GLOO_HIP_HCC_LIBRARIES})
 
-    # Note [rocblas & rocfft cmake bug]
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # TODO: There is a bug in rocblas's & rocfft's cmake files that exports the wrong targets name in ${rocblas_LIBRARIES}
-    # If you get this wrong, you'll get a complaint like 'ld: cannot find -lrocblas-targets'
-    list(APPEND gloo_hip_DEPENDENCY_LIBS
-      roc::rocblas roc::rocfft)
-
-    set(GLOO_HIP_INCLUDE ${GLOO_HIP_INCLUDE} PARENT_SCOPE)
-  else(HAVE_HIP)
+  else()
     message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
     set(USE_ROCM OFF)
   endif()
 endif()
 
+if(USE_ROCM AND USE_RCCL)
+  find_package(rccl)
+  if(RCCL_FOUND)
+    include_directories(SYSTEM ${RCCL_INCLUDE_DIRS})
+    list(APPEND gloo_hip_DEPENDENCY_LIBS ${RCCL_LIBRARIES} dl rt)
+  else()
+    message(WARNING "Not compiling with RCCL support. Suppress this warning with -DUSE_RCCL=OFF.")
+    set(USE_RCCL OFF)
+  endif()
+endif()
 # Make sure we can find googletest if building the tests
 if(BUILD_TEST)
   # If the gtest target is already defined, we assume upstream knows
