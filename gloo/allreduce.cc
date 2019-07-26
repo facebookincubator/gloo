@@ -227,7 +227,9 @@ void ring(
   // segment size from the total number of segments.
   // If we don't do this, it is as if we pad the input size to
   // the closest multiple of the maximum segment size.
-  const size_t segmentBytes = (totalBytes + numSegments - 1) / numSegments;
+  const size_t segmentBytes = roundUp(
+      (totalBytes + numSegments - 1) / numSegments,
+      opts.elementSize);
 
   // Allocate scratch space to hold two chunks
   std::unique_ptr<uint8_t[]> tmpAllocation(new uint8_t[segmentBytes * 2]);
