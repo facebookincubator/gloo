@@ -196,7 +196,7 @@ void ring(
 
   // The number of bytes per segment must be a multiple of the bytes
   // per element for the reduction to work; round up if necessary.
-  const size_t segmentBytes = roundUp(
+  const size_t tmpSegmentBytes = roundUp(
       std::min(
           // Rounded division to have >= 2 segments per chunk.
           (totalBytes + (context->size * 2 - 1)) / (context->size * 2),
@@ -216,12 +216,18 @@ void ring(
   //
   const size_t numSegments = roundUp(
       std::max(
-          (totalBytes + (segmentBytes - 1)) / segmentBytes,
+          (totalBytes + (tmpSegmentBytes - 1)) / tmpSegmentBytes,
           (size_t)context->size * 2),
       (size_t)context->size);
   GLOO_ENFORCE_EQ(numSegments % context->size, 0);
   GLOO_ENFORCE_GE(numSegments, context->size * 2);
   const size_t numSegmentsPerRank = numSegments / context->size;
+
+  // To ensure proper balance across processes, compute the real
+  // segment size from the total number of segments.
+  // If we don't do this, it is as if we pad the input size to
+  // the closest multiple of the maximum segment size.
+  const size_t segmentBytes = (totalBytes + numSegments - 1) / numSegments;
 
   // Allocate scratch space to hold two chunks
   std::unique_ptr<uint8_t[]> tmpAllocation(new uint8_t[segmentBytes * 2]);
@@ -271,7 +277,7 @@ void ring(
     return result;
   };
 
-  for (auto i = 0; i < numSegments; i++) {
+  for (auto i = 0; i < (numSegments - numSegmentsPerRank + 2); i++) {
     if (i >= 2) {
       // Compute send and receive offsets and lengths two iterations
       // ago. Needed so we know when to wait for an operation and when
@@ -299,7 +305,7 @@ void ring(
     // iterations. At that point we have already sent all data we
     // needed to and only have to wait for the final segments to be
     // reduced into the output.
-    if (i < (numSegments - 2)) {
+    if (i < (numSegments - numSegmentsPerRank)) {
       // Compute send and receive offsets and lengths for this iteration.
       auto cur = computeReduceScatterOffsets(i);
       if (cur.recvLength > 0) {
@@ -351,7 +357,7 @@ void ring(
   // incompatible with the generic allgather algorithm where the
   // contribution is identical across processes.
   //
-  for (auto i = 0; i < numSegments; i++) {
+  for (auto i = 0; i < (numSegments - numSegmentsPerRank + 2); i++) {
     if (i >= 2) {
       auto prev = computeAllgatherOffsets(i - 2);
       if (prev.recvLength > 0) {
@@ -368,7 +374,7 @@ void ring(
     // iterations. At that point we have already sent all data we
     // needed to and only have to wait for the final segments to be
     // sent to the output.
-    if (i < (numSegments - 2)) {
+    if (i < (numSegments - numSegmentsPerRank)) {
       auto cur = computeAllgatherOffsets(i);
       if (cur.recvLength > 0) {
         out[0]->recv(recvRank, slot, cur.recvOffset, cur.recvLength);
