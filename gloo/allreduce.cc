@@ -263,6 +263,16 @@ void ring(
     return result;
   };
 
+  // Ring reduce/scatter.
+  //
+  // Number of iterations is computed as follows:
+  // - Take `numSegments` for the total number of segments,
+  // - Subtract `numSegmentsPerRank` because the final segments hold
+  //   the partial result and must not be forwarded in this phase.
+  // - Add 2 because we pipeline send and receive operations (we issue
+  //   send/recv operations on iterations 0 and 1 and wait for them to
+  //   complete on iterations 2 and 3).
+  //
   for (auto i = 0; i < (numSegments - numSegmentsPerRank + 2); i++) {
     if (i >= 2) {
       // Compute send and receive offsets and lengths two iterations
@@ -342,6 +352,9 @@ void ring(
   // Beware: totalBytes <= (numSegments * segmentBytes), which is
   // incompatible with the generic allgather algorithm where the
   // contribution is identical across processes.
+  //
+  // See comment prior to reduce/scatter loop on how the number of
+  // iterations for this loop is computed.
   //
   for (auto i = 0; i < (numSegments - numSegmentsPerRank + 2); i++) {
     if (i >= 2) {
