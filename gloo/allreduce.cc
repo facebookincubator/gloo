@@ -191,18 +191,8 @@ void ring(
   // rounding it up to the nearest multiple of the element size.
   // For example, if maxSegmentSize = 10, and elementSize = 4,
   // then after rounding up: segmentSize = 12;
-  const size_t maxSegmentSize =
-      opts.elementSize * (opts.maxSegmentSize / opts.elementSize);
-
-  // The number of bytes per segment must be a multiple of the bytes
-  // per element for the reduction to work; round up if necessary.
-  const size_t tmpSegmentBytes = roundUp(
-      std::min(
-          // Rounded division to have >= 2 segments per chunk.
-          (totalBytes + (context->size * 2 - 1)) / (context->size * 2),
-          // Configurable segment size limit
-          maxSegmentSize),
-      opts.elementSize);
+  const size_t maxSegmentBytes = opts.elementSize *
+      std::max((size_t)1, opts.maxSegmentSize / opts.elementSize);
 
   // Compute how many segments make up the input buffer.
   //
@@ -216,20 +206,14 @@ void ring(
   //
   const size_t numSegments = roundUp(
       std::max(
-          (totalBytes + (tmpSegmentBytes - 1)) / tmpSegmentBytes,
+          (totalBytes + (maxSegmentBytes - 1)) / maxSegmentBytes,
           (size_t)context->size * 2),
       (size_t)context->size);
   GLOO_ENFORCE_EQ(numSegments % context->size, 0);
   GLOO_ENFORCE_GE(numSegments, context->size * 2);
   const size_t numSegmentsPerRank = numSegments / context->size;
-
-  // To ensure proper balance across processes, compute the real
-  // segment size from the total number of segments.
-  // If we don't do this, it is as if we pad the input size to
-  // the closest multiple of the maximum segment size.
-  const size_t segmentBytes = roundUp(
-      (totalBytes + numSegments - 1) / numSegments,
-      opts.elementSize);
+  const size_t segmentBytes =
+      roundUp((totalBytes + numSegments - 1) / numSegments, opts.elementSize);
 
   // Allocate scratch space to hold two chunks
   std::unique_ptr<uint8_t[]> tmpAllocation(new uint8_t[segmentBytes * 2]);
