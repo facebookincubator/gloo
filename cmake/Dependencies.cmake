@@ -84,15 +84,16 @@ if(USE_ROCM)
     list(APPEND HIP_CXX_FLAGS -Wno-unused-command-line-argument)
     list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
     list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
-    list(APPEND HIP_CXX_FLAGS -fno-gpu-rdc)
-    list(APPEND HIP_CXX_FLAGS -Wno-defaulted-function-deleted)
+    
+    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
+    list(APPEND HIP_HCC_FLAGS -fno-gpu-rdc)
+    list(APPEND HIP_HCC_FLAGS -Wno-defaulted-function-deleted)
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-      list(APPEND HIP_CXX_FLAGS --amdgpu-target=${gloo_rocm_arch})
+      list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
-    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
     set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS})
 
     # This is needed for library added by hip_add_library (same for hip_add_executable)
