@@ -94,7 +94,7 @@ if(USE_ROCM)
       list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
-    set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS})
+    set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
 
     # This is needed for library added by hip_add_library (same for hip_add_executable)
     hip_include_directories(${GLOO_HIP_INCLUDE})
