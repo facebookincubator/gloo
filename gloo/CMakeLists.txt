@@ -102,10 +102,10 @@ set(GLOO_USE_REDIS ${USE_REDIS})
 set(GLOO_USE_IBVERBS ${USE_IBVERBS})
 set(GLOO_USE_MPI ${USE_MPI})
 set(GLOO_USE_AVX ${USE_AVX})
+set(GLOO_USE_LIBUV ${USE_LIBUV})
 configure_file(config.h.in config.h)
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
-target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
@@ -114,6 +114,11 @@ if(USE_ROCM)
   gloo_hip_add_library(gloo_hip ${GLOO_HIP_SRCS})
   target_link_libraries(gloo_hip gloo)
 endif()
+if(USE_LIBUV)
+  target_link_libraries(gloo PRIVATE uv_a)
+endif()
+
+target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
 
 # Add Interface include directories that are relocatable.
 target_include_directories(gloo INTERFACE $<INSTALL_INTERFACE:include>)

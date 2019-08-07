@@ -27,6 +27,31 @@ if(USE_IBVERBS)
   endif()
 endif()
 
+if(USE_LIBUV)
+  # If the Gloo build is included from another project's build, it may
+  # have already included libuv and we can use it directly here.
+  if(TARGET uv_a)
+    # Note: the CMake files in the libuv don't specify an include
+    # directory for the uv and uv_a targets. If you're including the
+    # Gloo build from your own project's build, and include libuv
+    # there as well, you may need to include the following to tack on
+    # the include path to the libuv targets.
+    #
+    #   set_target_properties(uv_a PROPERTIES
+    #     INTERFACE_INCLUDE_DIRECTORIES "${libuv_SOURCE_DIR}/include"
+    #     )
+    #
+  else()
+    include(FindPkgConfig)
+    pkg_search_module(libuv REQUIRED libuv>=1.29)
+    add_library(uv_a INTERFACE IMPORTED)
+    set_target_properties(uv_a PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
+      INTERFACE_LINK_LIBRARIES ${libuv_LIBDIR}/libuv_a.a
+      )
+  endif()
+endif()
+
 if(USE_MPI)
   find_package(MPI)
   if(MPI_C_FOUND)

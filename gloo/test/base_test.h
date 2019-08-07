@@ -15,10 +15,15 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/config.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/rendezvous/hash_store.h"
 #include "gloo/transport/tcp/device.h"
 #include "gloo/types.h"
+
+#if defined(GLOO_USE_LIBUV) && GLOO_USE_LIBUV
+#include "gloo/transport/uv/device.h"
+#endif
 
 namespace gloo {
 namespace test {
@@ -47,7 +52,18 @@ class Barrier {
 class BaseTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    device_ = ::gloo::transport::tcp::CreateDevice("localhost");
+    const auto gloo_test_transport = getenv("GLOO_TEST_TRANSPORT");
+    const std::string transport =
+        gloo_test_transport ? gloo_test_transport : "tcp";
+    if (transport == "tcp") {
+      device_ = ::gloo::transport::tcp::CreateDevice("localhost");
+    }
+#if defined(GLOO_USE_LIBUV) && GLOO_USE_LIBUV
+    if (transport == "uv") {
+      device_ = ::gloo::transport::uv::CreateDevice("localhost");
+    }
+#endif
+    GLOO_ENFORCE(device_, "Invalid GLOO_TEST_TRANSPORT");
   }
 
   void spawnThreads(int size, std::function<void(int)> fn) {

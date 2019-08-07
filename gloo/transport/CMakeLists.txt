@@ -21,6 +21,10 @@ if(USE_IBVERBS)
     add_subdirectory(ibverbs)
 endif()
 
+if(USE_LIBUV)
+  add_subdirectory(uv)
+endif()
+
 list(APPEND GLOO_SRCS ${GLOO_TRANSPORT_SRCS})
 list(APPEND GLOO_HDRS ${GLOO_TRANSPORT_HDRS})
 set(GLOO_SRCS ${GLOO_SRCS} PARENT_SCOPE)
