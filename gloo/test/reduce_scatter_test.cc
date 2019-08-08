@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/common/aligned_allocator.h"
 #include "gloo/reduce_scatter.h"
 #include "gloo/test/base_test.h"
 
