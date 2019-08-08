@@ -16,6 +16,7 @@
 #include "gloo/algorithm.h"
 #include "gloo/benchmark/options.h"
 #include "gloo/context.h"
+#include "gloo/common/aligned_allocator.h"
 #include "gloo/common/common.h"
 
 namespace gloo {

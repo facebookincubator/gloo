@@ -17,6 +17,7 @@
 #include "gloo/allreduce_halving_doubling.h"
 #include "gloo/allreduce_ring.h"
 #include "gloo/allreduce_ring_chunked.h"
+#include "gloo/common/aligned_allocator.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
