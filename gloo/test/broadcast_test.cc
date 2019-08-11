@@ -117,7 +117,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::Values(2),
         ::testing::Values(1),
-        ::testing::Values(512 * 1024 * 1024),
+        ::testing::Values((size_t)512 * 1024 * 1024),
         ::testing::Values(broadcastOneToAll)));
 
 using NewParam = std::tuple<int, int, bool, bool>;
