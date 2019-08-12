@@ -28,11 +28,11 @@
 #include "gloo/mpi/context.h"
 #endif
 
-#if GLOO_TRANSPORT_HAVE_TCP
+#if GLOO_HAVE_TRANSPORT_TCP
 #include "gloo/transport/tcp/device.h"
 #endif
 
-#if GLOO_TRANSPORT_HAVE_IBVERBS
+#if GLOO_HAVE_TRANSPORT_IBVERBS
 #include "gloo/transport/ibverbs/device.h"
 #endif
 
@@ -40,7 +40,7 @@ namespace gloo {
 namespace benchmark {
 
 Runner::Runner(const options& options) : options_(options) {
-#if GLOO_TRANSPORT_HAVE_TCP
+#if GLOO_HAVE_TRANSPORT_TCP
   if (options_.transport == "tcp") {
     if (options_.tcpDevice.empty()) {
       transport::tcp::attr attr;
@@ -54,7 +54,7 @@ Runner::Runner(const options& options) : options_(options) {
     }
   }
 #endif
-#if GLOO_TRANSPORT_HAVE_IBVERBS
+#if GLOO_HAVE_TRANSPORT_IBVERBS
   if (options_.transport == "ibverbs") {
     if (options_.ibverbsDevice.empty()) {
       transport::ibverbs::attr attr;
