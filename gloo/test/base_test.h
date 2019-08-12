@@ -15,10 +15,14 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/config.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/rendezvous/hash_store.h"
-#include "gloo/transport/tcp/device.h"
 #include "gloo/types.h"
+
+#if GLOO_HAVE_TRANSPORT_TCP
+#include "gloo/transport/tcp/device.h"
+#endif
 
 namespace gloo {
 namespace test {
@@ -47,7 +51,10 @@ class Barrier {
 class BaseTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
+#if GLOO_HAVE_TRANSPORT_TCP
     device_ = ::gloo::transport::tcp::CreateDevice("localhost");
+#endif
+    GLOO_ENFORCE(device_, "No transport device!");
   }
 
   void spawnThreads(int size, std::function<void(int)> fn) {
