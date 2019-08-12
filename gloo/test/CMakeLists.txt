@@ -10,6 +10,7 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/reduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"
   )
+set(GLOO_TEST_LIBRARIES)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   list(APPEND GLOO_TEST_SRCS
@@ -17,10 +18,11 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     "${CMAKE_CURRENT_SOURCE_DIR}/multiproc_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/transport_test.cc"
     )
+  list(APPEND GLOO_TEST_LIBRARIES rt)
 endif()
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
-target_link_libraries(gloo_test gloo gtest)
+target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
 
 if(USE_CUDA)
   set(GLOO_TEST_CUDA_SRCS
