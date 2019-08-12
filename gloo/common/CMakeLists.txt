@@ -1,5 +1,4 @@
 set(GLOO_COMMON_SRCS
-  "${CMAKE_CURRENT_SOURCE_DIR}/linux.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/logging.cc"
   )
 
@@ -7,11 +6,19 @@ set(GLOO_COMMON_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/aligned_allocator.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/common.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/error.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/linux.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/linux_devices.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/logging.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/string.h"
   )
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  list(APPEND GLOO_COMMON_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/linux.cc"
+    )
+  list(APPEND GLOO_COMMON_HDRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/linux.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/linux_devices.h"
+    )
+endif()
 
 list(APPEND GLOO_SRCS ${GLOO_COMMON_SRCS})
 list(APPEND GLOO_HDRS ${GLOO_COMMON_HDRS})
