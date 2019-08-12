@@ -18,8 +18,11 @@
 #include "gloo/config.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/rendezvous/hash_store.h"
-#include "gloo/transport/tcp/device.h"
 #include "gloo/types.h"
+
+#if GLOO_HAVE_TRANSPORT_TCP
+#include "gloo/transport/tcp/device.h"
+#endif
 
 namespace gloo {
 namespace test {
