@@ -90,7 +90,7 @@ class UnboundBuffer {
   // If the byte count argument is not specified, it will default the
   // number of bytes to be equal to the number of bytes remaining in
   // the buffer w.r.t. the offset.
-  constexpr auto kUnspecifiedByteCount = std::numeric_limits<size_t>::max();
+  static constexpr auto kUnspecifiedByteCount = std::numeric_limits<size_t>::max();
 
   virtual void send(
       int dstRank,
