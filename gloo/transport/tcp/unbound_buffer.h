@@ -38,10 +38,10 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   // If specified, the destination of this send is stored in the rank pointer.
   void waitSend(int* rank, std::chrono::milliseconds timeout) override;
 
-  void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes = 0)
+  void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes)
       override;
 
-  void recv(int srcRank, uint64_t slot, size_t offset, size_t nbytes = 0)
+  void recv(int srcRank, uint64_t slot, size_t offset, size_t nbytes)
       override;
 
   void recv(
