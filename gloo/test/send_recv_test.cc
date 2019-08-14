@@ -376,6 +376,52 @@ TEST_P(SendRecvTest, RecvFromAnyRPC) {
     });
 }
 
+TEST_P(SendRecvTest, RecvFromAnyRPCEmptyThenNonEmpty) {
+  auto contextSize = std::get<0>(GetParam());
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    constexpr uint64_t slot = 0x1337;
+    constexpr auto niters = 10;
+    size_t tmp0;
+    size_t tmp1;
+    auto buf0 = context->createUnboundBuffer(&tmp0, sizeof(tmp0));
+    auto buf1 = context->createUnboundBuffer(&tmp1, sizeof(tmp1));
+
+    if (context->rank == 0) {
+      // Compile vector of ranks to receive from
+      std::vector<int> allRanks;
+      for (auto i = 0; i < context->size; i++) {
+        if (i == context->rank) {
+          continue;
+        }
+        allRanks.push_back(i);
+      }
+      // Receive twice from every peer, niters times
+      for (auto i = 0; i < (niters * (context->size - 1)); i++) {
+        int rank;
+        // Receive from any peer first (0 bytes)
+        tmp0 = 0xdeadbeef;
+        buf0->recv(allRanks, slot, /* offset= */ 0, /* nbytes= */ 0);
+        buf0->waitRecv(&rank);
+        ASSERT_EQ(tmp0, 0xdeadbeef);
+        // Then receive from the same peer again
+        tmp1 = 0xdeadbeef;
+        buf1->recv(rank, slot);
+        buf1->waitRecv();
+        GLOO_ENFORCE_EQ(tmp1, rank);
+      }
+    } else {
+      for (auto i = 0; i < niters; i++) {
+        tmp0 = context->rank;
+        buf0->send(0, slot, /* offset= */ 0, /* nbytes= */ 0);
+        buf0->waitSend();
+        tmp1 = context->rank;
+        buf1->send(0, slot);
+        buf1->waitSend();
+      }
+    }
+  });
+}
+
 INSTANTIATE_TEST_CASE_P(
     SendRecvDefault,
     SendRecvTest,
