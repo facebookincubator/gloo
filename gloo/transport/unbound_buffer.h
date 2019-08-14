@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace gloo {
@@ -86,23 +87,28 @@ class UnboundBuffer {
         deadline - clock::now()));
   }
 
+  // If the byte count argument is not specified, it will default the
+  // number of bytes to be equal to the number of bytes remaining in
+  // the buffer w.r.t. the offset.
+  static constexpr auto kUnspecifiedByteCount = std::numeric_limits<size_t>::max();
+
   virtual void send(
       int dstRank,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = UINT64_MAX) = 0;
+      size_t nbytes = kUnspecifiedByteCount) = 0;
 
   virtual void recv(
       int srcRank,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = UINT64_MAX) = 0;
+      size_t nbytes = kUnspecifiedByteCount) = 0;
 
   virtual void recv(
       std::vector<int> srcRanks,
       uint64_t slot,
       size_t offset = 0,
-      size_t nbytes = UINT64_MAX) = 0;
+      size_t nbytes = kUnspecifiedByteCount) = 0;
 };
 
 } // namespace transport
