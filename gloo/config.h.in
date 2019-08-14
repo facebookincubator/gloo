@@ -31,3 +31,6 @@ static_assert(
 #cmakedefine01 GLOO_USE_IBVERBS
 #cmakedefine01 GLOO_USE_MPI
 #cmakedefine01 GLOO_USE_AVX
+
+#cmakedefine01 GLOO_HAVE_TRANSPORT_TCP
+#cmakedefine01 GLOO_HAVE_TRANSPORT_IBVERBS

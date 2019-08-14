@@ -70,6 +70,20 @@ if(USE_ROCM)
     )
 endif()
 
+# Compile TCP transport only on Linux (it uses epoll(2))
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  set(GLOO_HAVE_TRANSPORT_TCP 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_TCP 0)
+endif()
+
+# Compile ibverbs transport if libibverbs is available
+if(USE_IBVERBS)
+  set(GLOO_HAVE_TRANSPORT_IBVERBS 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_IBVERBS 0)
+endif()
+
 add_subdirectory(common)
 add_subdirectory(mpi)
 if(USE_CUDA AND USE_NCCL)

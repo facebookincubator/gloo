@@ -18,8 +18,8 @@
 #include "gloo/transport/device.h"
 
 // Check that configuration header was properly generated
-#if !GLOO_USE_IBVERBS
-#error "Expected GLOO_USE_IBVERBS to be defined"
+#if !GLOO_HAVE_TRANSPORT_IBVERBS
+#error "Expected GLOO_HAVE_TRANSPORT_IBVERBS to be defined"
 #endif
 
 namespace gloo {
