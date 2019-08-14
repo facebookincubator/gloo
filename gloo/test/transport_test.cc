@@ -16,11 +16,7 @@ namespace gloo {
 namespace test {
 namespace {
 
-enum IoMode {
-  Async,
-  Blocking,
-  Polling
-};
+enum IoMode { Async, Blocking, Polling };
 
 // Test parameterization.
 using Param = std::tuple<int, int, int, IoMode>;
@@ -30,7 +26,7 @@ class TransportMultiProcTest : public MultiProcTest,
                                public ::testing::WithParamInterface<Param> {};
 
 static void setMode(std::unique_ptr<transport::Pair>& pair, IoMode mode) {
-  switch(mode) {
+  switch (mode) {
     case IoMode::Async:
       // Async is default mode
       break;
@@ -52,32 +48,32 @@ TEST_P(TransportMultiProcTest, IoErrors) {
   const auto mode = std::get<3>(GetParam());
 
   spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
-      std::vector<float> data;
-      data.resize(elementCount);
-      std::unique_ptr<transport::Buffer> sendBuffer;
-      std::unique_ptr<transport::Buffer> recvBuffer;
+    std::vector<float> data;
+    data.resize(elementCount);
+    std::unique_ptr<transport::Buffer> sendBuffer;
+    std::unique_ptr<transport::Buffer> recvBuffer;
 
-      const auto& leftRank = (processCount + context->rank - 1) % processCount;
-      auto& left = context->getPair(leftRank);
-      setMode(left, mode);
-      recvBuffer = left->createRecvBuffer(
-      0, data.data(), data.size() * sizeof(float));
+    const auto& leftRank = (processCount + context->rank - 1) % processCount;
+    auto& left = context->getPair(leftRank);
+    setMode(left, mode);
+    recvBuffer =
+        left->createRecvBuffer(0, data.data(), data.size() * sizeof(float));
 
-      const auto& rightRank = (context->rank + 1) % processCount;
-      auto& right = context->getPair(rightRank);
-      setMode(right, mode);
-      sendBuffer = right->createSendBuffer(
-      0, data.data(), data.size() * sizeof(float));
+    const auto& rightRank = (context->rank + 1) % processCount;
+    auto& right = context->getPair(rightRank);
+    setMode(right, mode);
+    sendBuffer =
+        right->createSendBuffer(0, data.data(), data.size() * sizeof(float));
 
-      while (true) {
-        // Send value to the remote buffer
-        sendBuffer->send(0, sizeof(float));
-        sendBuffer->waitSend();
+    while (true) {
+      // Send value to the remote buffer
+      sendBuffer->send(0, sizeof(float));
+      sendBuffer->waitSend();
 
-        // Wait for receive
-        recvBuffer->waitRecv();
-      }
-    });
+      // Wait for receive
+      recvBuffer->waitRecv();
+    }
+  });
   if (sleepMs > 0) {
     // The test is specifically delaying before killing dependent processes.
     // The absolute time does not need to be deterministic.
@@ -91,7 +87,7 @@ TEST_P(TransportMultiProcTest, IoErrors) {
   signalProcess(0, SIGKILL);
   wait();
   const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
-    std::chrono::high_resolution_clock::now() - start);
+      std::chrono::high_resolution_clock::now() - start);
   ASSERT_LT(delta.count(), kMultiProcTimeout.count() / 2);
 
   for (auto i = 0; i < processCount; i++) {
@@ -109,30 +105,30 @@ TEST_P(TransportMultiProcTest, IoTimeouts) {
   const auto sleepMs = std::get<2>(GetParam());
 
   spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
-      std::vector<float> data;
-      data.resize(elementCount);
-      std::unique_ptr<transport::Buffer> sendBuffer;
-      std::unique_ptr<transport::Buffer> recvBuffer;
+    std::vector<float> data;
+    data.resize(elementCount);
+    std::unique_ptr<transport::Buffer> sendBuffer;
+    std::unique_ptr<transport::Buffer> recvBuffer;
 
-      const auto& leftRank = (processCount + context->rank - 1) % processCount;
-      auto& left = context->getPair(leftRank);
-      recvBuffer = left->createRecvBuffer(
-      0, data.data(), data.size() * sizeof(float));
+    const auto& leftRank = (processCount + context->rank - 1) % processCount;
+    auto& left = context->getPair(leftRank);
+    recvBuffer =
+        left->createRecvBuffer(0, data.data(), data.size() * sizeof(float));
 
-      const auto& rightRank = (context->rank + 1) % processCount;
-      auto& right = context->getPair(rightRank);
-      sendBuffer = right->createSendBuffer(
-      0, data.data(), data.size() * sizeof(float));
+    const auto& rightRank = (context->rank + 1) % processCount;
+    auto& right = context->getPair(rightRank);
+    sendBuffer =
+        right->createSendBuffer(0, data.data(), data.size() * sizeof(float));
 
-      while (true) {
-        // Send value to the remote buffer
-        sendBuffer->send(0, sizeof(float));
-        sendBuffer->waitSend();
+    while (true) {
+      // Send value to the remote buffer
+      sendBuffer->send(0, sizeof(float));
+      sendBuffer->waitSend();
 
-        // Wait for receive
-        recvBuffer->waitRecv();
-      }
-    });
+      // Wait for receive
+      recvBuffer->waitRecv();
+    }
+  });
   if (sleepMs > 0) {
     // The test is specifically delaying before killing dependent processes.
     // The absolute time does not need to be deterministic.

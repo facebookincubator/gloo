@@ -28,7 +28,7 @@ size_t readResidentSetSize() {
 class MemoryTest : public BaseTest {};
 
 TEST_F(MemoryTest, ManySlotsNoLeaks) {
-  spawn(2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     size_t tmp0;
     size_t tmp1;
     auto buf0 = context->createUnboundBuffer(&tmp0, sizeof(tmp0));

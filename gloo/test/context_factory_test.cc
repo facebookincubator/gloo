@@ -34,28 +34,28 @@ TEST_P(ContextStoreTest, RunAlgo) {
   auto fn = std::get<2>(GetParam());
 
   spawn(contextSize, [&](std::shared_ptr<Context> context) {
-      auto factory = std::make_shared<::gloo::rendezvous::ContextFactory>(
-        context);
-      for (int i = 0; i < repeatCount; ++i) {
-        auto usingContext = factory->makeContext(device_);
-        fn(usingContext);
-      }
-    });
+    auto factory =
+        std::make_shared<::gloo::rendezvous::ContextFactory>(context);
+    for (int i = 0; i < repeatCount; ++i) {
+      auto usingContext = factory->makeContext(device_);
+      fn(usingContext);
+    }
+  });
 }
 
 static std::function<Func> barrierAllToAll =
-  [](std::shared_ptr<::gloo::Context> context) {
-  ::gloo::BarrierAllToAll algorithm(context);
-  algorithm.run();
-};
+    [](std::shared_ptr<::gloo::Context> context) {
+      ::gloo::BarrierAllToAll algorithm(context);
+      algorithm.run();
+    };
 
 INSTANTIATE_TEST_CASE_P(
-  BarrierAllToAll,
-  ContextStoreTest,
-  ::testing::Combine(
-    ::testing::Range(2, 4),
-    ::testing::Values(10),
-    ::testing::Values(barrierAllToAll)));
+    BarrierAllToAll,
+    ContextStoreTest,
+    ::testing::Combine(
+        ::testing::Range(2, 4),
+        ::testing::Values(10),
+        ::testing::Values(barrierAllToAll)));
 } // namespace
 } // namespace test
 } // namespace gloo

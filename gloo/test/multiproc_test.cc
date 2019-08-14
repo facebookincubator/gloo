@@ -12,8 +12,8 @@
 #include <ftw.h>
 
 #include <array>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "gloo/common/error.h"
@@ -28,8 +28,7 @@ static std::string createTempDirectory() {
 }
 
 static int removeTree(const std::string& root) {
-  static auto fn = [](
-      const char* path, const struct stat*, int, struct FTW*) {
+  static auto fn = [](const char* path, const struct stat*, int, struct FTW*) {
     return remove(path);
   };
   return nftw(root.c_str(), fn, 20, FTW_DEPTH);
@@ -86,8 +85,7 @@ void MultiProcTest::signalProcess(int rank, int signal) {
   ASSERT_EQ(0, result);
 }
 
-void MultiProcTest::wait()
-{
+void MultiProcTest::wait() {
   for (auto i = 0; i < workers_.size(); i++) {
     waitProcess(i);
   }

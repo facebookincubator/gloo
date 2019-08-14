@@ -27,7 +27,7 @@ using Func = std::unique_ptr<::gloo::Algorithm>(
     std::vector<cudaStream_t> streams);
 
 // Test parameterization.
-using Param = std::tuple<int, int, int, std::function<Func>>;
+using Param = std::tuple<Transport, int, int, int, std::function<Func>>;
 
 // Test fixture.
 class CudaBroadcastTest : public CudaBaseTest,
@@ -43,113 +43,90 @@ class CudaBroadcastTest : public CudaBaseTest,
     // Verify all buffers passed by this instance
     for (const auto& ptr : fixture.getPointers()) {
       for (auto i = 0; i < fixture.count; i++) {
-        ASSERT_EQ((i * stride) + expected, ptr[i])
-          << "Mismatch at index " << i;
+        ASSERT_EQ((i * stride) + expected, ptr[i]) << "Mismatch at index " << i;
       }
     }
   }
 };
 
 TEST_P(CudaBroadcastTest, Default) {
-  auto processCount = std::get<0>(GetParam());
-  auto pointerCount = std::get<1>(GetParam());
-  auto elementCount = std::get<2>(GetParam());
-  auto fn = std::get<3>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto numPointers = std::get<2>(GetParam());
+  const auto dataSize = std::get<3>(GetParam());
+  const auto fn = std::get<4>(GetParam());
 
-  spawn(processCount, [&](std::shared_ptr<Context> context) {
-      auto fixture = CudaFixture<float>(context, pointerCount, elementCount);
-      auto ptrs = fixture.getCudaPointers();
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
+    auto fixture = CudaFixture<float>(context, numPointers, dataSize);
+    auto ptrs = fixture.getCudaPointers();
 
-      // Run with varying root
-      // TODO(PN): go up to processCount
-      for (auto rootProcessRank = 0;
-           rootProcessRank < 1;
-           rootProcessRank++) {
-        // TODO(PN): go up to pointerCount
-        for (auto rootPointerRank = 0;
-             rootPointerRank < 1;
-             rootPointerRank++) {
-          fixture.assignValues();
-          auto algorithm = fn(context,
-                              ptrs,
-                              elementCount,
-                              rootProcessRank,
-                              rootPointerRank,
-                              {});
-          algorithm->run();
+    // Run with varying root
+    // TODO(PN): go up to processCount
+    for (auto rootProcessRank = 0; rootProcessRank < 1; rootProcessRank++) {
+      // TODO(PN): go up to pointerCount
+      for (auto rootPointerRank = 0; rootPointerRank < 1; rootPointerRank++) {
+        fixture.assignValues();
+        auto algorithm = fn(
+            context, ptrs, elementCount, rootProcessRank, rootPointerRank, {});
+        algorithm->run();
 
-          // Verify result
-          assertResult(fixture, rootProcessRank, rootPointerRank);
-        }
+        // Verify result
+        assertResult(fixture, rootProcessRank, rootPointerRank);
       }
-    });
+    }
+  });
 }
 
 TEST_P(CudaBroadcastTest, DefaultAsync) {
-  auto processCount = std::get<0>(GetParam());
-  auto pointerCount = std::get<1>(GetParam());
-  auto elementCount = std::get<2>(GetParam());
-  auto fn = std::get<3>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto numPointers = std::get<2>(GetParam());
+  const auto dataSize = std::get<3>(GetParam());
+  const auto fn = std::get<4>(GetParam());
 
-  spawn(processCount, [&](std::shared_ptr<Context> context) {
-      auto fixture = CudaFixture<float>(context, pointerCount, elementCount);
-      auto ptrs = fixture.getCudaPointers();
-      auto streams = fixture.getCudaStreams();
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
+    auto fixture = CudaFixture<float>(context, numPointers, dataSize);
+    auto ptrs = fixture.getCudaPointers();
+    auto streams = fixture.getCudaStreams();
 
-      // Run with varying root
-      // TODO(PN): go up to processCount
-      for (auto rootProcessRank = 0;
-           rootProcessRank < 1;
-           rootProcessRank++) {
-        // TODO(PN): go up to pointerCount
-        for (auto rootPointerRank = 0;
-             rootPointerRank < 1;
-             rootPointerRank++) {
-          fixture.assignValuesAsync();
-          auto algorithm = fn(context,
-                              ptrs,
-                              elementCount,
-                              rootProcessRank,
-                              rootPointerRank,
-                              streams);
-          algorithm->run();
+    // Run with varying root
+    // TODO(PN): go up to contextSize
+    for (auto rootProcessRank = 0; rootProcessRank < numPointers; dataSize++) {
+      // TODO(PN): go up to pointerCount
+      for (auto rootPointerRank = 0; rootPointerRank < 1; rootPointerRank++) {
+        fixture.assignValuesAsync();
+        auto algorithm = fn(
+            context, ptrs, dataSize, rootProcessRank, rootPointerRank, streams);
+        algorithm->run();
 
-          // Verify result
-          fixture.synchronizeCudaStreams();
-          assertResult(fixture, rootProcessRank, rootPointerRank);
-        }
+        // Verify result
+        fixture.synchronizeCudaStreams();
+        assertResult(fixture, rootProcessRank, rootPointerRank);
       }
-    });
+    }
+  });
 }
 
-std::vector<int> genMemorySizes() {
-  std::vector<int> v;
-  v.push_back(sizeof(float));
-  v.push_back(100);
-  v.push_back(1000);
-  v.push_back(10000);
-  return v;
-}
-
-static std::function<Func> broadcastOneToAll = [](
-    std::shared_ptr<::gloo::Context>& context,
-    std::vector<float*> ptrs,
-    int count,
-    int rootProcessRank,
-    int rootPointerRank,
-    std::vector<cudaStream_t> streams) {
-  return std::unique_ptr<::gloo::Algorithm>(
-    new ::gloo::CudaBroadcastOneToAll<float>(
-      context, ptrs, count, rootProcessRank, rootPointerRank, streams));
-};
+static std::function<Func> broadcastOneToAll =
+    [](std::shared_ptr<::gloo::Context>& context,
+       std::vector<float*> ptrs,
+       int count,
+       int rootProcessRank,
+       int rootPointerRank,
+       std::vector<cudaStream_t> streams) {
+      return std::unique_ptr<::gloo::Algorithm>(
+          new ::gloo::CudaBroadcastOneToAll<float>(
+              context, ptrs, count, rootProcessRank, rootPointerRank, streams));
+    };
 
 INSTANTIATE_TEST_CASE_P(
     OneToAllBroadcast,
     CudaBroadcastTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForClassAlgorithms),
         ::testing::Values(2, 3, 4, 5),
         ::testing::Values(1, cudaNumDevices()),
-        ::testing::ValuesIn(genMemorySizes()),
+        ::testing::Values(4, 100, 1000, 10000),
         ::testing::Values(broadcastOneToAll)));
 
 } // namespace
