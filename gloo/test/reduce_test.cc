@@ -79,16 +79,6 @@ TEST_P(ReduceTest, Default) {
   });
 }
 
-std::vector<size_t> genMemorySizes() {
-  std::vector<size_t> v;
-  v.push_back(1);
-  v.push_back(10);
-  v.push_back(100);
-  v.push_back(1000);
-  v.push_back(10000);
-  return v;
-}
-
 INSTANTIATE_TEST_CASE_P(
     ReduceDefault,
     ReduceTest,
