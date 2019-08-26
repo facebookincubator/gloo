@@ -31,11 +31,25 @@ option(USE_REDIS "Support using Redis for rendezvous" ${USE_REDIS_DEFAULT})
 option(USE_IBVERBS "Support ibverbs transport" ${USE_IBVERBS_DEFAULT})
 option(USE_NCCL "Support using NCCL for local collectives" ${USE_NCCL_DEFAULT})
 option(USE_RCCL "Support using RCCL for local collectives" ${USE_RCCL_DEFAULT})
+option(SANITIZE_THREAD "Build with -fsanitize=thread" OFF)
 
 # Set default build type
 if(NOT CMAKE_BUILD_TYPE)
   message(STATUS "Build type not set -- defaulting to Release")
   set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+# Set thread sanitizer options.
+if(SANITIZE_THREAD)
+  # Build googletest from source to ensure it is built with -fPIC.
+  if(BUILD_TEST)
+    if(NOT EXISTS ${CMAKE_SOURCE_DIR}/third_party/googletest)
+      message(FATAL_ERROR "Please clone googletest into third_party/googletest")
+    endif()
+    add_subdirectory(third_party/googletest)
+  endif()
+  add_definitions("-fsanitize=thread")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
 endif()
 
 # Add install targets by default (override from parent project)
