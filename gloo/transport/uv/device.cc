@@ -433,6 +433,12 @@ void Device::listenCallback() {
   // Wait for remote side to write sequence number.
   handle->once<libuv::ReadEvent>(
       [=](const libuv::ReadEvent& event, libuv::TCP& handle) {
+        // Sequence number has been read. Either there is an existing
+        // connection callback for this sequence number, or we'll hold
+        // on to the handle while we wait for the pair to pass a
+        // connection callback for this sequence number. Either way,
+        // responsibility for this handle is passed to the pair and we
+        // must erase these temporary event listeners.
         handle.erase(endListener);
         handle.erase(errorListener);
         this->connectAsListenerCallback(handle.shared_from_this(), event);
