@@ -201,6 +201,7 @@ TEST_P(CudaAllreduceTest, MultiPointerAsync) {
   const auto base = std::get<4>(GetParam());
 
   spawn(
+    transport,
       contextSize,
       [&](std::shared_ptr<Context> context) {
         // Run algorithm
@@ -228,7 +229,7 @@ TEST_F(CudaAllreduceTest, MultipleAlgorithms) {
       allreduceHalvingDoublingPipelined,
   };
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     for (const auto& fn : fns) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, 1, dataSize);
@@ -264,10 +265,10 @@ TEST_F(CudaAllreduceTestHP, HalfPrecisionTest) {
   spawn(Transport::TCP, contextSize, [&](std::shared_ptr<Context> context) {
     for (const auto& fn : fns) {
       // Run algorithm
-      auto fixture = CudaFixture<float16>(context, 1, count);
+      auto fixture = CudaFixture<float16>(context, 1, dataSize);
       auto ptrs = fixture.getCudaPointers();
 
-      auto algorithm = fn(context, ptrs, count, {});
+      auto algorithm = fn(context, ptrs, dataSize, {});
       fixture.assignValues();
       algorithm->run();
 
