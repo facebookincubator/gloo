@@ -24,6 +24,10 @@
 #include "gloo/transport/tcp/device.h"
 #endif
 
+#if GLOO_HAVE_TRANSPORT_UV
+#include "gloo/transport/uv/device.h"
+#endif
+
 namespace gloo {
 namespace test {
 
@@ -50,6 +54,7 @@ class Barrier {
 
 enum Transport {
   TCP,
+  UV,
 };
 
 // Transports that instantiated algorithms can be tested against.
@@ -62,18 +67,29 @@ const std::vector<Transport> kTransportsForClassAlgorithms{
 // preferred over the instantiated style.
 const std::vector<Transport> kTransportsForFunctionAlgorithms{
     Transport::TCP,
+    Transport::UV,
 };
 
 class BaseTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {
+ private:
+  std::shared_ptr<::gloo::transport::Device> createDevice(
+      const Transport transport) {
 #if GLOO_HAVE_TRANSPORT_TCP
-    static auto dev = ::gloo::transport::tcp::CreateDevice("localhost");
-    return dev;
+    if (transport == Transport::TCP) {
+      static auto dev = ::gloo::transport::tcp::CreateDevice("localhost");
+      return dev;
+    }
 #endif
-    GLOO_ENFORCE(device_, "No transport device!");
+#if GLOO_HAVE_TRANSPORT_UV
+    if (transport == Transport::UV) {
+      static auto dev = ::gloo::transport::uv::CreateDevice("localhost");
+      return dev;
+    }
+#endif
+    return std::shared_ptr<::gloo::transport::Device>();
   }
 
+ protected:
   void spawnThreads(int size, std::function<void(int)> fn) {
     std::vector<std::thread> threads;
     std::vector<std::exception_ptr> errors;
@@ -105,10 +121,16 @@ class BaseTest : public ::testing::Test {
       int base = 2) {
     Barrier barrier(size);
     ::gloo::rendezvous::HashStore store;
+
+    auto device = createDevice(transport);
+    if (!device) {
+      return;
+    }
+
     spawnThreads(size, [&](int rank) {
       auto context =
           std::make_shared<::gloo::rendezvous::Context>(rank, size, base);
-      context->connectFullMesh(store, device_);
+      context->connectFullMesh(store, device);
 
       try {
         fn(context);
@@ -133,8 +155,6 @@ class BaseTest : public ::testing::Test {
       }
     });
   }
-
-  std::shared_ptr<::gloo::transport::Device> device_;
 };
 
 template <typename T>
