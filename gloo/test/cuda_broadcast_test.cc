@@ -67,7 +67,7 @@ TEST_P(CudaBroadcastTest, Default) {
       for (auto rootPointerRank = 0; rootPointerRank < 1; rootPointerRank++) {
         fixture.assignValues();
         auto algorithm = fn(
-            context, ptrs, elementCount, rootProcessRank, rootPointerRank, {});
+            context, ptrs, dataSize, rootProcessRank, rootPointerRank, {});
         algorithm->run();
 
         // Verify result
@@ -91,7 +91,7 @@ TEST_P(CudaBroadcastTest, DefaultAsync) {
 
     // Run with varying root
     // TODO(PN): go up to contextSize
-    for (auto rootProcessRank = 0; rootProcessRank < numPointers; dataSize++) {
+    for (auto rootProcessRank = 0; rootProcessRank < numPointers; rootProcessRank++) {
       // TODO(PN): go up to pointerCount
       for (auto rootPointerRank = 0; rootPointerRank < 1; rootPointerRank++) {
         fixture.assignValuesAsync();
