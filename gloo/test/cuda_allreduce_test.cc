@@ -229,7 +229,7 @@ TEST_F(CudaAllreduceTest, MultipleAlgorithms) {
       allreduceHalvingDoublingPipelined,
   };
 
-  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, contextSize, [&](std::shared_ptr<Context> context) {
     for (const auto& fn : fns) {
       // Run algorithm
       auto fixture = CudaFixture<float>(context, 1, dataSize);
