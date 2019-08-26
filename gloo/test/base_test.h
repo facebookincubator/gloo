@@ -69,7 +69,7 @@ class BaseTest : public ::testing::Test {
   virtual void SetUp() {
 #if GLOO_HAVE_TRANSPORT_TCP
     static auto dev = ::gloo::transport::tcp::CreateDevice("localhost");
-    return dev;
+    device_ = dev;
 #endif
     GLOO_ENFORCE(device_, "No transport device!");
   }

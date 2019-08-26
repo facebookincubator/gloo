@@ -201,7 +201,7 @@ TEST_P(CudaAllreduceTest, MultiPointerAsync) {
   const auto base = std::get<4>(GetParam());
 
   spawn(
-    transport,
+      transport,
       contextSize,
       [&](std::shared_ptr<Context> context) {
         // Run algorithm
