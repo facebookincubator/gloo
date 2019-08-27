@@ -48,11 +48,28 @@ class Barrier {
   std::condition_variable cv_;
 };
 
+enum Transport {
+  TCP,
+};
+
+// Transports that instantiated algorithms can be tested against.
+const std::vector<Transport> kTransportsForClassAlgorithms{
+    Transport::TCP,
+};
+
+// Transports that function algorithms can be tested against.
+// This is the new style of calling collectives and must be
+// preferred over the instantiated style.
+const std::vector<Transport> kTransportsForFunctionAlgorithms{
+    Transport::TCP,
+};
+
 class BaseTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
 #if GLOO_HAVE_TRANSPORT_TCP
-    device_ = ::gloo::transport::tcp::CreateDevice("localhost");
+    static auto dev = ::gloo::transport::tcp::CreateDevice("localhost");
+    device_ = dev;
 #endif
     GLOO_ENFORCE(device_, "No transport device!");
   }
@@ -82,6 +99,7 @@ class BaseTest : public ::testing::Test {
   }
 
   void spawn(
+      Transport transport,
       int size,
       std::function<void(std::shared_ptr<Context>)> fn,
       int base = 2) {
@@ -241,8 +259,10 @@ class Fixture<float16> {
     }
   }
 
-  void
-  checkBroadcastResult(Fixture<float16>& fixture, int root, int rootPointer) {
+  void checkBroadcastResult(
+      Fixture<float16>& fixture,
+      int root,
+      int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices
@@ -352,8 +372,10 @@ class Fixture<float> {
     }
   }
 
-  void
-  checkBroadcastResult(Fixture<float>& fixture, int root, int rootPointer) {
+  void checkBroadcastResult(
+      Fixture<float>& fixture,
+      int root,
+      int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices

@@ -23,17 +23,18 @@ namespace {
 using Func = void(std::shared_ptr<::gloo::Context>);
 
 // Test parameterization.
-using Param = std::tuple<int, std::function<Func>>;
+using Param = std::tuple<Transport, int, std::function<Func>>;
 
 // Test fixture.
 class BarrierTest : public BaseTest,
                     public ::testing::WithParamInterface<Param> {};
 
 TEST_P(BarrierTest, SinglePointer) {
-  auto contextSize = std::get<0>(GetParam());
-  auto fn = std::get<1>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto fn = std::get<2>(GetParam());
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     fn(context);
   });
 }
@@ -48,6 +49,7 @@ INSTANTIATE_TEST_CASE_P(
     BarrierAllToAll,
     BarrierTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForClassAlgorithms),
         ::testing::Range(2, 16),
         ::testing::Values(barrierAllToAll)));
 
@@ -61,6 +63,7 @@ INSTANTIATE_TEST_CASE_P(
     BarrierAllToOne,
     BarrierTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForClassAlgorithms),
         ::testing::Range(2, 16),
         ::testing::Values(barrierAllToOne)));
 
@@ -68,8 +71,7 @@ INSTANTIATE_TEST_CASE_P(
 // All processes participating in the specified context will
 // see the same value.
 template <typename clock>
-std::chrono::time_point<clock> syncNow(
-  std::shared_ptr<Context> context) {
+std::chrono::time_point<clock> syncNow(std::shared_ptr<Context> context) {
   const typename clock::time_point now = clock::now();
   typename clock::duration::rep count = now.time_since_epoch().count();
   BroadcastOptions opts(context);
@@ -79,14 +81,16 @@ std::chrono::time_point<clock> syncNow(
   return typename clock::time_point(typename clock::duration(count));
 }
 
-using NewParam = std::tuple<int>;
+using NewParam = std::tuple<Transport, int>;
 
 class BarrierNewTest : public BaseTest,
                        public ::testing::WithParamInterface<NewParam> {};
 
 TEST_P(BarrierNewTest, Default) {
-  auto contextSize = std::get<0>(GetParam());
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     BarrierOptions opts(context);
 
     // Run barrier to synchronize processes after starting.
@@ -116,10 +120,12 @@ TEST_P(BarrierNewTest, Default) {
 INSTANTIATE_TEST_CASE_P(
     BarrierNewDefault,
     BarrierNewTest,
-    ::testing::Values(1, 2, 4, 7));
+    ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
+        ::testing::Values(1, 2, 4, 7)));
 
 TEST_F(BarrierNewTest, TestTimeout) {
-  spawn(2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     BarrierOptions opts(context);
     opts.setTimeout(std::chrono::milliseconds(10));
     if (context->rank == 0) {
