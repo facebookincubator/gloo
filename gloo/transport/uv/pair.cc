@@ -169,7 +169,6 @@ void Pair::onClose(const libuv::CloseEvent& event, const libuv::TCP&) {
 void Pair::onEnd(const libuv::EndEvent& event, const libuv::TCP&) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    errno_ = UV_EOF;
     if (state_ == CONNECTED) {
       closeWhileHoldingPairLock();
     }
