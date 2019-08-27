@@ -37,7 +37,8 @@ TEST_P(ContextStoreTest, RunAlgo) {
     auto factory =
         std::make_shared<::gloo::rendezvous::ContextFactory>(context);
     for (int i = 0; i < repeatCount; ++i) {
-      auto usingContext = factory->makeContext(device_);
+      auto device = createDevice(Transport::TCP);
+      auto usingContext = factory->makeContext(device);
       fn(usingContext);
     }
   });

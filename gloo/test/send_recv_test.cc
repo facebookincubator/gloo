@@ -440,7 +440,7 @@ INSTANTIATE_TEST_CASE_P(
     SendRecvDefault,
     SendRecvTest,
     ::testing::Combine(
-        ::testing::Values(Transport::TCP),
+        ::testing::Values(Transport::TCP, Transport::UV),
         ::testing::Values(2, 3, 4, 5, 6, 7, 8),
         ::testing::Values(1)));
 
