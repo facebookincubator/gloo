@@ -383,7 +383,7 @@ class Request : public Resource<T, U>, public BaseRequest {
   template <typename F, typename... Args>
   typename std::enable_if<
       not std::is_void<typename std::result_of<F(Args...)>::type>::value,
-      typename std::result_of<F(Args...)>::type>
+      typename std::result_of<F(Args...)>::type>::type
   invoke(F&& f, Args&&... args) {
     auto err = std::forward<F>(f)(std::forward<Args>(args)...);
     if (err) {
@@ -391,6 +391,7 @@ class Request : public Resource<T, U>, public BaseRequest {
     } else {
       this->leak();
     }
+    return err;
   }
 
  public:
