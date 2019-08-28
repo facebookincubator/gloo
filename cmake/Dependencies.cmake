@@ -43,11 +43,19 @@ if(USE_LIBUV)
     #
   else()
     include(FindPkgConfig)
-    pkg_search_module(libuv REQUIRED libuv>=1.29)
+    pkg_search_module(libuv REQUIRED libuv>=1.26)
+    find_file(
+      libuv_LIBRARY
+      NAMES libuv.a libuv_a.a
+      PATHS ${libuv_LIBDIR}
+      NO_DEFAULT_PATH)
+    if(NOT EXISTS ${libuv_LIBRARY})
+      message(FATAL "Unable to find static libuv library in " ${libuv_LIBDIR})
+    endif()
     add_library(uv_a INTERFACE IMPORTED)
     set_target_properties(uv_a PROPERTIES
       INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
-      INTERFACE_LINK_LIBRARIES ${libuv_LIBDIR}/libuv_a.a
+      INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
       )
   endif()
 endif()
