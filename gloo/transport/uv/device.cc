@@ -8,10 +8,13 @@
 
 #include <gloo/transport/uv/device.h>
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <sstream>
+
+#include <uv.h>
 
 #include <gloo/common/error.h>
 #include <gloo/common/linux.h>
@@ -140,10 +143,11 @@ std::shared_ptr<transport::Device> CreateDevice(struct attr attr) {
     // Initialize attributes using hostname/IP address
     // If not already specified, use this machine's hostname
     if (attr.hostname.size() == 0) {
-      std::array<char, HOST_NAME_MAX> hostname;
-      auto rv = gethostname(hostname.data(), hostname.size());
+      std::array<char, UV_MAXHOSTNAMESIZE> hostname;
+      size_t size = hostname.size();
+      auto rv = uv_os_gethostname(hostname.data(), &size);
       GLOO_ENFORCE_EQ(rv, 0);
-      attr.hostname = hostname.data();
+      attr.hostname = std::string(hostname.data(), size);
     }
     lookupAddrForHostname(attr);
   }
