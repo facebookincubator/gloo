@@ -20,7 +20,7 @@ namespace uv {
 
 using count_t = PendingOpCount::count_t;
 
-ContextMutator::ContextMutator(Context& context, size_t slot, size_t rank)
+ContextMutator::ContextMutator(Context& context, uint64_t slot, uint64_t rank)
     : lock_(context.m_),
       context_(context),
       slot_(slot),
