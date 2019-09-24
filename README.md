@@ -83,6 +83,7 @@ Then build the benchmark, run:
 mkdir build
 cd build
 cmake ../ -DBUILD_BENCHMARK=1
+make
 ls -l gloo/benchmark/benchmark
 ```
 
