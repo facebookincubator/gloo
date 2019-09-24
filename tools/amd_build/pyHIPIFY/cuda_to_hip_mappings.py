@@ -2227,6 +2227,8 @@ GLOO_SPECIFIC_MAPPINGS = collections.OrderedDict([
     ("cudnn" ,("miopen", API_GLOO)),
     ("namespace cuda", ("namespace hip", API_GLOO)),
     ("gloo/cuda.h", ("gloo/hip.h", API_GLOO)),
+    ("<nccl.h>", ("<rccl.h>", API_GLOO)),
+    ("GLOO_USE_NCCL", ("GLOO_USE_RCCL", API_GLOO)),
 ])
 
 # NB: C10 mappings are more specific than Caffe2 mappings, so run them

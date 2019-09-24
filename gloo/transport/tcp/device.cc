@@ -96,6 +96,9 @@ static void lookupAddrForHostname(struct attr& attr) {
   hints.ai_family = attr.ai_family;
   hints.ai_socktype = SOCK_STREAM;
   struct addrinfo* result;
+  int bind_rv = 0;
+  int bind_errno = 0;
+  std::string bind_addr;
   auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
   GLOO_ENFORCE_NE(rv, -1);
   struct addrinfo* rp;
@@ -105,8 +108,10 @@ static void lookupAddrForHostname(struct attr& attr) {
       continue;
     }
 
-    rv = bind(fd, rp->ai_addr, rp->ai_addrlen);
-    if (rv == -1) {
+    bind_rv = bind(fd, rp->ai_addr, rp->ai_addrlen);
+    if (bind_rv == -1) {
+      bind_errno = errno;
+      bind_addr = Address(rp->ai_addr, rp->ai_addrlen).str();
       close(fd);
       continue;
     }
@@ -120,7 +125,17 @@ static void lookupAddrForHostname(struct attr& attr) {
     break;
   }
 
-  // Check that we found an address we were able to bind to
+  // If the final call to bind(2) failed, raise error saying so.
+  GLOO_ENFORCE(
+    bind_rv == 0,
+    "Unable to find address for ",
+    attr.hostname,
+    "; bind(2) for ",
+    bind_addr,
+    " failed with: ",
+    strerror(bind_errno));
+
+  // Verify that we were able to find an address in the first place.
   GLOO_ENFORCE(
     rp != nullptr,
     "Unable to find address for: ",

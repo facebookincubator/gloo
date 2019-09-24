@@ -28,11 +28,11 @@
 #include "gloo/mpi/context.h"
 #endif
 
-#if BENCHMARK_TCP
+#if GLOO_HAVE_TRANSPORT_TCP
 #include "gloo/transport/tcp/device.h"
 #endif
 
-#if BENCHMARK_IBVERBS
+#if GLOO_HAVE_TRANSPORT_IBVERBS
 #include "gloo/transport/ibverbs/device.h"
 #endif
 
@@ -40,7 +40,7 @@ namespace gloo {
 namespace benchmark {
 
 Runner::Runner(const options& options) : options_(options) {
-#ifdef BENCHMARK_TCP
+#if GLOO_HAVE_TRANSPORT_TCP
   if (options_.transport == "tcp") {
     if (options_.tcpDevice.empty()) {
       transport::tcp::attr attr;
@@ -54,7 +54,7 @@ Runner::Runner(const options& options) : options_(options) {
     }
   }
 #endif
-#ifdef BENCHMARK_IBVERBS
+#if GLOO_HAVE_TRANSPORT_IBVERBS
   if (options_.transport == "ibverbs") {
     if (options_.ibverbsDevice.empty()) {
       transport::ibverbs::attr attr;
@@ -249,7 +249,8 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
     // Create warmup jobs for every thread
     std::vector<std::unique_ptr<RunnerJob>> jobs;
     for (auto i = 0; i < options_.threads; i++) {
-      auto fn = [&benchmark = benchmarks[i]] { benchmark->run(); };
+      auto& benchmark = benchmarks[i];
+      auto fn = [&benchmark] { benchmark->run(); };
       auto job = make_unique<RunnerJob>(fn, options_.warmupIterationCount);
       jobs.push_back(std::move(job));
     }
@@ -277,7 +278,8 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
   // Create jobs for every thread
   std::vector<std::unique_ptr<RunnerJob>> jobs;
   for (auto i = 0; i < options_.threads; i++) {
-    auto fn = [&benchmark = benchmarks[i]] { benchmark->run(); };
+    auto& benchmark = benchmarks[i];
+    auto fn = [&benchmark] { benchmark->run(); };
     auto job = make_unique<RunnerJob>(fn, iterations);
     jobs.push_back(std::move(job));
   }

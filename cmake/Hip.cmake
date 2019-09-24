@@ -95,7 +95,7 @@ ELSE()
 ENDIF()
 
 IF(NOT DEFINED ENV{GLOO_ROCM_ARCH})
-  SET(GLOO_ROCM_ARCH gfx803;gfx900;gfx906)
+  SET(GLOO_ROCM_ARCH gfx900;gfx906)
 ELSE()
   SET(GLOO_ROCM_ARCH $ENV{GLOO_ROCM_ARCH})
 ENDIF()
@@ -114,44 +114,11 @@ IF(HIP_FOUND)
 
   set(CMAKE_HCC_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
   set(CMAKE_HCC_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-  ### Remove setting of Flags when FindHIP.CMake PR #558 is accepted.###
-
-  set(rocrand_DIR ${ROCRAND_PATH}/lib/cmake/rocrand)
-  set(hiprand_DIR ${HIPRAND_PATH}/lib/cmake/hiprand)
-  set(rocblas_DIR ${ROCBLAS_PATH}/lib/cmake/rocblas)
-  set(miopengemm_DIR ${MIOPENGEMM_PATH}/lib/cmake/miopengemm)
-  set(miopen_DIR ${MIOPEN_PATH}/lib/cmake/miopen)
-  set(rocfft_DIR ${ROCFFT_PATH}/lib/cmake/rocfft)
-  set(hipsparse_DIR ${HIPSPARSE_PATH}/lib/cmake/hipsparse)
-  set(rocsparse_DIR ${ROCSPARSE_PATH}/lib/cmake/rocsparse)
-
-  find_package(rocrand REQUIRED)
-  find_package(hiprand REQUIRED)
-  find_package(rocblas REQUIRED)
-  find_package(miopen REQUIRED)
-  find_package(miopengemm REQUIRED)
-  find_package(rocfft REQUIRED)
-  #find_package(hipsparse REQUIRED)
-  find_package(rocsparse REQUIRED)
-
-  # TODO: hip_hcc has an interface include flag "-hc" which is only
-  # recognizable by hcc, but not gcc and clang. Right now in our
-  # setup, hcc is only used for linking, but it should be used to
-  # compile the *_hip.cc files as well.
   FIND_LIBRARY(GLOO_HIP_HCC_LIBRARIES hip_hcc HINTS ${HIP_PATH}/lib)
-  # TODO: miopen_LIBRARIES should return fullpath to the library file,
-  # however currently it's just the lib name
-  FIND_LIBRARY(GLOO_MIOPEN_LIBRARIES ${miopen_LIBRARIES} HINTS ${MIOPEN_PATH}/lib)
-  FIND_LIBRARY(hiprand_LIBRARIES hiprand HINTS ${HIPRAND_PATH}/lib)
-  FIND_LIBRARY(rocsparse_LIBRARIES rocsparse HINTS ${ROCSPARSE_PATH}/lib)
-  FIND_LIBRARY(hipsparse_LIBRARIES hipsparse HINTS ${HIPSPARSE_PATH}/lib)
-
-
   # Necessary includes for building Gloo since we include HIP headers that depend on hcc/hsa headers.
   set(hcc_INCLUDE_DIRS ${HCC_PATH}/include)
   set(hsa_INCLUDE_DIRS ${HSA_PATH}/include)
 
-  set(thrust_INCLUDE_DIRS ${THRUST_PATH} ${THRUST_PATH}/thrust/system/cuda/detail/cub-hip)
 ENDIF()
 
 ################################################################################

@@ -61,16 +61,42 @@ if(USE_ROCM)
   file(GLOB GLOO_HIP_SRCS
     "${HIPIFY_OUTPUT_DIR}/hip*.cc"
     "${HIPIFY_OUTPUT_DIR}/hip*.hip"
+    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.hip"
     )
 
   file(GLOB GLOO_HIP_HDRS
     "${HIPIFY_OUTPUT_DIR}/hip*.h"
+    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.h"
     )
+endif()
+
+# Compile TCP transport only on Linux (it uses epoll(2))
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  set(GLOO_HAVE_TRANSPORT_TCP 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_TCP 0)
+endif()
+
+# Compile ibverbs transport if libibverbs is available
+if(USE_IBVERBS)
+  set(GLOO_HAVE_TRANSPORT_IBVERBS 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_IBVERBS 0)
+endif()
+
+# Compile uv transport if libuv is available
+if(USE_LIBUV)
+  set(GLOO_HAVE_TRANSPORT_UV 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_UV 0)
 endif()
 
 add_subdirectory(common)
 add_subdirectory(mpi)
 if(USE_CUDA AND USE_NCCL)
+  add_subdirectory(nccl)
+endif()
+if(USE_ROCM AND USE_RCCL)
   add_subdirectory(nccl)
 endif()
 add_subdirectory(rendezvous)
@@ -92,14 +118,15 @@ endif()
 set(GLOO_USE_CUDA ${USE_CUDA})
 set(GLOO_USE_NCCL ${USE_NCCL})
 set(GLOO_USE_ROCM ${USE_ROCM})
+set(GLOO_USE_RCCL ${USE_RCCL})
 set(GLOO_USE_REDIS ${USE_REDIS})
 set(GLOO_USE_IBVERBS ${USE_IBVERBS})
 set(GLOO_USE_MPI ${USE_MPI})
 set(GLOO_USE_AVX ${USE_AVX})
+set(GLOO_USE_LIBUV ${USE_LIBUV})
 configure_file(config.h.in config.h)
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
-target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
@@ -108,6 +135,11 @@ if(USE_ROCM)
   gloo_hip_add_library(gloo_hip ${GLOO_HIP_SRCS})
   target_link_libraries(gloo_hip gloo)
 endif()
+if(USE_LIBUV)
+  target_link_libraries(gloo PRIVATE uv_a)
+endif()
+
+target_link_libraries(gloo PRIVATE ${gloo_DEPENDENCY_LIBS})
 
 # Add Interface include directories that are relocatable.
 target_include_directories(gloo INTERFACE $<INSTALL_INTERFACE:include>)

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018-present, Facebook, Inc.
+ * Copyright (c) 2019-present, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
@@ -8,16 +8,17 @@
 
 #pragma once
 
-#include "gloo/common/memory.h"
-#include "gloo/transport/unbound_buffer.h"
+#include <gloo/transport/unbound_buffer.h>
 
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 
+#include <gloo/common/memory.h>
+
 namespace gloo {
 namespace transport {
-namespace tcp {
+namespace uv {
 
 // Forward declaration
 class Context;
@@ -25,10 +26,7 @@ class Pair;
 
 class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
  public:
-  UnboundBuffer(
-      const std::shared_ptr<Context>& context,
-      void* ptr,
-      size_t size);
+  UnboundBuffer(std::shared_ptr<Context> context, void* ptr, size_t size);
 
   virtual ~UnboundBuffer();
 
@@ -38,10 +36,10 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   // If specified, the destination of this send is stored in the rank pointer.
   void waitSend(int* rank, std::chrono::milliseconds timeout) override;
 
-  void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes)
+  void send(int dstRank, uint64_t tag, size_t offset, size_t nbytes = 0)
       override;
 
-  void recv(int srcRank, uint64_t slot, size_t offset, size_t nbytes)
+  void recv(int srcRank, uint64_t tag, size_t offset, size_t nbytes = 0)
       override;
 
   void recv(
@@ -56,7 +54,7 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
 
   std::shared_ptr<Context> context_;
 
-  std::mutex m_;
+  std::mutex mutex_;
   std::condition_variable recvCv_;
   std::condition_variable sendCv_;
 
@@ -64,14 +62,6 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   int recvRank_;
   int sendCompletions_;
   int sendRank_;
-
-  std::exception_ptr ex_;
-
-  // Throws if an exception if set.
-  void throwIfException();
-
-  // Set exception and wake up any waitRecv/waitSend threads.
-  void signalException(std::exception_ptr);
 
   // Allows for sharing weak (non owning) references to "this" without
   // affecting the lifetime of this instance.
@@ -86,6 +76,6 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   friend class Pair;
 };
 
-} // namespace tcp
+} // namespace uv
 } // namespace transport
 } // namespace gloo

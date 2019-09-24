@@ -40,7 +40,7 @@ class MultiProcTest : public ::testing::Test {
     return workerResults_[rank];
   }
 
-  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn) ;
+  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn);
 
  private:
   int runWorker(
@@ -53,7 +53,6 @@ class MultiProcTest : public ::testing::Test {
   sem_t* semaphore_;
   std::vector<pid_t> workers_;
   std::vector<int> workerResults_;
-
 };
 
 class MultiProcWorker {
@@ -75,8 +74,7 @@ class MultiProcWorker {
       int size,
       int rank,
       std::function<void(std::shared_ptr<Context>)> fn) {
-    auto context =
-      std::make_shared<::gloo::rendezvous::Context>(rank, size);
+    auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
     auto device = ::gloo::transport::tcp::CreateDevice("localhost");
     context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
     context->connectFullMesh(*store_, device);
