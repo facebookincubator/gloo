@@ -8,6 +8,7 @@
 
 #include "gloo/test/base_test.h"
 
+#include <algorithm>
 #include <array>
 #include <unordered_set>
 
