@@ -37,13 +37,12 @@ void TCP::uv__read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
     auto& segment = ref.reads_.front();
     segment.read(nread);
     if (segment.done()) {
-      auto event = segment.event();
+      ref.publish(segment.event());
       ref.reads_.pop_front();
       if (ref.reads_.empty()) {
         auto rv = uv_read_stop(ref.template get<uv_stream_t>());
         UV_ASSERT(rv, "uv_read_stop");
       }
-      ref.publish(std::move(event));
     }
   } else if (nread == UV_EOF) {
     ref.publish(EndEvent{});
