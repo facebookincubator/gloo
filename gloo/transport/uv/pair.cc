@@ -373,7 +373,10 @@ void Pair::writeOp(Op op) {
   // insertion or deletion on either end of the deque (see std::deque).
   const auto& ref = writeOps_.back();
   auto handle = handle_;
-  device_->defer([handle, ref] {
+
+  // Beware that we pass ref by reference for above reason.
+  // If it were a copy, the preamble would be invalid on lambda return.
+  device_->defer([handle, &ref] {
     handle->write((char*)&ref.preamble, sizeof(ref.preamble));
 
     // Also write buffer if applicable.
