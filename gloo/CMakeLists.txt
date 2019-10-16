@@ -127,6 +127,7 @@ set(GLOO_USE_LIBUV ${USE_LIBUV})
 configure_file(config.h.in config.h)
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
+set_property(TARGET gloo PROPERTY CXX_STANDARD 11)
 if(USE_CUDA)
   cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
