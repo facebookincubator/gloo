@@ -167,7 +167,9 @@ endforeach()
 
 # Set C++11 support
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-std=c++11")
+if((NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=c\\+\\+") AND (NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=gnu\\+\\+"
+  gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-std=c++11")
+endif()
 gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-Xcompiler -fPIC")
 
 mark_as_advanced(CUDA_BUILD_CUBIN CUDA_BUILD_EMULATION CUDA_VERBOSE_BUILD)
