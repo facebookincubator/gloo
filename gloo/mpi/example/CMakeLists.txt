@@ -1,4 +1,6 @@
 add_executable(main_managed main_managed.cc)
+set_property(TARGET main_managed PROPERTY CXX_STANDARD 11)
 target_link_libraries(main_managed gloo)
 add_executable(main_unmanaged main_unmanaged.cc)
 target_link_libraries(main_unmanaged gloo)
+set_property(TARGET main_unmanaged PROPERTY CXX_STANDARD 11)
