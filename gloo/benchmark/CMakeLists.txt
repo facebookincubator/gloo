@@ -5,6 +5,7 @@ set(GLOO_BENCHMARK_SRCS
   )
 
 add_executable(benchmark ${GLOO_BENCHMARK_SRCS})
+set_property(TARGET benchmark PROPERTY CXX_STANDARD 11)
 target_link_libraries(benchmark gloo)
 
 if(GLOO_INSTALL)
@@ -19,6 +20,8 @@ if(USE_CUDA)
     )
 
   cuda_add_executable(benchmark_cuda ${GLOO_BENCHMARK_CUDA_SRCS})
+  set_property(TARGET benchmark_cuda PROPERTY CXX_STANDARD 11)
+  
   target_link_libraries(benchmark_cuda gloo_cuda)
 
   if(GLOO_INSTALL)
@@ -34,6 +37,7 @@ if(USE_ROCM)
     )
 
   gloo_hip_add_executable(benchmark_hip ${GLOO_BENCHMARK_HIP_SRCS})
+  set_property(TARGET benchmark_hip PROPERTY CXX_STANDARD 11)
   target_link_libraries(benchmark_hip gloo_hip)
 
   if(GLOO_INSTALL)
