@@ -165,7 +165,7 @@ foreach(diag cc_clobber_ignored integer_sign_change useless_using_declaration se
   gloo_list_append_if_unique(CUDA_NVCC_FLAGS -Xcudafe --diag_suppress=${diag})
 endforeach()
 
-# Set C++11 support
+# If the project including us doesn't set any -std=xxx directly, we set it to C++11 here.
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 if((NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=c\\+\\+") AND (NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=gnu\\+\\+"))
   gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-std=c++11")
