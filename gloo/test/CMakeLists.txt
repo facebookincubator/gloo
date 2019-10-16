@@ -22,6 +22,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
+set_property(TARGET gloo_test PROPERTY CXX_STANDARD 11)
 target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
 
 if(USE_CUDA)
@@ -33,6 +34,7 @@ if(USE_CUDA)
     )
 
   cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
+  set_property(TARGET gloo_test_cuda PROPERTY CXX_STANDARD 11)
   target_link_libraries(gloo_test_cuda gloo_cuda gtest)
 endif()
 
@@ -45,5 +47,6 @@ if(USE_ROCM)
     )
 
   gloo_hip_add_executable(gloo_test_hip ${GLOO_TEST_HIP_SRCS})
+  set_property(TARGET gloo_test_hip PROPERTY CXX_STANDARD 11)
   target_link_libraries(gloo_test_hip gloo_hip gtest)
 endif()
