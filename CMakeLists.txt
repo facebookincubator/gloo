@@ -7,6 +7,8 @@ set(GLOO_VERSION_MINOR 5)
 set(GLOO_VERSION_PATCH 0)
 set(GLOO_VERSION
     "${GLOO_VERSION_MAJOR}.${GLOO_VERSION_MINOR}.${GLOO_VERSION_PATCH}")
+    
+set(CMAKE_CXX_STANDARD 11)
 
 # Gloo assumes 64-bit and doesn't run builds/tests for anything else.
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
