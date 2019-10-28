@@ -278,19 +278,24 @@ void Pair::onSendUnboundBuffer(const Op& op) {
 void Pair::onNotifySendReady(const Op& op) {
   const auto& tag = op.preamble.tag;
 
-  // Note that the current value may be negative if the
-  // corresponding recv's have already been posted.
-  ContextMutator mutator(*context_, tag, rank_);
-  const auto remotePendingSend = mutator.getRemotePendingSend();
+  // Acquire context lock through mutator.
+  Context::Mutator mutator(*context_, tag, rank_);
 
-  // If the balance of remote pending sends is not negative, check
-  // with the context whether or not there are any recv-from-any
-  // operations that this send can fulfill.
-  if (remotePendingSend >= 0) {
+  // If a receive operation was posted without there already being a
+  // corresponding send notification, we'll find a pending send
+  // notification and don't need to handle this send notification.
+  if (mutator.shiftExpectedSendNotification()) {
+    return;
+  }
+
+  {
+    // If we're ready to add it to the context wide pending operation
+    // tally, first check if there are any recv-from-any operations
+    // that this send operation can fulfill.
     WeakNonOwningPtr<UnboundBuffer> buf;
     size_t offset;
     size_t nbytes;
-    if (mutator.findRecvFromAny(&buf, &offset, &nbytes)) {
+    if (context_->findRecvFromAny(tag, rank_, &buf, &offset, &nbytes)) {
       localPendingRecv_[tag].emplace_back(std::move(buf), offset, nbytes);
       sendNotifyRecvReady(tag, nbytes);
       return;
@@ -298,7 +303,7 @@ void Pair::onNotifySendReady(const Op& op) {
   }
 
   // Increase balance of remote pending sends.
-  mutator.updateRemotePendingSend(1);
+  mutator.pushRemotePendingSend();
 }
 
 // Called on receiving a NOTIFY_RECV_READY operation.
@@ -333,8 +338,8 @@ void Pair::onNotifyRecvReady(const Op& op) {
   // Increase balance of remote pending recv.
   // Note that the current value CANNOT be negative, as sends
   // cannot execute until the remote side is ready to receive.
-  ContextMutator mutator(*context_, tag, rank_);
-  mutator.updateRemotePendingRecv(1);
+  Context::Mutator mutator(*context_, tag, rank_);
+  mutator.pushRemotePendingRecv();
 }
 
 // Called on write completion.
@@ -460,15 +465,14 @@ void Pair::send(
   // TODO(check if the pair is in the right state)
 
   // Execute this send if there is a remote pending receive.
-  ContextMutator mutator(*context_, tag, rank_);
-  if (mutator.getRemotePendingRecv() > 0) {
+  Context::Mutator mutator(*context_, tag, rank_);
+  if (mutator.shiftRemotePendingRecv()) {
     // We keep a count of remote pending send and receive operations.
     // In this code path the remote side hasn't seen a notification
     // for this send operation yet so we need to take special care
     // their count is updated regardless.
     sendNotifySendReady(tag, nbytes);
     sendUnboundBuffer(tag, NonOwningPtr<UnboundBuffer>(buf), offset, nbytes);
-    mutator.updateRemotePendingRecv(-1);
     return;
   }
 
@@ -492,15 +496,18 @@ void Pair::recv(
 
   std::unique_lock<std::mutex> lock(mutex_);
 
+  // If this recv happens before the send notification,
+  // we are still owed a send notification. Because this recv
+  // has already been posted, we have to make sure it doesn't
+  // hit the context wide tally.
+  Context::Mutator mutator(*context_, tag, rank_);
+  if (!mutator.shiftRemotePendingSend()) {
+    mutator.pushExpectedSendNotification();
+  }
+
   // Notify peer of this pending recv.
   localPendingRecv_[tag].emplace_back(std::move(buf), offset, nbytes);
   sendNotifyRecvReady(tag, nbytes);
-
-  // Decrease balance of remote pending sends.
-  // This results in a negative count if executed before
-  // receiving the send notification from our peer.
-  ContextMutator mutator(*context_, tag, rank_);
-  mutator.updateRemotePendingSend(-1);
 }
 
 bool Pair::tryRecv(
@@ -521,17 +528,14 @@ bool Pair::tryRecv(
   //    throwIfException();
 
   // Return early if there is no remote pending send.
-  ContextMutator mutator(*context_, tag, rank_);
-  if (mutator.getRemotePendingSend() <= 0) {
+  Context::Mutator mutator(*context_, tag, rank_);
+  if (!mutator.shiftRemotePendingSend()) {
     return false;
   }
 
   // Notify peer of this pending recv.
   localPendingRecv_[tag].emplace_back(std::move(buf), offset, nbytes);
   sendNotifyRecvReady(tag, nbytes);
-
-  // Decrease balance of remote pending sends.
-  mutator.updateRemotePendingSend(-1);
   return true;
 }
 
