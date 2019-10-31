@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "gloo/allgatherv.h"
-#include "gloo/common/common.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
