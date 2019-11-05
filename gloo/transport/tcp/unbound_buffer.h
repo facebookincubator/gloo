@@ -33,18 +33,10 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   virtual ~UnboundBuffer();
 
   // If specified, the source of this recv is stored in the rank pointer.
-  // Returns true if it completed, false if it was aborted.
-  bool waitRecv(int* rank, std::chrono::milliseconds timeout) override;
+  void waitRecv(int* rank, std::chrono::milliseconds timeout) override;
 
   // If specified, the destination of this send is stored in the rank pointer.
-  // Returns true if it completed, false if it was aborted.
-  bool waitSend(int* rank, std::chrono::milliseconds timeout) override;
-
-  // Aborts a pending waitRecv call.
-  void abortWaitRecv() override;
-
-  // Aborts a pending waitSend call.
-  void abortWaitSend() override;
+  void waitSend(int* rank, std::chrono::milliseconds timeout) override;
 
   void send(int dstRank, uint64_t slot, size_t offset, size_t nbytes)
       override;
@@ -67,8 +59,6 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   std::mutex m_;
   std::condition_variable recvCv_;
   std::condition_variable sendCv_;
-  bool abortWaitRecv_{false};
-  bool abortWaitSend_{false};
 
   int recvCompletions_;
   int recvRank_;
