@@ -20,7 +20,7 @@ jobs:
           name: Install dependencies
           command: |
             apt-get update
-            apt-get install -y build-essential cmake libibverbs << parameters.apt_get >>
+            apt-get install -y build-essential cmake << parameters.apt_get >>
       - run:
           name: Build
           command: |
@@ -28,7 +28,6 @@ jobs:
             cd build
             cmake ../ \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
-              -DBUILD_IBVERBS=ON \
               << parameters.cmake_args >>
             make
 
