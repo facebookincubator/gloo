@@ -9,6 +9,9 @@ jobs:
       apt_get:
         type: string
         default: ""
+      cmake_compiler:
+        type: string
+        default: ""
       cmake_args:
         type: string
         default: ""
@@ -17,10 +20,23 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install dependencies
+          name: Install apt packages
           command: |
             apt-get update
-            apt-get install -y build-essential cmake << parameters.apt_get >>
+            apt-get install -y build-essential cmake libibverbs-dev << parameters.apt_get >>
+      - run:
+          name: Install libuv
+          command: |
+            apt-get install -y wget pkg-config
+            wget -q https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
+            tar xf libuv-v1.26.0.tar.gz
+            cd libuv-v1.26.0
+            mkdir -p build
+            cd build
+            cmake ../ \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              << parameters.cmake_compiler >>
+            make install
       - run:
           name: Build
           command: |
@@ -28,6 +44,9 @@ jobs:
             cd build
             cmake ../ \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DUSE_IBVERBS=ON \
+              -DUSE_LIBUV=ON \
+              << parameters.cmake_compiler >> \
               << parameters.cmake_args >>
             make
 
@@ -38,12 +57,12 @@ workflows:
           name: gcc5
           docker_image: ubuntu:18.04
           apt_get: "gcc-5 g++-5"
-          cmake_args: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
+          cmake_compiler: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
       - build:
           name: clang6
           docker_image: ubuntu:18.04
           apt_get: "clang-6.0"
-          cmake_args: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang-6.0
+          cmake_compiler: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang-6.0
       - build:
           name: cuda9.2
           docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
