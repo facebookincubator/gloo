@@ -87,6 +87,11 @@ workflows:
           apt_get: "gcc-5 g++-5"
           cmake_compiler: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
       - build:
+          name: gcc7
+          docker_image: ubuntu:18.04
+          apt_get: "gcc-7 g++-7"
+          cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
+      - build:
           name: clang6
           docker_image: ubuntu:18.04
           apt_get: "clang-6.0"
