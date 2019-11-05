@@ -11,13 +11,13 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            set -e
             apt-get update
             apt-get install -y build-essential cmake ninja
       - run:
           name: Build
           command: |
-            set -e
+            pwd
+            env
             mkdir build
             cd build
             cmake ../ -GNinja
