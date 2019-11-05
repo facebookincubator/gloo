@@ -6,6 +6,9 @@ jobs:
       docker_image:
         type: string
         default: ""
+      apt_get:
+        type: string
+        default: ""
       cmake_args:
         type: string
         default: ""
@@ -17,13 +20,16 @@ jobs:
           name: Install dependencies
           command: |
             apt-get update
-            apt-get install -y build-essential cmake
+            apt-get install -y build-essential cmake libibverbs << parameters.apt_get >>
       - run:
           name: Build
           command: |
             mkdir build
             cd build
-            cmake ../ << parameters.cmake_args >>
+            cmake ../ \
+              -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DBUILD_IBVERBS=ON \
+              << parameters.cmake_args >>
             make
 
 workflows:
@@ -31,12 +37,19 @@ workflows:
     jobs:
       - build:
           name: gcc5
-          docker_image: ubuntu:16.04
+          docker_image: ubuntu:18.04
+          apt_get: "gcc-5 g++-5"
+          cmake_args: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
+      - build:
+          name: clang6
+          docker_image: ubuntu:18.04
+          apt_get: "clang-6.0"
+          cmake_args: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang-6.0
       - build:
           name: cuda9.2
           docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
-          cmake_args: "BUILD_CUDA=ON"
+          cmake_args: -DUSE_CUDA=ON
       - build:
           name: cuda10.1
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
-          cmake_args: "BUILD_CUDA=ON"
+          cmake_args: -DUSE_CUDA=ON
