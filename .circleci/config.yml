@@ -68,6 +68,10 @@ jobs:
               << parameters.cmake_compiler >> \
               << parameters.cmake_args >>
             make
+      - run:
+          name: Test
+          command: |
+            build/gloo/test/gloo_test
 
 workflows:
   build:
