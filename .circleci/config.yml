@@ -1,13 +1,22 @@
-version: 2
+version: 2.1
+
 jobs:
-  build:
+  cpu_gcc5:
     docker:
-      - image: debian:stretch
+      - image: ubuntu:16.04
     steps:
       - checkout
       - run:
-          name: Greeting
-          command: echo Hello, world.
+          name: Install dependencies
+          command: |
+            set -e
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake ninja
       - run:
-          name: Print the Current Time
-          command: date
+          name: Build
+          command: |
+            set -e
+            mkdir build
+            cd build
+            cmake ../ -GNinja
+            ninja
