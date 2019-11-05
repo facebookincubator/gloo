@@ -38,52 +38,60 @@ class UnboundBuffer {
   const size_t size;
 
   // If specified, the source of this recv is stored in the rank pointer.
-  virtual void waitRecv(int* rank, std::chrono::milliseconds timeout) = 0;
+  // Returns true if it completed, false if it was aborted.
+  virtual bool waitRecv(int* rank, std::chrono::milliseconds timeout) = 0;
 
   // If specified, the destination of this send is stored in the rank pointer.
-  virtual void waitSend(int* rank, std::chrono::milliseconds timeout) = 0;
+  // Returns true if it completed, false if it was aborted.
+  virtual bool waitSend(int* rank, std::chrono::milliseconds timeout) = 0;
+
+  // Aborts a pending waitRecv call.
+  virtual void abortWaitRecv() = 0;
+
+  // Aborts a pending waitSend call.
+  virtual void abortWaitSend() = 0;
 
   // Default overload.
-  void waitRecv() {
-    waitRecv(nullptr, kUnsetTimeout);
+  bool waitRecv() {
+    return waitRecv(nullptr, kUnsetTimeout);
   }
 
   // Default overload.
-  void waitSend() {
-    waitSend(nullptr, kUnsetTimeout);
+  bool waitSend() {
+    return waitSend(nullptr, kUnsetTimeout);
   }
 
   // Rank overload.
-  void waitRecv(int* rank) {
-    waitRecv(rank, kUnsetTimeout);
+  bool waitRecv(int* rank) {
+    return waitRecv(rank, kUnsetTimeout);
   }
 
   // Rank overload.
-  void waitSend(int* rank) {
-    waitSend(rank, kUnsetTimeout);
+  bool waitSend(int* rank) {
+    return waitSend(rank, kUnsetTimeout);
   }
 
   // Timeout overload.
-  void waitRecv(std::chrono::milliseconds timeout) {
-    waitRecv(nullptr, timeout);
+  bool waitRecv(std::chrono::milliseconds timeout) {
+    return waitRecv(nullptr, timeout);
   }
 
   // Timeout overload.
-  void waitSend(std::chrono::milliseconds timeout) {
-    waitSend(nullptr, timeout);
+  bool waitSend(std::chrono::milliseconds timeout) {
+    return waitSend(nullptr, timeout);
   }
 
   // Deadline overload.
   template <typename clock>
-  void waitRecv(std::chrono::time_point<clock> deadline) {
-    waitRecv(std::chrono::duration_cast<std::chrono::milliseconds>(
+  bool waitRecv(std::chrono::time_point<clock> deadline) {
+    return waitRecv(std::chrono::duration_cast<std::chrono::milliseconds>(
         deadline - clock::now()));
   }
 
   // Deadline overload.
   template <typename clock>
-  void waitSend(std::chrono::time_point<clock> deadline) {
-    waitSend(std::chrono::duration_cast<std::chrono::milliseconds>(
+  bool waitSend(std::chrono::time_point<clock> deadline) {
+    return waitSend(std::chrono::duration_cast<std::chrono::milliseconds>(
         deadline - clock::now()));
   }
 
