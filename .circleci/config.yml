@@ -6,6 +6,9 @@ jobs:
       docker_image:
         type: string
         default: ""
+      cmake_args:
+        type: string
+        default: ""
     docker:
       - image: << parameters.docker_image >>
     steps:
@@ -20,7 +23,7 @@ jobs:
           command: |
             mkdir build
             cd build
-            cmake ../
+            cmake ../ << parameters.cmake_args >>
             make
 
 workflows:
@@ -32,6 +35,8 @@ workflows:
       - build:
           name: cuda9.2
           docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
+          cmake_args: "BUILD_CUDA=ON"
       - build:
           name: cuda10.1
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
+          cmake_args: "BUILD_CUDA=ON"
