@@ -71,7 +71,9 @@ jobs:
       - run:
           name: Test
           command: |
-            build/gloo/test/gloo_test
+            # Exclude large broadcast test because it OOMs on CircleCI.
+            build/gloo/test/gloo_test \
+              --gtest_filter="-LargeBroadcast/BroadcastTest*"
 
 workflows:
   build:
