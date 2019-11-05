@@ -38,32 +38,31 @@ using Func16 = void(
     std::vector<int> recvCounts);
 
 // Test parameterization.
-using Param = std::tuple<int, int, std::function<Func>, int>;
-using ParamHP = std::tuple<int, int, std::function<Func16>>;
+using Param = std::tuple<Transport, int, int, std::function<Func>, int>;
+using ParamHP = std::tuple<Transport, int, int, std::function<Func16>>;
 
 template <typename Algorithm>
-class ReduceScatterConstructorTest : public BaseTest {
-};
+class ReduceScatterConstructorTest : public BaseTest {};
 
-static std::function<Func> reduceScatterHalvingDoubling = [](
-    std::shared_ptr<::gloo::Context> context,
-    std::vector<float*> dataPtrs,
-    int dataSize,
-    std::vector<int> recvCounts) {
-  ::gloo::ReduceScatterHalvingDoubling<float> algorithm(
-      context, dataPtrs, dataSize, recvCounts);
-  algorithm.run();
-};
+static std::function<Func> reduceScatterHalvingDoubling =
+    [](std::shared_ptr<::gloo::Context> context,
+       std::vector<float*> dataPtrs,
+       int dataSize,
+       std::vector<int> recvCounts) {
+      ::gloo::ReduceScatterHalvingDoubling<float> algorithm(
+          context, dataPtrs, dataSize, recvCounts);
+      algorithm.run();
+    };
 
-static std::function<Func16> reduceScatterHalvingDoublingHP = [](
-    std::shared_ptr<::gloo::Context> context,
-    std::vector<float16*> dataPtrs,
-    int dataSize,
-    std::vector<int> recvCounts) {
-  ::gloo::ReduceScatterHalvingDoubling<float16> algorithm(
-      context, dataPtrs, dataSize, recvCounts);
-  algorithm.run();
-};
+static std::function<Func16> reduceScatterHalvingDoublingHP =
+    [](std::shared_ptr<::gloo::Context> context,
+       std::vector<float16*> dataPtrs,
+       int dataSize,
+       std::vector<int> recvCounts) {
+      ::gloo::ReduceScatterHalvingDoubling<float16> algorithm(
+          context, dataPtrs, dataSize, recvCounts);
+      algorithm.run();
+    };
 
 // Test fixture.
 class ReduceScatterTest : public BaseTest,
@@ -73,12 +72,13 @@ class ReduceScatterTestHP : public BaseTest,
                             public ::testing::WithParamInterface<ParamHP> {};
 
 TEST_P(ReduceScatterTest, SinglePointer) {
-  auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-  auto fn = std::get<2>(GetParam());
-  auto base = std::get<3>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto dataSize = std::get<2>(GetParam());
+  const auto fn = std::get<3>(GetParam());
+  const auto base = std::get<4>(GetParam());
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
@@ -103,11 +103,14 @@ TEST_P(ReduceScatterTest, SinglePointer) {
 }
 
 TEST_F(ReduceScatterTest, MultipleAlgorithms) {
-  auto contextSize = 4;
-  auto dataSize = 1000;
-  auto fns = {reduceScatterHalvingDoubling};
+  const auto transport = Transport::TCP;
+  const auto contextSize = 4;
+  const auto dataSize = 1000;
+  const auto fns = {
+      reduceScatterHalvingDoubling,
+  };
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
@@ -145,11 +148,14 @@ TEST_F(ReduceScatterTest, MultipleAlgorithms) {
 }
 
 TEST_F(ReduceScatterTestHP, HalfPrecisionTest) {
-  int contextSize = 4;
-  auto dataSize = 1024;
-  auto fns = {reduceScatterHalvingDoublingHP};
+  const auto transport = Transport::TCP;
+  const auto contextSize = 4;
+  const auto dataSize = 1024;
+  const auto fns = {
+      reduceScatterHalvingDoublingHP,
+  };
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     const auto contextRank = context->rank;
     auto buffer = newBuffer<float16>(dataSize);
     auto* ptr = buffer.data();
@@ -179,9 +185,9 @@ INSTANTIATE_TEST_CASE_P(
     ReduceScatterHalvingDoubling,
     ReduceScatterTest,
     ::testing::Combine(
-        ::testing::ValuesIn(
-          std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32})),
-        ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
+        ::testing::ValuesIn(kTransportsForClassAlgorithms),
+        ::testing::Values(1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 16, 24, 32),
+        ::testing::Values(4, 100, 1000, 10000),
         ::testing::Values(reduceScatterHalvingDoubling),
         ::testing::Values(0)));
 

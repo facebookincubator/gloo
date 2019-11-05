@@ -15,18 +15,19 @@ namespace test {
 namespace {
 
 // Test parameterization.
-using Param = std::tuple<int, size_t, bool>;
+using Param = std::tuple<Transport, int, size_t, bool>;
 
 // Test fixture.
 class ReduceTest : public BaseTest,
                    public ::testing::WithParamInterface<Param> {};
 
 TEST_P(ReduceTest, Default) {
-  auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-  auto inPlace = std::get<2>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto dataSize = std::get<2>(GetParam());
+  const auto inPlace = std::get<3>(GetParam());
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     auto input = Fixture<uint64_t>(context, 1, dataSize);
     auto output = Fixture<uint64_t>(context, 1, dataSize);
 
@@ -78,22 +79,13 @@ TEST_P(ReduceTest, Default) {
   });
 }
 
-std::vector<size_t> genMemorySizes() {
-  std::vector<size_t> v;
-  v.push_back(1);
-  v.push_back(10);
-  v.push_back(100);
-  v.push_back(1000);
-  v.push_back(10000);
-  return v;
-}
-
 INSTANTIATE_TEST_CASE_P(
     ReduceDefault,
     ReduceTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
         ::testing::Values(1, 2, 4, 7),
-        ::testing::ValuesIn(genMemorySizes()),
+        ::testing::Values(1, 10, 100, 1000, 10000),
         ::testing::Values(true, false)));
 
 template <typename T>
@@ -103,7 +95,7 @@ ReduceOptions::Func getFunction() {
 }
 
 TEST_F(ReduceTest, TestTimeout) {
-  spawn(2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> outputs(context, 1, 1);
     ReduceOptions opts(context);
     opts.setOutput(outputs.getPointer(), 1);

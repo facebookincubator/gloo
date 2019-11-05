@@ -15,17 +15,18 @@ namespace test {
 namespace {
 
 // Test parameterization.
-using Param = std::tuple<int, size_t>;
+using Param = std::tuple<Transport, int, size_t>;
 
 // Test fixture.
 class ScatterTest : public BaseTest,
                     public ::testing::WithParamInterface<Param> {};
 
 TEST_P(ScatterTest, Default) {
-  auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto dataSize = std::get<2>(GetParam());
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     auto input = Fixture<uint64_t>(context, contextSize, dataSize);
     auto output = Fixture<uint64_t>(context, 1, dataSize);
 
@@ -67,11 +68,12 @@ INSTANTIATE_TEST_CASE_P(
     ScatterDefault,
     ScatterTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
         ::testing::Values(1, 2, 4, 7),
-        ::testing::ValuesIn(genMemorySizes())));
+        ::testing::Values(1, 10, 100)));
 
 TEST_F(ScatterTest, TestTimeout) {
-  spawn(2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> input(context, context->size, 1);
     Fixture<uint64_t> output(context, 1, 1);
     ScatterOptions opts(context);

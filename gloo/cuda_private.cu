@@ -8,7 +8,10 @@
 
 #include "gloo/cuda_private.h"
 
+#include <array>
+
 #include <cuda.h>
+
 // Disable strict aliasing errors for CUDA 9.
 #if CUDA_VERSION >= 9000
 #ifdef __GNUC__

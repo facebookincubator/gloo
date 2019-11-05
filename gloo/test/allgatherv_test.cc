@@ -11,24 +11,24 @@
 #include <vector>
 
 #include "gloo/allgatherv.h"
-#include "gloo/common/common.h"
 #include "gloo/test/base_test.h"
 
 namespace gloo {
 namespace test {
 namespace {
 
-using Param = std::tuple<int, int, bool>;
+using Param = std::tuple<Transport, int, int, bool>;
 
 class AllgathervTest : public BaseTest,
                        public ::testing::WithParamInterface<Param> {};
 
 TEST_P(AllgathervTest, Default) {
-  auto contextSize = std::get<0>(GetParam());
-  auto dataSize = std::get<1>(GetParam());
-  auto passBuffers = std::get<2>(GetParam());
+  const auto transport = std::get<0>(GetParam());
+  const auto contextSize = std::get<1>(GetParam());
+  const auto dataSize = std::get<2>(GetParam());
+  const auto passBuffers = std::get<3>(GetParam());
 
-  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     // This test uses the same output size for every iteration,
     // but assigns different counts to different ranks.
     std::vector<uint64_t> output(
@@ -84,12 +84,13 @@ INSTANTIATE_TEST_CASE_P(
     AllgathervDefault,
     AllgathervTest,
     ::testing::Combine(
+        ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
         ::testing::Values(1, 2, 4, 7),
         ::testing::Values(1, 10, 100, 1000),
         ::testing::Values(false, true)));
 
 TEST_F(AllgathervTest, TestTimeout) {
-  spawn(2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> output(context, 1, context->size);
     std::vector<size_t> counts({1, 1});
     AllgathervOptions opts(context);
