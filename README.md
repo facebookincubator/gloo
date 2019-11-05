@@ -1,6 +1,6 @@
 # Gloo
 
-[![Build Status](https://travis-ci.org/facebookincubator/gloo.svg?branch=master)](https://travis-ci.org/facebookincubator/gloo)
+[![CircleCI](https://circleci.com/gh/facebookincubator/gloo/tree/master.svg?style=svg)](https://circleci.com/gh/facebookincubator/gloo/tree/master)
 
 Gloo is a collective communications library. It comes with a number of
 collective algorithms useful for machine learning applications. These
@@ -83,6 +83,7 @@ Then build the benchmark, run:
 mkdir build
 cd build
 cmake ../ -DBUILD_BENCHMARK=1
+make
 ls -l gloo/benchmark/benchmark
 ```
 
