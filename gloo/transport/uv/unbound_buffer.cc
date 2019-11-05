@@ -33,7 +33,7 @@ UnboundBuffer::UnboundBuffer(
 UnboundBuffer::~UnboundBuffer() {}
 
 void UnboundBuffer::handleRecvCompletion(int rank) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::lock_guard<std::mutex> lock(mutex_variable_doesnt_exist_);
   recvCompletions_++;
   recvRank_ = rank;
   recvCv_.notify_one();
