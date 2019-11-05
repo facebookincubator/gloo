@@ -28,9 +28,27 @@ jobs:
           name: Install libuv
           command: |
             apt-get install -y wget pkg-config
-            wget -q https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
+            wget \
+              -q \
+              -O libuv-v1.26.0.tar.gz \
+              https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
             tar xf libuv-v1.26.0.tar.gz
             cd libuv-v1.26.0
+            mkdir -p build
+            cd build
+            cmake ../ \
+              -DCMAKE_INSTALL_PREFIX=/usr/local \
+              << parameters.cmake_compiler >>
+            make install
+      - run:
+          name: Install googletest
+          command: |
+            wget \
+              -q \
+              -O googletest-release-1.10.0.tar.gz \
+              https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+            tar xf googletest-release-1.10.0.tar.gz
+            cd googletest-release-1.10.0
             mkdir -p build
             cd build
             cmake ../ \
@@ -46,6 +64,7 @@ jobs:
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DUSE_IBVERBS=ON \
               -DUSE_LIBUV=ON \
+              -DBUILD_TEST=ON \
               << parameters.cmake_compiler >> \
               << parameters.cmake_args >>
             make
