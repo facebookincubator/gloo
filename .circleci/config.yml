@@ -94,7 +94,7 @@ workflows:
           name: clang6
           docker_image: ubuntu:18.04
           apt_get: "clang-6.0"
-          cmake_compiler: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang-6.0
+          cmake_compiler: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang++-6.0
       - build:
           name: cuda9.2
           docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
