@@ -11,6 +11,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
+            dpkg -l
             sudo apt-get update
             sudo apt-get install -y build-essential cmake ninja
       - run:
