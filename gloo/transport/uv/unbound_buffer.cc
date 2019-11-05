@@ -39,15 +39,27 @@ void UnboundBuffer::handleRecvCompletion(int rank) {
   recvCv_.notify_one();
 }
 
-void UnboundBuffer::waitRecv(int* rank, std::chrono::milliseconds timeout) {
+void UnboundBuffer::abortWaitRecv() {
+  std::lock_guard<std::mutex> guard(m_);
+  abortWaitRecv_ = true;
+  recvCv_.notify_one();
+}
+
+void UnboundBuffer::abortWaitSend() {
+  std::lock_guard<std::mutex> guard(m_);
+  abortWaitSend_ = true;
+  sendCv_.notify_one();
+}
+
+bool UnboundBuffer::waitRecv(int* rank, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (timeout == kUnsetTimeout) {
     timeout = context_->getTimeout();
   }
 
   if (recvCompletions_ == 0) {
-    auto done =
-        recvCv_.wait_for(lock, timeout, [&] { return recvCompletions_ > 0; });
+    auto done = recvCv_.wait_for(
+        lock, timeout, [&] { return abortWaitRecv_ || recvCompletions_ > 0; });
     if (!done) {
       throw ::gloo::IoException(GLOO_ERROR_MSG(
           "Timed out waiting ",
@@ -56,10 +68,16 @@ void UnboundBuffer::waitRecv(int* rank, std::chrono::milliseconds timeout) {
     }
   }
 
+  if (abortWaitRecv_) {
+    // Reset to false, so that only this waitRecv is interrupted
+    abortWaitRecv_ = false;
+    return false;
+  }
   recvCompletions_--;
   if (rank != nullptr) {
     *rank = recvRank_;
   }
+  return true;
 }
 
 void UnboundBuffer::handleSendCompletion(int rank) {
@@ -69,15 +87,15 @@ void UnboundBuffer::handleSendCompletion(int rank) {
   sendCv_.notify_one();
 }
 
-void UnboundBuffer::waitSend(int* rank, std::chrono::milliseconds timeout) {
+bool UnboundBuffer::waitSend(int* rank, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(mutex_);
   if (timeout == kUnsetTimeout) {
     timeout = context_->getTimeout();
   }
 
   if (sendCompletions_ == 0) {
-    auto done =
-        sendCv_.wait_for(lock, timeout, [&] { return sendCompletions_ > 0; });
+    auto done = sendCv_.wait_for(
+        lock, timeout, [&] { return abortWaitSend_ || sendCompletions_ > 0; });
     if (!done) {
       throw ::gloo::IoException(GLOO_ERROR_MSG(
           "Timed out waiting ",
@@ -86,10 +104,16 @@ void UnboundBuffer::waitSend(int* rank, std::chrono::milliseconds timeout) {
     }
   }
 
+  if (abortWaitSend_) {
+    // Reset to false, so that only this waitSend is interrupted
+    abortWaitSend_ = false;
+    return false;
+  }
   sendCompletions_--;
   if (rank != nullptr) {
     *rank = sendRank_;
   }
+  return true;
 }
 
 void UnboundBuffer::send(
