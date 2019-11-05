@@ -1,25 +1,37 @@
 version: 2.1
 
-# bump
-
 jobs:
   build:
+    parameters:
+      docker_image:
+        type: string
+        default: ""
     docker:
-      - image: circleci/buildpack-deps:xenial-scm
+      - image: << parameters.docker_image >>
     steps:
       - checkout
       - run:
           name: Install dependencies
           command: |
-            dpkg -l
-            sudo apt-get update
-            sudo apt-get install -y build-essential cmake ninja
+            apt-get update
+            apt-get install -y build-essential cmake
       - run:
           name: Build
           command: |
-            pwd
-            env
             mkdir build
             cd build
-            cmake ../ -GNinja
-            ninja
+            cmake ../
+            make
+
+workflows:
+  build:
+    jobs:
+      - build:
+          name: gcc5
+          docker_image: ubuntu:16.04
+      - build:
+          name: cuda9.2
+          docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
+      - build:
+          name: cuda10.1
+          docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
