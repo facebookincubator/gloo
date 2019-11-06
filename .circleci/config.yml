@@ -71,15 +71,16 @@ jobs:
       - run:
           name: Test
           command: |
-            # Exclude large broadcast test because it OOMs on CircleCI.
-            # Exclude multi-process transport tests because
-            # they appear to have some crashing problem...
             export TSAN_OPTIONS="suppressions=$PWD/.tsan-suppressions"
 
-            # Build list of tests to exclude.
-            EXCLUDE=""
-            EXCLUDE="LargeBroadcast/BroadcastTest*:$EXCLUDE"
+            # Exclude large broadcast test because it OOMs on CircleCI.
+            EXCLUDE="LargeBroadcast/BroadcastTest*"
+
+            # Exclude multi-process transport tests because
+            # they appear to have some crashing problem...
             EXCLUDE="Transport/TransportMultiProcTest*:$EXCLUDE"
+
+            # Exclude memory leak test for tsan job (false positive).
             if [ "$CIRCLE_JOB" == "tsan" ]; then
               EXCLUDE="MemoryTest.ManySlotsNoLeaks:$EXCLUDE"
             fi
