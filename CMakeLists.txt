@@ -55,6 +55,7 @@ endif()
 # Define sanitizer option, if specified.
 if(SANITIZE)
   add_definitions("-fsanitize=${SANITIZE}")
+  add_definitions("-fno-omit-frame-pointer")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=${SANITIZE}")
 endif()
 
