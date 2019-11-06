@@ -75,8 +75,16 @@ jobs:
             # Exclude multi-process transport tests because
             # they appear to have some crashing problem...
             export TSAN_OPTIONS="suppressions=$PWD/.tsan-suppressions"
-            build/gloo/test/gloo_test \
-              --gtest_filter="-LargeBroadcast/BroadcastTest*:Transport/TransportMultiProcTest*"
+
+            # Build list of tests to exclude.
+            EXCLUDE=""
+            EXCLUDE="LargeBroadcast/BroadcastTest*:$EXCLUDE"
+            EXCLUDE="Transport/TransportMultiProcTest*:$EXCLUDE"
+            if [ "$CIRCLE_JOB" == "tsan" ]; then
+              EXCLUDE="MemoryTest.ManySlotsNoLeaks:$EXCLUDE"
+            fi
+
+            build/gloo/test/gloo_test --gtest_filter="-$EXCLUDE"
 
 workflows:
   build:
@@ -108,4 +116,5 @@ workflows:
           name: tsan
           docker_image: ubuntu:18.04
           apt_get: "gcc-7 g++-7"
-          cmake_compiler: -DSANITIZE=thread
+          cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
+          cmake_args: -DCMAKE_BUILD_TYPE=Debug -DSANITIZE=thread
