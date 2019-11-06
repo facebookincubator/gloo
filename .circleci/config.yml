@@ -71,11 +71,21 @@ jobs:
       - run:
           name: Test
           command: |
+            export TSAN_OPTIONS="suppressions=$PWD/.tsan-suppressions"
+
             # Exclude large broadcast test because it OOMs on CircleCI.
+            EXCLUDE="LargeBroadcast/BroadcastTest*"
+
             # Exclude multi-process transport tests because
             # they appear to have some crashing problem...
-            build/gloo/test/gloo_test \
-              --gtest_filter="-LargeBroadcast/BroadcastTest*:Transport/TransportMultiProcTest*"
+            EXCLUDE="Transport/TransportMultiProcTest*:$EXCLUDE"
+
+            # Exclude memory leak test for tsan job (false positive).
+            if [ "$CIRCLE_JOB" == "tsan" ]; then
+              EXCLUDE="MemoryTest.ManySlotsNoLeaks:$EXCLUDE"
+            fi
+
+            build/gloo/test/gloo_test --gtest_filter="-$EXCLUDE"
 
 workflows:
   build:
@@ -103,3 +113,9 @@ workflows:
           name: cuda10.1
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
           cmake_args: -DUSE_CUDA=ON
+      - build:
+          name: tsan
+          docker_image: ubuntu:18.04
+          apt_get: "gcc-7 g++-7"
+          cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
+          cmake_args: -DCMAKE_BUILD_TYPE=Debug -DSANITIZE=thread

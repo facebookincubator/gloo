@@ -52,6 +52,13 @@ if(SCCACHE_EXECUTABLE)
   endforeach()
 endif()
 
+# Define sanitizer option, if specified.
+if(SANITIZE)
+  add_definitions("-fsanitize=${SANITIZE}")
+  add_definitions("-fno-omit-frame-pointer")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=${SANITIZE}")
+endif()
+
 # Add install targets by default (override from parent project)
 set(GLOO_INSTALL ON CACHE BOOL "")
 mark_as_advanced(GLOO_INSTALL)
