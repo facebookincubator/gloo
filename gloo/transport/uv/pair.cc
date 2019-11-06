@@ -154,10 +154,13 @@ void Pair::readNextOp() {
 // Locking requirements: none.
 //
 void Pair::onClose(const libuv::CloseEvent& event, const libuv::TCP&) {
-  {
-    std::unique_lock<std::mutex> lock(mutex_);
-    state_ = CLOSED;
-  }
+  std::unique_lock<std::mutex> lock(mutex_);
+  state_ = CLOSED;
+
+  // Hold the lock while notifying waiting threads. If the thread
+  // executing `Pair::~Pair` is woken up, then we'll trigger a data
+  // race between notification and destruction of the condition
+  // variable (as reported by tsan).
   cv_.notify_all();
 }
 
