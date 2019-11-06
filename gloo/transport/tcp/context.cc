@@ -192,7 +192,10 @@ bool Context::findRecvFromAny(
 }
 
 void Context::signalException(const std::string& msg) {
-  std::unique_lock<std::mutex> lock(m_);
+  // The `pairs_` vector is logically constant. After the context and
+  // all of its pairs have been created it is not mutated until the
+  // context is destructed. Therefore, we don't need to acquire this
+  // context's instance lock before looping over `pairs_`.
   for (auto& pair : pairs_) {
     if (pair) {
       reinterpret_cast<tcp::Pair*>(pair.get())->signalExceptionExternal(msg);
