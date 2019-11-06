@@ -40,6 +40,18 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+# Use CMAKE_<LANG>_COMPILER_LAUNCHER if available.
+find_program(SCCACHE_EXECUTABLE sccache)
+mark_as_advanced(SCCACHE_EXECUTABLE)
+if(SCCACHE_EXECUTABLE)
+  foreach(LANG CXX C)
+    if(NOT DEFINED CMAKE_${LANG}_COMPILER_LAUNCHER AND NOT CMAKE_${LANG}_COMPILER MATCHES ".*/s?ccache$")
+      message(STATUS "Enabling sccache for ${LANG}")
+      set(CMAKE_${LANG}_COMPILER_LAUNCHER ${SCCACHE_EXECUTABLE} CACHE STRING "")
+    endif()
+  endforeach()
+endif()
+
 # Add install targets by default (override from parent project)
 set(GLOO_INSTALL ON CACHE BOOL "")
 mark_as_advanced(GLOO_INSTALL)
