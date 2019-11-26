@@ -8,14 +8,20 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
-#include "gloo/transport/context.h"
-#include "gloo/transport/device.h"
-#include "gloo/transport/pair.h"
+#include <gloo/transport/pair.h>
 
 namespace gloo {
+
+// There is no need to materialize all transport types here.
+namespace transport {
+class Context;
+class Device;
+class UnboundBuffer;
+}
 
 class Context {
  public:
@@ -49,7 +55,6 @@ class Context {
   std::shared_ptr<transport::Context> transportContext_;
   int slot_;
   std::chrono::milliseconds timeout_;
-
 };
 
 } // namespace gloo

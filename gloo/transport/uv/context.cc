@@ -18,60 +18,6 @@ namespace gloo {
 namespace transport {
 namespace uv {
 
-using count_t = PendingOpCount::count_t;
-
-ContextMutator::ContextMutator(Context& context, uint64_t slot, uint64_t rank)
-    : lock_(context.m_),
-      context_(context),
-      slot_(slot),
-      rank_(rank),
-      it_(context_.remotePendingOp_.find(slot)) {}
-
-ContextMutator::~ContextMutator() {
-  if (it_ != context_.remotePendingOp_.end() && it_->second.empty()) {
-    context_.remotePendingOp_.erase(it_);
-  }
-}
-
-count_t ContextMutator::getRemotePendingRecv() {
-  if (it_ == context_.remotePendingOp_.end()) {
-    return 0;
-  }
-  return it_->second.getRecv(rank_);
-}
-
-count_t ContextMutator::getRemotePendingSend() {
-  if (it_ == context_.remotePendingOp_.end()) {
-    return 0;
-  }
-  return it_->second.getSend(rank_);
-}
-
-count_t ContextMutator::updateRemotePendingRecv(count_t v) {
-  auto it = insertIfNotExists();
-  return it->second.updateRecv(rank_, v);
-}
-
-count_t ContextMutator::updateRemotePendingSend(count_t v) {
-  auto it = insertIfNotExists();
-  return it->second.updateSend(rank_, v);
-}
-
-ContextMutator::PendingOpCountIterator ContextMutator::insertIfNotExists() {
-  if (it_ == context_.remotePendingOp_.end()) {
-    std::tie(it_, std::ignore) =
-        context_.remotePendingOp_.emplace(slot_, PendingOpCount(context_.size));
-  }
-  return it_;
-}
-
-bool ContextMutator::findRecvFromAny(
-    WeakNonOwningPtr<UnboundBuffer>* buf,
-    size_t* offset,
-    size_t* nbytes) {
-  return context_.findRecvFromAny(slot_, rank_, buf, offset, nbytes);
-}
-
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
     : ::gloo::transport::Context(rank, size), device_(std::move(device)) {}
 
@@ -124,23 +70,26 @@ int Context::recvFromAnyFindRank(
     size_t offset,
     size_t nbytes,
     const std::vector<int>& srcRanks) {
-  std::unique_lock<std::mutex> lock(m_);
+  std::unique_lock<std::mutex> lock(mutex_);
 
-  // See if there is a pending remote send that can fulfill this recv.
-  auto it = remotePendingOp_.find(slot);
-  if (it != remotePendingOp_.end()) {
-    auto& remotePendingOps = it->second;
+  // See if there is a remote pending send that can fulfill this recv.
+  auto it = findPendingOperations(slot);
+  if (it != pendingOperations_.end()) {
+    auto& pendingOperation = *it;
 
-    // Doing a linear search to find eligible ranks is suboptimal in
-    // terms of performance but is functionally correct.
-    for (const auto& srcRank : srcRanks) {
-      if (remotePendingOps.getSend(srcRank) > 0) {
-        // We've found a rank that could fulfill this recv.
-        //
-        // The caller of this function will try and attempt a recv
-        // which will decrement the remote pending sends counter.
-        //
-        return srcRank;
+    // Out of all remote pending sends, find the first one
+    // that exists in the set of eligible ranks.
+    for (const auto rank : pendingOperation.getSendList()) {
+      for (const auto srcRank : srcRanks) {
+        if (rank == srcRank) {
+          // We've found a rank that could fulfill this recv.
+          //
+          // The caller of this function will try and attempt a recv,
+          // which will remove this remote pending send operation,
+          // if it's still around.
+          //
+          return rank;
+        }
       }
     }
   }
