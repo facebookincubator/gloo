@@ -837,39 +837,42 @@ void Pair::unregisterBuffer(Buffer* buf) {
 }
 
 // changeState must only be called when holding lock.
-void Pair::changeState(state nextState) {
-  // Ignore nops
-  if (nextState == state_) {
-    return;
-  }
-
-  // State can only move forward
-  GLOO_ENFORCE_GT(nextState, state_);
-
-  // Clean up file descriptor when transitioning to CLOSED.
+void Pair::changeState(state nextState) noexcept {
   if (nextState == CLOSED) {
-    if (state_ == CONNECTED) {
-      if (!sync_) {
-        device_->unregisterDescriptor(fd_);
-      }
-      ::close(fd_);
-      fd_ = FD_INVALID;
-    } else if (state_ == LISTENING) {
-      // The pair may be in the LISTENING state when it is destructed.
-      if (fd_ != FD_INVALID) {
-        device_->unregisterDescriptor(fd_);
+    switch (state_) {
+      case INITIALIZING:
+        // This state persists from construction up to the point where
+        // Pair::listen sets fd_ and calls listen(2). If this fails,
+        // it takes care of cleaning up the socket itself.
+        // There is no additional cleanup needed here.
+        break;
+      case LISTENING:
+        // The pair may be in the LISTENING state when it is destructed.
+        if (fd_ != FD_INVALID) {
+          device_->unregisterDescriptor(fd_);
+          ::close(fd_);
+          fd_ = FD_INVALID;
+        }
+        break;
+      case CONNECTING:
+        // The pair may be in the CONNECTING state when it is destructed.
+        if (fd_ != FD_INVALID) {
+          device_->unregisterDescriptor(fd_);
+          ::close(fd_);
+          fd_ = FD_INVALID;
+        }
+        break;
+      case CONNECTED:
+        if (!sync_) {
+          device_->unregisterDescriptor(fd_);
+        }
         ::close(fd_);
         fd_ = FD_INVALID;
-      }
-    } else if (state_ == CONNECTING) {
-      // The pair may be in the CONNECTING state when it is destructed.
-      if (fd_ != FD_INVALID) {
-        device_->unregisterDescriptor(fd_);
-        ::close(fd_);
-        fd_ = FD_INVALID;
-      }
-    } else {
-      GLOO_ENFORCE(false, "Invalid state: ", state_);
+        break;
+      case CLOSED:
+        // This can't happen, because we ignore no-op state changes above.
+        // We handle it regardless to have a case for every enum value.
+        break;
     }
   }
 
