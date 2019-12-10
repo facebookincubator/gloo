@@ -16,7 +16,8 @@
 
 #include <sys/socket.h>
 
-#include "gloo/transport/device.h"
+#include <gloo/transport/device.h>
+#include <gloo/transport/tcp/loop.h>
 
 namespace gloo {
 namespace transport {
@@ -46,16 +47,6 @@ std::shared_ptr<::gloo::transport::Device> CreateDevice(
 class Pair;
 class Buffer;
 
-// Handler abstract base class called by the epoll(2) event loop.
-// Dispatch to multiple types is needed because we must deal with a
-// single listening socket on the device instance and I/O for all pair
-// instances. Before this approach, we'd exclusively deal with `Pair`
-// instances and didn't need to dispatch events to different types.
-class Handler {
-public:
-  virtual void handleEvents(int events) = 0;
-};
-
 class Device : public ::gloo::transport::Device,
                public std::enable_shared_from_this<Device> {
  public:
@@ -72,28 +63,20 @@ class Device : public ::gloo::transport::Device,
       int rank, int size) override;
 
  protected:
-  void loop();
-
   void registerDescriptor(int fd, int events, Handler* h);
   void unregisterDescriptor(int fd);
 
   const struct attr attr_;
-  std::atomic<bool> done_;
-  std::unique_ptr<std::thread> loop_;
 
   friend class Pair;
   friend class Buffer;
 
  private:
-  static constexpr auto capacity_ = 64;
+  std::shared_ptr<Loop> loop_;
 
-  int fd_;
   std::string interfaceName_;
   int interfaceSpeedMbps_;
   std::string pciBusID_;
-
-  std::mutex m_;
-  std::condition_variable cv_;
 };
 
 } // namespace tcp

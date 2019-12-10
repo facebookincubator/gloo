@@ -12,11 +12,6 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <array>
 
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
@@ -217,21 +212,13 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
 
 Device::Device(const struct attr& attr)
     : attr_(attr),
+      loop_(std::make_shared<Loop>()),
       interfaceName_(sockaddrToInterfaceName(attr_)),
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
       pciBusID_(interfaceToBusID(interfaceName_)) {
-  fd_ = epoll_create(1);
-  GLOO_ENFORCE_NE(fd_, -1, "epoll_create: ", strerror(errno));
-
-  done_ = false;
-  loop_.reset(new std::thread(&Device::loop, this));
 }
 
 Device::~Device() {
-  done_ = true;
-  loop_->join();
-
-  close(fd_);
 }
 
 std::string Device::str() const {
@@ -259,61 +246,11 @@ std::shared_ptr<transport::Context> Device::createContext(
 }
 
 void Device::registerDescriptor(int fd, int events, Handler* h) {
-  struct epoll_event ev;
-  int rv;
-
-  ev.events = events;
-  ev.data.ptr = h;
-
-  rv = epoll_ctl(fd_, EPOLL_CTL_ADD, fd, &ev);
-  if (rv == -1 && errno == EEXIST) {
-    rv = epoll_ctl(fd_, EPOLL_CTL_MOD, fd, &ev);
-  }
-  GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
-
-  return;
+  loop_->registerDescriptor(fd, events, h);
 }
 
 void Device::unregisterDescriptor(int fd) {
-  int rv;
-
-  rv = epoll_ctl(fd_, EPOLL_CTL_DEL, fd, nullptr);
-  GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
-
-  // Wait for loop to tick before returning, to make sure the handler
-  // for this fd is not called once this function returns.
-  if (std::this_thread::get_id() != loop_->get_id()) {
-    std::unique_lock<std::mutex> lock(m_);
-    cv_.wait(lock);
-  }
-
-  return;
-}
-
-void Device::loop() {
-  std::array<struct epoll_event, capacity_> events;
-  int nfds;
-
-  while (!done_) {
-    // Wakeup everyone waiting for a loop tick to finish.
-    cv_.notify_all();
-
-    // Wait for something to happen
-    nfds = epoll_wait(fd_, events.data(), events.size(), 10);
-    if (nfds == 0) {
-      continue;
-    }
-    if (nfds == -1 && errno == EINTR) {
-      continue;
-    }
-
-    GLOO_ENFORCE_NE(nfds, -1);
-
-    for (int i = 0; i < nfds; i++) {
-      Handler* h = reinterpret_cast<Handler*>(events[i].data.ptr);
-      h->handleEvents(events[i].events);
-    }
-  }
+  loop_->unregisterDescriptor(fd);
 }
 
 } // namespace tcp
