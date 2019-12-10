@@ -46,6 +46,16 @@ std::shared_ptr<::gloo::transport::Device> CreateDevice(
 class Pair;
 class Buffer;
 
+// Handler abstract base class called by the epoll(2) event loop.
+// Dispatch to multiple types is needed because we must deal with a
+// single listening socket on the device instance and I/O for all pair
+// instances. Before this approach, we'd exclusively deal with `Pair`
+// instances and didn't need to dispatch events to different types.
+class Handler {
+public:
+  virtual void handleEvents(int events) = 0;
+};
+
 class Device : public ::gloo::transport::Device,
                public std::enable_shared_from_this<Device> {
  public:
@@ -64,7 +74,7 @@ class Device : public ::gloo::transport::Device,
  protected:
   void loop();
 
-  void registerDescriptor(int fd, int events, Pair* p);
+  void registerDescriptor(int fd, int events, Handler* h);
   void unregisterDescriptor(int fd);
 
   const struct attr attr_;
