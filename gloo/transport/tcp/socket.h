@@ -19,7 +19,7 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-class Socket final : std::enable_shared_from_this<Socket> {
+class Socket final : public std::enable_shared_from_this<Socket> {
  public:
   static std::shared_ptr<Socket> createForFamily(sa_family_t ai_family);
 
