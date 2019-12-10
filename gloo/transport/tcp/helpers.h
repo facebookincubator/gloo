@@ -20,34 +20,31 @@ namespace transport {
 namespace tcp {
 
 template <typename T>
-class BaseOperation_ : public std::enable_shared_from_this<T> {
+class ReadValueOperation final
+    : public Handler,
+      public std::enable_shared_from_this<ReadValueOperation<T>> {
  public:
+  using callback_t =
+      std::function<void(std::shared_ptr<Socket>, const Error& error, T&& t)>;
+
+  ReadValueOperation(
+      std::shared_ptr<Loop> loop,
+      std::shared_ptr<Socket> socket,
+      callback_t fn)
+      : loop_(std::move(loop)),
+        socket_(std::move(socket)),
+        fn_(std::move(fn)) {}
+
   void initialize() {
     // Cannot initialize leak until after the object has been
     // constructed, because the std::make_shared initialization
     // doesn't run after construction of the underlying object.
     leak_ = this->shared_from_this();
-  }
-
- protected:
-  std::shared_ptr<T> leak_;
-};
-
-template <typename T>
-class ReadValueOperation_ final
-    : public Handler,
-      public BaseOperation_<ReadValueOperation_<T>> {
- public:
-  using callback_t =
-      std::function<void(std::shared_ptr<Socket>, const Error& error, T&& t)>;
-
-  ReadValueOperation_(
-      std::shared_ptr<Loop> loop,
-      std::shared_ptr<Socket> socket,
-      callback_t fn)
-      : loop_(std::move(loop)), socket_(std::move(socket)), fn_(std::move(fn)) {
+    // Register with loop only after we've leaked the shared_ptr,
+    // because we unleak it when the event loop thread calls.
     loop_->registerDescriptor(socket_->fd(), EPOLLIN | EPOLLONESHOT, this);
   }
+
   void handleEvents(int events) override {
     // Move leaked shared_ptr to the stack so that this object
     // destroys itself once this function returns.
@@ -73,6 +70,7 @@ class ReadValueOperation_ final
   std::shared_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
+  std::shared_ptr<ReadValueOperation<T>> leak_;
 
   T t_;
 };
@@ -81,21 +79,21 @@ template <typename T>
 void read(
     std::shared_ptr<Loop> loop,
     std::shared_ptr<Socket> socket,
-    typename ReadValueOperation_<T>::callback_t fn) {
-  auto x = std::make_shared<ReadValueOperation_<T>>(
+    typename ReadValueOperation<T>::callback_t fn) {
+  auto x = std::make_shared<ReadValueOperation<T>>(
       std::move(loop), std::move(socket), std::move(fn));
   x->initialize();
 }
 
 template <typename T>
-class WriteValueOperation_ final
+class WriteValueOperation final
     : public Handler,
-      public BaseOperation_<WriteValueOperation_<T>> {
+      public std::enable_shared_from_this<WriteValueOperation<T>> {
  public:
   using callback_t =
       std::function<void(std::shared_ptr<Socket>, const Error& error)>;
 
-  WriteValueOperation_(
+  WriteValueOperation(
       std::shared_ptr<Loop> loop,
       std::shared_ptr<Socket> socket,
       T t,
@@ -103,7 +101,15 @@ class WriteValueOperation_ final
       : loop_(std::move(loop)),
         socket_(std::move(socket)),
         fn_(std::move(fn)),
-        t_(std::move(t)) {
+        t_(std::move(t)) {}
+
+  void initialize() {
+    // Cannot initialize leak until after the object has been
+    // constructed, because the std::make_shared initialization
+    // doesn't run after construction of the underlying object.
+    leak_ = this->shared_from_this();
+    // Register with loop only after we've leaked the shared_ptr,
+    // because we unleak it when the event loop thread calls.
     loop_->registerDescriptor(socket_->fd(), EPOLLOUT | EPOLLONESHOT, this);
   }
 
@@ -132,6 +138,7 @@ class WriteValueOperation_ final
   std::shared_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
+  std::shared_ptr<WriteValueOperation<T>> leak_;
 
   T t_;
 };
@@ -141,8 +148,8 @@ void write(
     std::shared_ptr<Loop> loop,
     std::shared_ptr<Socket> socket,
     T t,
-    typename WriteValueOperation_<T>::callback_t fn) {
-  auto x = std::make_shared<WriteValueOperation_<T>>(
+    typename WriteValueOperation<T>::callback_t fn) {
+  auto x = std::make_shared<WriteValueOperation<T>>(
       std::move(loop), std::move(socket), std::move(t), std::move(fn));
   x->initialize();
 }
