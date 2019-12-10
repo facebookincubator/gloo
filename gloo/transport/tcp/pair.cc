@@ -61,9 +61,8 @@ Pair::Pair(
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
-      ex_(nullptr) {
-  listen();
-}
+      self_(device_->nextAddress()),
+      ex_(nullptr) {}
 
 // Destructor performs a "soft" close.
 Pair::~Pair() {
@@ -98,8 +97,60 @@ const Address& Pair::address() const {
 }
 
 void Pair::connect(const std::vector<char>& bytes) {
-  auto peer = Address(bytes);
-  connect(peer);
+  const auto peer = Address(bytes);
+
+  std::unique_lock<std::mutex> lock(m_);
+  GLOO_ENFORCE_EQ(state_, INITIALIZING);
+  state_ = CONNECTING;
+
+  // Both processes call the `Pair::connect` function with the address
+  // of the other. The device instance associated with both `Pair`
+  // instances is responsible for establishing the actual connection,
+  // seeing as it owns the listening socket.
+  //
+  // One side takes a passive role and the other side takes an active
+  // role in establishing the connection. The passive role means
+  // waiting for an incoming connection that identifies itself with a
+  // specific sequence number (encoded in the `Address`). The active
+  // role means creating a connection to a specific address, and
+  // writing out a specific sequence number. Once the process for
+  // either role succeeds, the connection callback for the pair gets
+  // called with the file descriptor for the underlying connection.
+  //
+  device_->connect(
+      self_,
+      peer,
+      timeout_,
+      std::bind(
+          &Pair::connectCallback,
+          this,
+          std::placeholders::_1,
+          std::placeholders::_2));
+
+  // Wait for callback to fire.
+  //
+  // NOTE(pietern): This can be split out to a separate function so
+  // that we first initiate all connections and then wait on all of
+  // them. This should make context initialization a bit faster. It
+  // requires a change to the base class though, so let's so it after
+  // this new transport has been merged.
+  //
+  cv_.wait(lock, [&] { return state_ == CONNECTED || state_ == CLOSED; });
+}
+
+  void Pair::connectCallback(std::shared_ptr<Socket> socket, Error error) {
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    if (error) {
+      //std::cout << "gots error: " << error.what() << std::endl;
+      //errno_ = error;
+      state_ = CLOSED;
+      return;
+    }
+
+    fd_ = socket->release();
+    handleConnected();
+  }
 }
 
 static void setSocketBlocking(int fd, bool enable) {
@@ -149,131 +200,6 @@ void Pair::setSync(bool sync, bool busyPoll) {
 
   sync_ = true;
   busyPoll_ = busyPoll;
-}
-
-void Pair::listen() {
-  std::lock_guard<std::mutex> lock(m_);
-  int rv;
-
-  const auto& attr = device_->attr_;
-  auto fd = socket(attr.ai_family, attr.ai_socktype, attr.ai_protocol);
-  if (fd == -1) {
-    signalAndThrowException(GLOO_ERROR_MSG("socket: ", strerror(errno)));
-  }
-
-  // Set SO_REUSEADDR to signal that reuse of the listening port is OK.
-  int on = 1;
-  rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (rv == -1) {
-    ::close(fd);
-    signalAndThrowException(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
-  }
-
-  rv = bind(fd, (const sockaddr*)&attr.ai_addr, attr.ai_addrlen);
-  if (rv == -1) {
-    ::close(fd);
-    signalAndThrowException(GLOO_ERROR_MSG("bind: ", strerror(errno)));
-  }
-
-  // listen(2) on socket
-  fd_ = fd;
-  rv = ::listen(fd_, 1);
-  if (rv == -1) {
-    ::close(fd_);
-    fd_ = FD_INVALID;
-    signalAndThrowException(GLOO_ERROR_MSG("listen: ", strerror(errno)));
-  }
-
-  // Keep copy of address
-  self_ = Address::fromSockName(fd);
-
-  // Register with device so we're called when peer connects
-  changeState(LISTENING);
-  device_->registerDescriptor(fd_, EPOLLIN, this);
-
-  return;
-}
-
-void Pair::connect(const Address& peer) {
-  std::unique_lock<std::mutex> lock(m_);
-  int rv;
-  socklen_t addrlen;
-  throwIfException();
-
-  peer_ = peer;
-
-  const auto& selfAddr = self_.getSockaddr();
-  const auto& peerAddr = peer_.getSockaddr();
-
-  // Addresses have to have same family
-  if (selfAddr.ss_family != peerAddr.ss_family) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("address family mismatch");
-  }
-
-  if (selfAddr.ss_family == AF_INET) {
-    struct sockaddr_in* sa = (struct sockaddr_in*)&selfAddr;
-    struct sockaddr_in* sb = (struct sockaddr_in*)&peerAddr;
-    addrlen = sizeof(struct sockaddr_in);
-    rv = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(struct in_addr));
-    if (rv == 0) {
-      rv = sa->sin_port - sb->sin_port;
-    }
-  } else if (peerAddr.ss_family == AF_INET6) {
-    struct sockaddr_in6* sa = (struct sockaddr_in6*)&selfAddr;
-    struct sockaddr_in6* sb = (struct sockaddr_in6*)&peerAddr;
-    addrlen = sizeof(struct sockaddr_in6);
-    rv = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(struct in6_addr));
-    if (rv == 0) {
-      rv = sa->sin6_port - sb->sin6_port;
-    }
-  } else {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("unknown sa_family");
-  }
-
-  if (rv == 0) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("cannot connect to self");
-  }
-
-  // self_ < peer_; we are listening side.
-  if (rv < 0) {
-    waitUntilConnected(lock, true);
-    return;
-  }
-
-  // self_ > peer_; we are connecting side.
-  // First destroy listening socket.
-  device_->unregisterDescriptor(fd_);
-  ::close(fd_);
-
-  // Create new socket to connect to peer.
-  fd_ = socket(peerAddr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
-  if (fd_ == -1) {
-    signalAndThrowException(GLOO_ERROR_MSG("socket: ", strerror(errno)));
-  }
-
-  // Set SO_REUSEADDR to signal that reuse of the source port is OK.
-  int on = 1;
-  rv = setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (rv == -1) {
-    ::close(fd_);
-    fd_ = FD_INVALID;
-    signalAndThrowException(GLOO_ERROR_MSG("setsockopt: ", strerror(errno)));
-  }
-
-  // Connect to peer
-  rv = ::connect(fd_, (struct sockaddr*)&peerAddr, addrlen);
-  if (rv == -1 && errno != EINPROGRESS) {
-    ::close(fd_);
-    fd_ = FD_INVALID;
-    signalAndThrowException(GLOO_ERROR_MSG("connect: ", strerror(errno)));
-  }
-
-  // Register with device so we're called when connection completes.
-  changeState(CONNECTING);
-  device_->registerDescriptor(fd_, EPOLLIN | EPOLLOUT, this);
-
-  // Wait for connection to complete
-  waitUntilConnected(lock, true);
 }
 
 ssize_t Pair::prepareWrite(
@@ -718,60 +644,7 @@ void Pair::handleEvents(int events) {
     return;
   }
 
-  if (state_ == LISTENING) {
-    handleListening();
-    return;
-  }
-
-  if (state_ == CONNECTING) {
-    handleConnecting();
-    return;
-  }
-
   GLOO_ENFORCE(false, "Unexpected state: ", state_);
-}
-
-void Pair::handleListening() {
-  struct sockaddr_storage addr;
-  socklen_t addrlen = sizeof(addr);
-  int rv;
-
-  rv = accept(fd_, (struct sockaddr*)&addr, &addrlen);
-
-  // Close the listening file descriptor whether we've successfully connected
-  // or run into an error and will throw an exception.
-  device_->unregisterDescriptor(fd_);
-  ::close(fd_);
-  fd_ = FD_INVALID;
-
-  if (rv == -1) {
-    signalException(GLOO_ERROR_MSG("accept: ", strerror(errno)));
-    return;
-  }
-
-  // Connected, replace file descriptor
-  fd_ = rv;
-
-  // Common connection-made code
-  handleConnected();
-}
-
-void Pair::handleConnecting() {
-  int optval;
-  socklen_t optlen = sizeof(optval);
-  int rv;
-
-  // Verify that connecting was successful
-  rv = getsockopt(fd_, SOL_SOCKET, SO_ERROR, &optval, &optlen);
-  GLOO_ENFORCE_NE(rv, -1);
-  if (optval != 0) {
-    signalException(
-        GLOO_ERROR_MSG("connect ", peer_.str(), ": ", strerror(optval)));
-    return;
-  }
-
-  // Common connection-made code
-  handleConnected();
 }
 
 void Pair::handleConnected() {
@@ -844,18 +717,8 @@ void Pair::changeState(state nextState) noexcept {
   if (nextState == CLOSED) {
     switch (state_) {
       case INITIALIZING:
-        // This state persists from construction up to the point where
-        // Pair::listen sets fd_ and calls listen(2). If this fails,
-        // it takes care of cleaning up the socket itself.
+        // Initial state upon construction.
         // There is no additional cleanup needed here.
-        break;
-      case LISTENING:
-        // The pair may be in the LISTENING state when it is destructed.
-        if (fd_ != FD_INVALID) {
-          device_->unregisterDescriptor(fd_);
-          ::close(fd_);
-          fd_ = FD_INVALID;
-        }
         break;
       case CONNECTING:
         // The pair may be in the CONNECTING state when it is destructed.

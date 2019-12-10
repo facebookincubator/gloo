@@ -17,6 +17,7 @@
 #include "gloo/common/logging.h"
 #include "gloo/common/error.h"
 #include "gloo/transport/tcp/context.h"
+#include "gloo/transport/tcp/helpers.h"
 #include "gloo/transport/tcp/pair.h"
 
 namespace gloo {
@@ -213,6 +214,7 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
 Device::Device(const struct attr& attr)
     : attr_(attr),
       loop_(std::make_shared<Loop>()),
+      listener_(std::make_shared<Listener>(loop_, attr)),
       interfaceName_(sockaddrToInterfaceName(attr_)),
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
       pciBusID_(interfaceToBusID(interfaceName_)) {
@@ -251,6 +253,100 @@ void Device::registerDescriptor(int fd, int events, Handler* h) {
 
 void Device::unregisterDescriptor(int fd) {
   loop_->unregisterDescriptor(fd);
+}
+
+Address Device::nextAddress() {
+  return listener_->nextAddress();
+}
+
+void Device::connect(
+    const Address& local,
+    const Address& remote,
+    std::chrono::milliseconds timeout,
+    connect_callback_t fn) {
+  int rv;
+
+  // The remote side of a pair will be called with the same
+  // addresses, but in reverse. There should only be a single
+  // connection between the two, so we pick one side as the listener
+  // and the other side as the connector.
+  const auto& ss1 = local.getSockaddr();
+  const auto& ss2 = remote.getSockaddr();
+  GLOO_ENFORCE_EQ(ss1.ss_family, ss2.ss_family);
+  const int family = ss1.ss_family;
+  if (family == AF_INET) {
+    const struct sockaddr_in* sa = (struct sockaddr_in*)&ss1;
+    const struct sockaddr_in* sb = (struct sockaddr_in*)&ss2;
+    const auto addrlen = sizeof(struct sockaddr_in);
+    rv = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(struct in_addr));
+    if (rv == 0) {
+      rv = sa->sin_port - sb->sin_port;
+    }
+  } else if (family == AF_INET6) {
+    const struct sockaddr_in6* sa = (struct sockaddr_in6*)&ss1;
+    const struct sockaddr_in6* sb = (struct sockaddr_in6*)&ss2;
+    const auto addrlen = sizeof(struct sockaddr_in6);
+    rv = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(struct in6_addr));
+    if (rv == 0) {
+      rv = sa->sin6_port - sb->sin6_port;
+    }
+  } else {
+    GLOO_ENFORCE(false, "Unknown address family: ", family);
+  }
+
+  // If both sides of the pair use the same address and port, they are
+  // sharing the same device instance. This happens in tests. Compare
+  // sequence number to allow pairs to connect.
+  if (rv == 0) {
+    rv = local.getSeq() - remote.getSeq();
+  }
+
+  if (rv < 0) {
+    connectAsListener(local, timeout, std::move(fn));
+  } else if (rv > 0) {
+    connectAsInitiator(remote, timeout, std::move(fn));
+  } else {
+    GLOO_ENFORCE(false, "Cannot connect to self");
+  }
+}
+
+// Connecting as listener is passive.
+//
+// Register the connect callback to be executed when the other side of
+// the pair has connected and identified itself as destined for this
+// address. To do so, we register the callback for the sequence number
+// associated with the address. If this connection already exists,
+// deal with it here.
+//
+void Device::connectAsListener(
+    const Address& local,
+    std::chrono::milliseconds timeout,
+    connect_callback_t fn) {
+  listener_->waitForConnection(local, std::move(timeout), std::move(fn));
+}
+
+// Connecting as initiator is active.
+//
+// The connect callback is fired when the connection to the other side
+// of the pair has been made, and the sequence number for this
+// connection has been written. If an error occurs at any time, the
+// callback is called with an associated error event.
+//
+void Device::connectAsInitiator(
+    const Address& remote,
+    std::chrono::milliseconds timeout,
+    connect_callback_t fn) {
+  const auto& sockaddr = remote.getSockaddr();
+
+  // Create new socket to connect to peer.
+  auto socket = Socket::createForFamily(sockaddr.ss_family);
+  socket->reuseAddr(true);
+  socket->noDelay(true);
+  socket->connect(sockaddr);
+
+  // Write sequence number for peer to new socket.
+  write<sequence_number_t>(
+      loop_, std::move(socket), remote.getSeq(), std::move(fn));
 }
 
 } // namespace tcp
