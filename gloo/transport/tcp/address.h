@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <sys/socket.h>
 
 #include "gloo/transport/address.h"
@@ -18,28 +16,53 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-// Forward declaration
-class Pair;
+using sequence_number_t = int;
 
 class Address : public ::gloo::transport::Address {
  public:
   Address() {}
-  explicit Address(const struct sockaddr_storage&);
+
+  explicit Address(struct sockaddr_storage ss, sequence_number_t seq = -1);
+
   explicit Address(const struct sockaddr* addr, size_t addrlen);
+
   explicit Address(const std::vector<char>&);
-  virtual ~Address() {}
+
+  virtual ~Address() = default;
 
   virtual std::vector<char> bytes() const override;
+
   virtual std::string str() const override;
 
+  const struct sockaddr_storage& getSockaddr() const {
+    return impl_.ss;
+  }
+
+  sequence_number_t getSeq() const {
+    return impl_.seq;
+  }
+
   static Address fromSockName(int fd);
+
   static Address fromPeerName(int fd);
 
  protected:
-  struct sockaddr_storage ss_;
+  // Encapsulate fields such that it is trivially copyable. This class
+  // is not trivially copyable itself.
+  struct Impl {
+    // IP address of the listening socket.
+    struct sockaddr_storage ss;
 
-  // Pair can access ss_ directly
-  friend class Pair;
+    // Sequence number of this address.
+    // If this is equal to -1, the address is assumed to
+    // represent the listening socket of a device. The sequence number
+    // must be set before it can be used by a pair.
+    sequence_number_t seq = -1;
+  };
+
+  static_assert(std::is_trivially_copyable<Impl>::value, "!");
+
+  Impl impl_;
 };
 
 } // namespace tcp

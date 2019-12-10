@@ -202,22 +202,25 @@ void Pair::connect(const Address& peer) {
 
   peer_ = peer;
 
+  const auto& selfAddr = self_.getSockaddr();
+  const auto& peerAddr = peer_.getSockaddr();
+
   // Addresses have to have same family
-  if (self_.ss_.ss_family != peer_.ss_.ss_family) {
+  if (selfAddr.ss_family != peerAddr.ss_family) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION("address family mismatch");
   }
 
-  if (self_.ss_.ss_family == AF_INET) {
-    struct sockaddr_in* sa = (struct sockaddr_in*)&self_.ss_;
-    struct sockaddr_in* sb = (struct sockaddr_in*)&peer_.ss_;
+  if (selfAddr.ss_family == AF_INET) {
+    struct sockaddr_in* sa = (struct sockaddr_in*)&selfAddr;
+    struct sockaddr_in* sb = (struct sockaddr_in*)&peerAddr;
     addrlen = sizeof(struct sockaddr_in);
     rv = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(struct in_addr));
     if (rv == 0) {
       rv = sa->sin_port - sb->sin_port;
     }
-  } else if (peer_.ss_.ss_family == AF_INET6) {
-    struct sockaddr_in6* sa = (struct sockaddr_in6*)&self_.ss_;
-    struct sockaddr_in6* sb = (struct sockaddr_in6*)&peer_.ss_;
+  } else if (peerAddr.ss_family == AF_INET6) {
+    struct sockaddr_in6* sa = (struct sockaddr_in6*)&selfAddr;
+    struct sockaddr_in6* sb = (struct sockaddr_in6*)&peerAddr;
     addrlen = sizeof(struct sockaddr_in6);
     rv = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(struct in6_addr));
     if (rv == 0) {
@@ -243,7 +246,7 @@ void Pair::connect(const Address& peer) {
   ::close(fd_);
 
   // Create new socket to connect to peer.
-  fd_ = socket(peer_.ss_.ss_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  fd_ = socket(peerAddr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, 0);
   if (fd_ == -1) {
     signalAndThrowException(GLOO_ERROR_MSG("socket: ", strerror(errno)));
   }
@@ -258,7 +261,7 @@ void Pair::connect(const Address& peer) {
   }
 
   // Connect to peer
-  rv = ::connect(fd_, (struct sockaddr*)&peer_.ss_, addrlen);
+  rv = ::connect(fd_, (struct sockaddr*)&peerAddr, addrlen);
   if (rv == -1 && errno != EINPROGRESS) {
     ::close(fd_);
     fd_ = FD_INVALID;
