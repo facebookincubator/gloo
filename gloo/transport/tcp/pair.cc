@@ -8,8 +8,8 @@
 
 #include "gloo/transport/tcp/pair.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <sstream>
 
 #include <errno.h>
@@ -138,19 +138,32 @@ void Pair::connect(const std::vector<char>& bytes) {
   cv_.wait(lock, [&] { return state_ == CONNECTED || state_ == CLOSED; });
 }
 
-  void Pair::connectCallback(std::shared_ptr<Socket> socket, Error error) {
-  {
-    std::lock_guard<std::mutex> lock(m_);
-    if (error) {
-      //std::cout << "gots error: " << error.what() << std::endl;
-      //errno_ = error;
-      state_ = CLOSED;
-      return;
-    }
-
-    fd_ = socket->release();
-    handleConnected();
+void Pair::connectCallback(std::shared_ptr<Socket> socket, Error error) {
+  std::lock_guard<std::mutex> lock(m_);
+  if (error) {
+    signalException(GLOO_ERROR_MSG(error.what()));
+    return;
   }
+
+  // Finalize setup.
+  socket->block(false);
+  socket->noDelay(true);
+  socket->sendTimeout(timeout_);
+  socket->recvTimeout(timeout_);
+
+  // Reset addresses.
+  self_ = socket->sockName();
+  peer_ = socket->peerName();
+
+  // Take over ownership of the socket's file descriptor. The code in
+  // this class works directly with file descriptor directly.
+  fd_ = socket->release();
+
+  // Register with loop for socket readability.
+  device_->registerDescriptor(fd_, EPOLLIN, this);
+
+  // We're done: update state and wake up waiting threads.
+  changeState(CONNECTED);
 }
 
 static void setSocketBlocking(int fd, bool enable) {
@@ -645,34 +658,6 @@ void Pair::handleEvents(int events) {
   }
 
   GLOO_ENFORCE(false, "Unexpected state: ", state_);
-}
-
-void Pair::handleConnected() {
-  int rv;
-
-  // Reset addresses
-  self_ = Address::fromSockName(fd_);
-  peer_ = Address::fromPeerName(fd_);
-
-  // Make sure socket is non-blocking
-  setSocketBlocking(fd_, false);
-
-  int flag = 1;
-  socklen_t optlen = sizeof(flag);
-  rv = setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char*)&flag, optlen);
-  GLOO_ENFORCE_NE(rv, -1);
-
-  // Set timeout
-  struct timeval tv = {};
-  tv.tv_sec = timeout_.count() / 1000;
-  tv.tv_usec = (timeout_.count() % 1000) * 1000;
-  rv = setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-  GLOO_ENFORCE_NE(rv, -1);
-  rv = setsockopt(fd_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-  GLOO_ENFORCE_NE(rv, -1);
-
-  device_->registerDescriptor(fd_, EPOLLIN, this);
-  changeState(CONNECTED);
 }
 
 // getBuffer must only be called when holding lock.

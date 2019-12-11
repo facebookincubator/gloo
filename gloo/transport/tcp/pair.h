@@ -259,9 +259,6 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   // Helper function that is called from the `read` function.
   void handleRemotePendingRecv(const Op& op);
 
-  // Helper function called from `handleListening` or `handleConnecting`.
-  void handleConnected();
-
   // Advances this pair's state. See the `Pair::state` enum for
   // possible states. State can only move forward, i.e. from
   // initializing, to connected, to closed.

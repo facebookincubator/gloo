@@ -41,7 +41,7 @@ Listener::~Listener() {
   }
 }
 
-void Listener::handleEvents(int events) {
+void Listener::handleEvents(int /* unused */) {
   std::lock_guard<std::mutex> guard(mutex_);
 
   for (;;) {
@@ -81,12 +81,8 @@ Address Listener::nextAddress() {
   return Address(addr_.getSockaddr(), seq_++);
 }
 
-void Listener::waitForConnection(
-    const Address& addr,
-    std::chrono::milliseconds timeout,
-    connect_callback_t fn) {
+void Listener::waitForConnection(sequence_number_t seq, connect_callback_t fn) {
   std::unique_lock<std::mutex> lock(mutex_);
-  const auto seq = addr.getSeq();
 
   // If we don't yet have an fd for this sequence number, persist callback.
   auto it = seqToSocket_.find(seq);

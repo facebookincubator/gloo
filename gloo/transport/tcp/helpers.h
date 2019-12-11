@@ -19,6 +19,12 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
+// ReadValueOperation asynchronously reads a value of type T from the
+// socket specified at construction. Upon completion or error, the
+// callback is called. Its lifetime is coupled with completion of the
+// operation, so the called doesn't need to hold on to the instance.
+// It does so by storing a shared_ptr to itself (effectively a leak)
+// until the event loop calls back.
 template <typename T>
 class ReadValueOperation final
     : public Handler,
@@ -35,7 +41,7 @@ class ReadValueOperation final
         socket_(std::move(socket)),
         fn_(std::move(fn)) {}
 
-  void initialize() {
+  void run() {
     // Cannot initialize leak until after the object has been
     // constructed, because the std::make_shared initialization
     // doesn't run after construction of the underlying object.
@@ -82,9 +88,15 @@ void read(
     typename ReadValueOperation<T>::callback_t fn) {
   auto x = std::make_shared<ReadValueOperation<T>>(
       std::move(loop), std::move(socket), std::move(fn));
-  x->initialize();
+  x->run();
 }
 
+// WriteValueOperation asynchronously writes a value of type T to the
+// socket specified at construction. Upon completion or error, the
+// callback is called. Its lifetime is coupled with completion of the
+// operation, so the called doesn't need to hold on to the instance.
+// It does so by storing a shared_ptr to itself (effectively a leak)
+// until the event loop calls back.
 template <typename T>
 class WriteValueOperation final
     : public Handler,
@@ -103,7 +115,7 @@ class WriteValueOperation final
         fn_(std::move(fn)),
         t_(std::move(t)) {}
 
-  void initialize() {
+  void run() {
     // Cannot initialize leak until after the object has been
     // constructed, because the std::make_shared initialization
     // doesn't run after construction of the underlying object.
@@ -151,7 +163,7 @@ void write(
     typename WriteValueOperation<T>::callback_t fn) {
   auto x = std::make_shared<WriteValueOperation<T>>(
       std::move(loop), std::move(socket), std::move(t), std::move(fn));
-  x->initialize();
+  x->run();
 }
 
 } // namespace tcp

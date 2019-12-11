@@ -16,10 +16,10 @@
 
 #include <gloo/transport/device.h>
 #include <gloo/transport/tcp/attr.h>
+#include <gloo/transport/tcp/error.h>
 #include <gloo/transport/tcp/listener.h>
 #include <gloo/transport/tcp/loop.h>
 #include <gloo/transport/tcp/socket.h>
-#include <gloo/transport/tcp/error.h>
 
 namespace gloo {
 namespace transport {
@@ -74,7 +74,8 @@ class Device : public ::gloo::transport::Device,
   // is found, it is called. If the callback is not found, the
   // connection is cached in a map, using the sequence number.
   //
-  using connect_callback_t = std::function<void(std::shared_ptr<Socket> socket, Error error)>;
+  using connect_callback_t =
+      std::function<void(std::shared_ptr<Socket> socket, Error error)>;
 
   void connect(
       const Address& local,

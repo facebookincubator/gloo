@@ -264,7 +264,7 @@ void Device::connect(
     const Address& remote,
     std::chrono::milliseconds timeout,
     connect_callback_t fn) {
-  int rv;
+  int rv{0};
 
   // The remote side of a pair will be called with the same
   // addresses, but in reverse. There should only be a single
@@ -277,7 +277,6 @@ void Device::connect(
   if (family == AF_INET) {
     const struct sockaddr_in* sa = (struct sockaddr_in*)&ss1;
     const struct sockaddr_in* sb = (struct sockaddr_in*)&ss2;
-    const auto addrlen = sizeof(struct sockaddr_in);
     rv = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(struct in_addr));
     if (rv == 0) {
       rv = sa->sin_port - sb->sin_port;
@@ -285,7 +284,6 @@ void Device::connect(
   } else if (family == AF_INET6) {
     const struct sockaddr_in6* sa = (struct sockaddr_in6*)&ss1;
     const struct sockaddr_in6* sb = (struct sockaddr_in6*)&ss2;
-    const auto addrlen = sizeof(struct sockaddr_in6);
     rv = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(struct in6_addr));
     if (rv == 0) {
       rv = sa->sin6_port - sb->sin6_port;
@@ -320,9 +318,10 @@ void Device::connect(
 //
 void Device::connectAsListener(
     const Address& local,
-    std::chrono::milliseconds timeout,
+    std::chrono::milliseconds /* unused */,
     connect_callback_t fn) {
-  listener_->waitForConnection(local, std::move(timeout), std::move(fn));
+  // TODO(pietern): Use timeout.
+  listener_->waitForConnection(local.getSeq(), std::move(fn));
 }
 
 // Connecting as initiator is active.
@@ -334,7 +333,7 @@ void Device::connectAsListener(
 //
 void Device::connectAsInitiator(
     const Address& remote,
-    std::chrono::milliseconds timeout,
+    std::chrono::milliseconds /* unused */,
     connect_callback_t fn) {
   const auto& sockaddr = remote.getSockaddr();
 
@@ -345,6 +344,7 @@ void Device::connectAsInitiator(
   socket->connect(sockaddr);
 
   // Write sequence number for peer to new socket.
+  // TODO(pietern): Use timeout.
   write<sequence_number_t>(
       loop_, std::move(socket), remote.getSeq(), std::move(fn));
 }

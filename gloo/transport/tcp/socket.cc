@@ -8,6 +8,7 @@
 
 #include <gloo/transport/tcp/socket.h>
 
+#include <fcntl.h>
 #include <netinet/tcp.h>
 #include <string.h>
 #include <unistd.h>
@@ -44,6 +45,37 @@ void Socket::noDelay(bool on) {
   GLOO_ENFORCE_NE(rv, -1, "setsockopt: ", strerror(errno));
 }
 
+void Socket::block(bool on) {
+  auto rv = fcntl(fd_, F_GETFL);
+  GLOO_ENFORCE_NE(rv, -1, "fcntl: ", strerror(errno));
+  if (!on) {
+    // Set O_NONBLOCK
+    rv |= O_NONBLOCK;
+  } else {
+    // Clear O_NONBLOCK
+    rv &= ~O_NONBLOCK;
+  }
+  rv = fcntl(fd_, F_SETFL, rv);
+  GLOO_ENFORCE_NE(rv, -1, "fcntl: ", strerror(errno));
+}
+
+void Socket::configureTimeout(int opt, std::chrono::milliseconds timeout) {
+  struct timeval tv = {
+      .tv_sec = timeout.count() / 1000,
+      .tv_usec = (timeout.count() % 1000) * 1000,
+  };
+  auto rv = setsockopt(fd_, SOL_SOCKET, opt, &tv, sizeof(tv));
+  GLOO_ENFORCE_NE(rv, -1, "setsockopt: ", strerror(errno));
+}
+
+void Socket::recvTimeout(std::chrono::milliseconds timeout) {
+  configureTimeout(SO_RCVTIMEO, std::move(timeout));
+}
+
+void Socket::sendTimeout(std::chrono::milliseconds timeout) {
+  configureTimeout(SO_SNDTIMEO, std::move(timeout));
+}
+
 void Socket::bind(const sockaddr_storage& ss) {
   if (ss.ss_family == AF_INET) {
     const struct sockaddr_in* sa = (const struct sockaddr_in*)&ss;
@@ -71,7 +103,7 @@ void Socket::listen(int backlog) {
 std::shared_ptr<Socket> Socket::accept() {
   struct sockaddr_storage addr;
   socklen_t addrlen = sizeof(addr);
-  int rv;
+  int rv = -1;
   for (;;) {
     rv = ::accept(fd_, (struct sockaddr*)&addr, &addrlen);
     if (rv == -1) {
@@ -107,7 +139,7 @@ void Socket::connect(const struct sockaddr* addr, socklen_t addrlen) {
 }
 
 ssize_t Socket::read(void* buf, size_t count) {
-  ssize_t rv;
+  ssize_t rv = -1;
   for (;;) {
     rv = ::read(fd_, buf, count);
     if (rv == -1 && errno == EINTR) {
@@ -119,7 +151,7 @@ ssize_t Socket::read(void* buf, size_t count) {
 }
 
 ssize_t Socket::write(const void* buf, size_t count) {
-  ssize_t rv;
+  ssize_t rv = -1;
   for (;;) {
     rv = ::write(fd_, buf, count);
     if (rv == -1 && errno == EINTR) {
