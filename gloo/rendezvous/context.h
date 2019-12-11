@@ -14,6 +14,7 @@
 #include "gloo/common/error.h"
 #include "gloo/context.h"
 #include "gloo/rendezvous/store.h"
+#include "gloo/transport/address.h"
 #include "gloo/transport/device.h"
 
 namespace gloo {
@@ -38,8 +39,8 @@ class Context : public ::gloo::Context {
 
 class ContextFactory {
  public:
-  // Assume a pair's address is no bigger than 128 bytes
-  static constexpr auto kMaxAddressSize = 128;
+  static constexpr auto kMaxAddressSize =
+      ::gloo::transport::Address::kMaxByteSize;
 
   explicit ContextFactory(std::shared_ptr<::gloo::Context> backingContext);
 
