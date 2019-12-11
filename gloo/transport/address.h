@@ -16,6 +16,9 @@ namespace transport {
 
 class Address {
  public:
+  // Upper bound for an address' byte representation.
+  static constexpr auto kMaxByteSize = 192;
+
   virtual ~Address() = 0;
 
   virtual std::string str() const = 0;
