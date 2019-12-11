@@ -63,7 +63,7 @@ class ReadValueOperation final
       return;
     }
 
-    fn_(socket_, Error::OK, std::move(t_));
+    fn_(socket_, Error::kSuccess, std::move(t_));
   }
 
  private:
@@ -125,13 +125,13 @@ class WriteValueOperation final
       return;
     }
 
-    // Check for short read (assume we can read in a single call).
+    // Check for short read (assume we can write in a single call).
     if (rv < sizeof(t_)) {
       fn_(socket_, ShortReadError(rv, sizeof(t_)));
       return;
     }
 
-    fn_(socket_, Error::OK);
+    fn_(socket_, Error::kSuccess);
   }
 
  private:

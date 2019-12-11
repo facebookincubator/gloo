@@ -98,7 +98,7 @@ void Listener::waitForConnection(
   // If we already have an fd for this sequence number, schedule callback.
   auto socket = std::move(it->second);
   seqToSocket_.erase(it);
-  loop_->defer([fn, socket]() { fn(socket, Error::OK); });
+  loop_->defer([fn, socket]() { fn(socket, Error::kSuccess); });
 }
 
 void Listener::haveConnection(
@@ -117,7 +117,7 @@ void Listener::haveConnection(
   auto fn = std::move(it->second);
   seqToCallback_.erase(it);
   lock.unlock();
-  fn(std::move(socket), Error::OK);
+  fn(std::move(socket), Error::kSuccess);
 }
 
 } // namespace tcp
