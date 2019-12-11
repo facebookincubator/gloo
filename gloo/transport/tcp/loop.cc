@@ -22,8 +22,8 @@ namespace transport {
 namespace tcp {
 
 Deferrables::Deferrables() {
-  int fds[2];
-  auto rv = pipe2(fds, O_NONBLOCK);
+  std::array<int, 2> fds;
+  auto rv = pipe2(fds.data(), O_NONBLOCK);
   GLOO_ENFORCE_NE(rv, -1, "pipe: ", strerror(errno));
   rfd_ = fds[0];
   wfd_ = fds[1];
@@ -53,7 +53,7 @@ void Deferrables::defer(function_t fn) {
   }
 }
 
-void Deferrables::handleEvents(int events) {
+void Deferrables::handleEvents(int /* unused */) {
   decltype(functions_) localFunctions;
 
   {
