@@ -63,7 +63,7 @@ std::string Address::str() const {
 
   // Append sequence number if one is set.
   if (impl_.seq != SIZE_MAX) {
-    len += snprintf(str + len, sizeof(str) - len, "$%d", impl_.seq);
+    len += snprintf(str + len, sizeof(str) - len, "$%ld", impl_.seq);
   }
 
   return str;
