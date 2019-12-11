@@ -9,6 +9,7 @@
 #pragma once
 
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "gloo/transport/address.h"
 
@@ -16,7 +17,7 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-using sequence_number_t = int;
+using sequence_number_t = ssize_t;
 
 class Address : public ::gloo::transport::Address {
  public:
@@ -59,6 +60,7 @@ class Address : public ::gloo::transport::Address {
   };
 
   static_assert(std::is_trivially_copyable<Impl>::value, "!");
+  static_assert(sizeof(Impl) <= kMaxByteSize, "!");
 
   Impl impl_;
 };
