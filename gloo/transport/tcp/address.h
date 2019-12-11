@@ -28,8 +28,6 @@ class Address : public ::gloo::transport::Address {
 
   explicit Address(const std::vector<char>&);
 
-  virtual ~Address() = default;
-
   virtual std::vector<char> bytes() const override;
 
   virtual std::string str() const override;

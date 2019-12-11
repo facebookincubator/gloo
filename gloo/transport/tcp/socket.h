@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <chrono>
 #include <memory>
 
 #include <gloo/transport/tcp/address.h>
@@ -45,6 +46,15 @@ class Socket final : public std::enable_shared_from_this<Socket> {
   // Enable or disable TCP_NODELAY socket option.
   void noDelay(bool on);
 
+  // Configure if the socket is blocking or not.
+  void block(bool on);
+
+  // Configure recv timeout.
+  void recvTimeout(std::chrono::milliseconds timeout);
+
+  // Configure send timeout.
+  void sendTimeout(std::chrono::milliseconds timeout);
+
   // Bind socket to address.
   void bind(const sockaddr_storage& ss);
 
@@ -64,10 +74,10 @@ class Socket final : public std::enable_shared_from_this<Socket> {
   void connect(const struct sockaddr* addr, socklen_t addrlen);
 
   // Proxy to read(2) with EINTR retry.
-  ssize_t read(void *buf, size_t count);
+  ssize_t read(void* buf, size_t count);
 
   // Proxy to write(2) with EINTR retry.
-  ssize_t write(const void *buf, size_t count);
+  ssize_t write(const void* buf, size_t count);
 
   // Return address for getsockname(2).
   Address sockName() const;
@@ -77,6 +87,9 @@ class Socket final : public std::enable_shared_from_this<Socket> {
 
  private:
   int fd_;
+
+  // Configure send or recv timeout.
+  void configureTimeout(int opt, std::chrono::milliseconds timeout);
 };
 
 } // namespace tcp
