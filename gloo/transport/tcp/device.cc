@@ -258,12 +258,12 @@ std::shared_ptr<transport::Context> Device::createContext(
       new tcp::Context(shared_from_this(), rank, size));
 }
 
-void Device::registerDescriptor(int fd, int events, Pair* p) {
+void Device::registerDescriptor(int fd, int events, Handler* h) {
   struct epoll_event ev;
   int rv;
 
   ev.events = events;
-  ev.data.ptr = p;
+  ev.data.ptr = h;
 
   rv = epoll_ctl(fd_, EPOLL_CTL_ADD, fd, &ev);
   if (rv == -1 && errno == EEXIST) {
@@ -310,8 +310,8 @@ void Device::loop() {
     GLOO_ENFORCE_NE(nfds, -1);
 
     for (int i = 0; i < nfds; i++) {
-      Pair* p = reinterpret_cast<Pair*>(events[i].data.ptr);
-      p->handleEvents(events[i].events);
+      Handler* h = reinterpret_cast<Handler*>(events[i].data.ptr);
+      h->handleEvents(events[i].events);
     }
   }
 }
