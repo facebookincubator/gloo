@@ -66,8 +66,10 @@ void Listener::handleEvents(int /* unused */) {
             std::shared_ptr<Socket> socket,
             const Error& error,
             sequence_number_t&& seq) {
+          // If there was an error reading from the socket, the
+          // sequence number will be bogus, and we can't route it to
+          // the right callback. Ignore it.
           if (error) {
-            std::cout << "got error!!!" << error.what() << std::endl;
             return;
           }
 
