@@ -15,7 +15,7 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
-const Error Error::OK = Error();
+const Error Error::kSuccess = Error();
 
 std::string Error::what() const {
   return "no error";

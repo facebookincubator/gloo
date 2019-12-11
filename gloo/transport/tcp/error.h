@@ -16,18 +16,31 @@ namespace tcp {
 
 class Error {
  public:
-  Error() : valid_(false) {}
+  // Constant instance that indicates success.
+  static const Error kSuccess;
 
-  static const Error OK;
+  /* implicit */ Error() : valid_(false) {}
 
+  virtual ~Error() = default;
+
+  // Converting to boolean means checking if there is an error. This
+  // means we don't need to use an `std::optional` and allows for a
+  // snippet like the following:
+  //
+  //   if (error) {
+  //     // Deal with it.
+  //   }
+  //
   operator bool() const {
     return valid_;
   }
 
+  // Returns an explanatory string.
+  // Like `std::exception` but returns a `std::string`.
   virtual std::string what() const;
 
  protected:
-  Error(bool valid) : valid_(valid){};
+  explicit Error(bool valid) : valid_(valid) {}
 
  private:
   const bool valid_;
@@ -42,7 +55,7 @@ class SystemError : public Error {
 
  private:
   const char* syscall_;
-  int error_;
+  const int error_;
 };
 
 class ShortReadError : public Error {
@@ -53,8 +66,8 @@ class ShortReadError : public Error {
   std::string what() const override;
 
  private:
-  ssize_t expected_;
-  ssize_t actual_;
+  const ssize_t expected_;
+  const ssize_t actual_;
 };
 
 class ShortWriteError : public Error {
@@ -65,8 +78,8 @@ class ShortWriteError : public Error {
   std::string what() const override;
 
  private:
-  ssize_t expected_;
-  ssize_t actual_;
+  const ssize_t expected_;
+  const ssize_t actual_;
 };
 
 } // namespace tcp
