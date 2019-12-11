@@ -53,6 +53,8 @@ class Buffer;
 // instances and didn't need to dispatch events to different types.
 class Handler {
 public:
+  virtual ~Handler() = default;
+
   virtual void handleEvents(int events) = 0;
 };
 
