@@ -127,7 +127,7 @@ void Pair::connect(const std::vector<char>& bytes) {
           std::placeholders::_1,
           std::placeholders::_2));
 
-  // Wait for callback to fire.
+  // Wait for connection to be made.
   //
   // NOTE(pietern): This can be split out to a separate function so
   // that we first initiate all connections and then wait on all of
@@ -135,7 +135,7 @@ void Pair::connect(const std::vector<char>& bytes) {
   // requires a change to the base class though, so let's so it after
   // this new transport has been merged.
   //
-  cv_.wait(lock, [&] { return state_ == CONNECTED || state_ == CLOSED; });
+  waitUntilConnected(lock, true);
 }
 
 void Pair::connectCallback(std::shared_ptr<Socket> socket, Error error) {
