@@ -33,14 +33,14 @@ else()
   set(RCCL_LIBNAME "rccl")
 endif()
 
-find_library(RCCL_LIBRARY
+find_library(RCCL_LIBRARY_PATH
   NAMES ${RCCL_LIBNAME}
   HINTS
   ${RCCL_LIB_DIR}
   ${RCCL_ROOT_DIR}/lib)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(RCCL DEFAULT_MSG RCCL_INCLUDE_DIR RCCL_LIBRARY)
+find_package_handle_standard_args(RCCL DEFAULT_MSG RCCL_INCLUDE_DIR RCCL_LIBRARY_PATH)
 
 if (RCCL_FOUND)
   set(RCCL_HEADER_FILE "${RCCL_INCLUDE_DIR}/rccl.h")
@@ -53,7 +53,7 @@ if (RCCL_FOUND)
     message(STATUS "RCCL_MAJOR_VERSION: ${RCCL_MAJOR_VERSION}")
   endif()
   set(RCCL_INCLUDE_DIRS ${RCCL_INCLUDE_DIR})
-  set(RCCL_LIBRARIES ${RCCL_LIBRARY})
+  set(RCCL_LIBRARIES ${RCCL_LIBRARY_PATH})
   message(STATUS "Found RCCL (include: ${RCCL_INCLUDE_DIRS}, library: ${RCCL_LIBRARIES})")
   mark_as_advanced(RCCL_ROOT_DIR RCCL_INCLUDE_DIRS RCCL_LIBRARIES)
 endif()
