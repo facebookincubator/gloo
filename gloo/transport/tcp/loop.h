@@ -44,7 +44,7 @@ public:
 
   Deferrables();
 
-  ~Deferrables();
+  ~Deferrables() override;
 
   void defer(function_t fn);
 
@@ -78,8 +78,8 @@ class Loop final : public std::enable_shared_from_this<Loop> {
  private:
   static constexpr auto capacity_ = 64;
 
-  int fd_;
-  std::atomic<bool> done_;
+  int fd_{-1};
+  std::atomic<bool> done_{false};
   Deferrables deferrables_;
   std::unique_ptr<std::thread> loop_;
 

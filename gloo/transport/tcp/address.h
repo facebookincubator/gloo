@@ -21,6 +21,8 @@ using sequence_number_t = ssize_t;
 
 class Address : public ::gloo::transport::Address {
  public:
+  static constexpr sequence_number_t kSequenceNumberUnset = -1;
+
   Address() {}
 
   explicit Address(struct sockaddr_storage ss, sequence_number_t seq = -1);
@@ -56,7 +58,7 @@ class Address : public ::gloo::transport::Address {
     // If this is equal to -1, the address is assumed to
     // represent the listening socket of a device. The sequence number
     // must be set before it can be used by a pair.
-    sequence_number_t seq = -1;
+    sequence_number_t seq{kSequenceNumberUnset};
   };
 
   static_assert(std::is_trivially_copyable<Impl>::value, "!");
