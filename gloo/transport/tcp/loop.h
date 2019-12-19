@@ -10,6 +10,8 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <functional>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -32,6 +34,33 @@ class Handler {
   virtual void handleEvents(int events) = 0;
 };
 
+class Loop;
+
+// Functions can be deferred to the epoll(2) thread through the this
+// class. It uses readability of a pipe to wake up the event loop.
+class Deferrables final : public Handler {
+public:
+  using function_t = std::function<void()>;
+
+  Deferrables();
+
+  ~Deferrables() override;
+
+  void defer(function_t fn);
+
+  void handleEvents(int events) override;
+
+private:
+  int rfd_;
+  int wfd_;
+
+  std::mutex mutex_;
+  std::list<function_t> functions_;
+  bool triggered_{false};
+
+  friend class Loop;
+};
+
 class Loop final : public std::enable_shared_from_this<Loop> {
  public:
   explicit Loop();
@@ -42,6 +71,8 @@ class Loop final : public std::enable_shared_from_this<Loop> {
 
   void unregisterDescriptor(int fd);
 
+  void defer(std::function<void()> fn);
+
   void run();
 
  private:
@@ -49,6 +80,7 @@ class Loop final : public std::enable_shared_from_this<Loop> {
 
   int fd_{-1};
   std::atomic<bool> done_{false};
+  Deferrables deferrables_;
   std::unique_ptr<std::thread> loop_;
 
   std::mutex m_;
