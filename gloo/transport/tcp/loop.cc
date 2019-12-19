@@ -8,6 +8,7 @@
 
 #include <gloo/transport/tcp/loop.h>
 
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -20,10 +21,69 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
+Deferrables::Deferrables() {
+  std::array<int, 2> fds;
+  auto rv = pipe2(fds.data(), O_NONBLOCK);
+  GLOO_ENFORCE_NE(rv, -1, "pipe: ", strerror(errno));
+  rfd_ = fds[0];
+  wfd_ = fds[1];
+}
+
+Deferrables::~Deferrables() {
+  close(rfd_);
+  close(wfd_);
+}
+
+void Deferrables::defer(function_t fn) {
+  std::lock_guard<std::mutex> guard(mutex_);
+  functions_.push_back(std::move(fn));
+
+  // Write byte to pipe to make epoll(2) wake up.
+  if (!triggered_) {
+    for (;;) {
+      char byte = 0;
+      auto rv = write(wfd_, &byte, sizeof(byte));
+      if (rv == -1 && errno == EINTR) {
+        continue;
+      }
+      GLOO_ENFORCE_NE(rv, -1, "write: ", strerror(errno));
+      break;
+    }
+    triggered_ = true;
+  }
+}
+
+void Deferrables::handleEvents(int /* unused */) {
+  decltype(functions_) localFunctions;
+
+  {
+    std::lock_guard<std::mutex> guard(mutex_);
+    std::swap(localFunctions, functions_);
+
+    // Read byte from pipe to drain it.
+    for (;;) {
+      char byte = 0;
+      auto rv = read(rfd_, &byte, sizeof(byte));
+      if (rv == -1 && errno == EINTR) {
+        continue;
+      }
+      GLOO_ENFORCE_NE(rv, -1, "read: ", strerror(errno));
+      break;
+    }
+    triggered_ = false;
+  }
+
+  // Execute deferred functions.
+  for (auto fn : localFunctions) {
+    fn();
+  }
+}
+
 Loop::Loop() {
   fd_ = epoll_create(1);
   GLOO_ENFORCE_NE(fd_, -1, "epoll_create: ", strerror(errno));
   loop_.reset(new std::thread(&Loop::run, this));
+  registerDescriptor(deferrables_.rfd_, EPOLLIN, &deferrables_);
 }
 
 Loop::~Loop() {
@@ -58,6 +118,10 @@ void Loop::unregisterDescriptor(int fd) {
     std::unique_lock<std::mutex> lock(m_);
     cv_.wait(lock);
   }
+}
+
+void Loop::defer(std::function<void()> fn) {
+  deferrables_.defer(std::move(fn));
 }
 
 void Loop::run() {
