@@ -12,6 +12,7 @@ else()
       )
     list(APPEND GLOO_TRANSPORT_HDRS
       "${CMAKE_CURRENT_SOURCE_DIR}/address.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/attr.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/context.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.h"
