@@ -47,8 +47,8 @@ class Loop final : public std::enable_shared_from_this<Loop> {
  private:
   static constexpr auto capacity_ = 64;
 
-  int fd_;
-  std::atomic<bool> done_;
+  int fd_{-1};
+  std::atomic<bool> done_{false};
   std::unique_ptr<std::thread> loop_;
 
   std::mutex m_;
