@@ -79,7 +79,7 @@ void Deferrables::handleEvents(int /* unused */) {
   }
 }
 
-Loop::Loop() : fd_(-1), done_(false) {
+Loop::Loop() {
   fd_ = epoll_create(1);
   GLOO_ENFORCE_NE(fd_, -1, "epoll_create: ", strerror(errno));
   loop_.reset(new std::thread(&Loop::run, this));
