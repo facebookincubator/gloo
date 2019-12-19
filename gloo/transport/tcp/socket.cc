@@ -132,9 +132,17 @@ void Socket::connect(const sockaddr_storage& ss) {
 }
 
 void Socket::connect(const struct sockaddr* addr, socklen_t addrlen) {
-  auto rv = ::connect(fd_, addr, addrlen);
-  if (rv == -1 && errno != EINPROGRESS) {
-    GLOO_ENFORCE_NE(rv, -1, "connect: ", strerror(errno));
+  for (;;) {
+    auto rv = ::connect(fd_, addr, addrlen);
+    if (rv == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      if (errno != EINPROGRESS) {
+        GLOO_ENFORCE_NE(rv, -1, "connect: ", strerror(errno));
+      }
+    }
+    break;
   }
 }
 

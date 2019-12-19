@@ -137,9 +137,9 @@ class WriteValueOperation final
       return;
     }
 
-    // Check for short read (assume we can write in a single call).
+    // Check for short write (assume we can write in a single call).
     if (rv < sizeof(t_)) {
-      fn_(socket_, ShortReadError(rv, sizeof(t_)));
+      fn_(socket_, ShortWriteError(rv, sizeof(t_)));
       return;
     }
 
