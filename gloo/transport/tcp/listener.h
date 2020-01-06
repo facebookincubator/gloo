@@ -34,9 +34,9 @@ class Listener final : public Handler {
 
   static constexpr auto kBacklog = 512;
 
-  explicit Listener(std::shared_ptr<Loop> loop, const attr& attr);
+  Listener(std::shared_ptr<Loop> loop, const attr& attr);
 
-  virtual ~Listener();
+  ~Listener() override;
 
   void handleEvents(int events) override;
 

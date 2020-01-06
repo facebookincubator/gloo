@@ -13,8 +13,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <iostream>
-
 #include <gloo/common/common.h>
 #include <gloo/common/logging.h>
 #include <gloo/transport/tcp/helpers.h>
