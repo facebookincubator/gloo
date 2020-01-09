@@ -75,7 +75,7 @@ struct Op {
   size_t nbytes = 0;
 };
 
-class Pair : public ::gloo::transport::Pair {
+class Pair : public ::gloo::transport::Pair, public Handler {
   enum state {
     INITIALIZING = 1,
     LISTENING = 2,
@@ -136,7 +136,7 @@ class Pair : public ::gloo::transport::Pair {
       size_t offset,
       size_t nbytes);
 
-  void handleEvents(int events);
+  void handleEvents(int events) override;
 
   void close() override;
 
