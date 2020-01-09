@@ -14,31 +14,13 @@
 #include <mutex>
 #include <thread>
 
-#include <sys/socket.h>
-
 #include <gloo/transport/device.h>
+#include <gloo/transport/tcp/attr.h>
 #include <gloo/transport/tcp/loop.h>
 
 namespace gloo {
 namespace transport {
 namespace tcp {
-
-struct attr {
-  attr() {}
-  /* implicit */ attr(const char* ptr) : hostname(ptr) {}
-
-  std::string hostname;
-
-  std::string iface;
-
-  // The address family defaults to AF_UNSPEC such that getaddrinfo(3)
-  // will try to find either IPv4 or IPv6 addresses.
-  int ai_family = AF_UNSPEC;
-  int ai_socktype;
-  int ai_protocol;
-  struct sockaddr_storage ai_addr;
-  int ai_addrlen;
-};
 
 std::shared_ptr<::gloo::transport::Device> CreateDevice(
     const struct attr&);
