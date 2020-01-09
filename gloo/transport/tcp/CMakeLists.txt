@@ -6,6 +6,7 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/loop.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.cc"
       )
@@ -14,6 +15,7 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/context.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/loop.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.h"
       )
