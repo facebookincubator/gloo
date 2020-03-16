@@ -20,7 +20,7 @@ extern const size_t kOnDeviceThreshold;
 class Algorithm {
  public:
   explicit Algorithm(const std::shared_ptr<Context>&);
-  virtual ~Algorithm() = 0;
+  virtual ~Algorithm() noexcept(false) = 0;
 
   virtual void run() = 0;
 
@@ -101,7 +101,7 @@ const ReductionFunction<T>* ReductionFunction<T>::max =
 template <typename T>
 class LocalOp {
  public:
-  virtual ~LocalOp() {}
+  virtual ~LocalOp() noexcept(false) {}
   virtual void runAsync() = 0;
   virtual void wait() = 0;
 

@@ -72,7 +72,7 @@ CudaStream::CudaStream(CudaStream&& other) noexcept
   other.event_ = nullptr;
 }
 
-CudaStream::~CudaStream() {
+CudaStream::~CudaStream() noexcept(false) {
   if (deviceId_ == kInvalidDeviceId) {
     return;
   }
@@ -216,7 +216,7 @@ CudaDevicePointer<T>& CudaDevicePointer<T>::operator=(
 }
 
 template<typename T>
-CudaDevicePointer<T>::~CudaDevicePointer() {
+CudaDevicePointer<T>::~CudaDevicePointer() noexcept(false) {
   if (deviceId_ == kInvalidDeviceId) {
     return;
   }
@@ -266,7 +266,7 @@ CudaHostPointer<T>& CudaHostPointer<T>::operator=(CudaHostPointer<T>&& other) {
 }
 
 template<typename T>
-CudaHostPointer<T>::~CudaHostPointer() {
+CudaHostPointer<T>::~CudaHostPointer() noexcept(false) {
   if (owner_) {
     std::lock_guard<std::mutex> lock(CudaShared::getMutex());
     CUDA_CHECK(cudaFreeHost(host_));

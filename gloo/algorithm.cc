@@ -21,7 +21,7 @@ Algorithm::Algorithm(const std::shared_ptr<Context>& context)
       contextSize_(context_->size) {}
 
 // Have to provide implementation for pure virtual destructor.
-Algorithm::~Algorithm() {}
+Algorithm::~Algorithm() noexcept(false) {}
 
 std::unique_ptr<transport::Pair>& Algorithm::getPair(int i) {
   return context_->getPair(i);
