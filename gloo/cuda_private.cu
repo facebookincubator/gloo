@@ -81,7 +81,7 @@ CudaMemory<T>::CudaMemory(CudaMemory<T>&& other) noexcept
 }
 
 template<typename T>
-CudaMemory<T>::~CudaMemory() {
+CudaMemory<T>::~CudaMemory() noexcept(false) {
   CudaDeviceScope scope(device_);
   if (ptr_ != nullptr) {
     // Sychronize memory allocation with NCCL operations

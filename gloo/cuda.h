@@ -60,7 +60,7 @@ class CudaStream {
   // Move constructor
   CudaStream(CudaStream&& other) noexcept;
 
-  ~CudaStream();
+  ~CudaStream() noexcept(false);
 
   cudaStream_t operator*() const {
     return stream_;
@@ -125,7 +125,7 @@ class CudaDevicePointer {
   }
 
   CudaDevicePointer(CudaDevicePointer&&) noexcept;
-  ~CudaDevicePointer();
+  ~CudaDevicePointer() noexcept(false);
 
   // Default constructor creates invalid instance
   CudaDevicePointer()
@@ -195,7 +195,7 @@ class CudaHostPointer {
   }
 
   CudaHostPointer(CudaHostPointer&&) noexcept;
-  ~CudaHostPointer();
+  ~CudaHostPointer() noexcept(false);
 
   // Default constructor creates invalid instance
   CudaHostPointer() : CudaHostPointer(nullptr, 0, false) {}

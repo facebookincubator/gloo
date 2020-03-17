@@ -99,7 +99,7 @@ class CudaDeviceGuard {
   CudaDeviceGuard() : previous_(getCurrentGPUID()) {
   }
 
-  ~CudaDeviceGuard() {
+  ~CudaDeviceGuard() noexcept(false) {
     CUDA_CHECK(cudaSetDevice(previous_));
   }
 
@@ -124,7 +124,7 @@ class CudaMemory {
  public:
   explicit CudaMemory(size_t elements);
   CudaMemory(CudaMemory&&) noexcept;
-  ~CudaMemory();
+  ~CudaMemory() noexcept(false);
 
   T* operator*() const {
     return ptr_;
