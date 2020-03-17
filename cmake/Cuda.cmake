@@ -170,7 +170,7 @@ set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 if((NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=c\\+\\+") AND (NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=gnu\\+\\+"))
   gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-std=c++11")
 endif()
-gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-Xcompiler -fPIC")
+gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-Xcompiler" "-fPIC")
 
 mark_as_advanced(CUDA_BUILD_CUBIN CUDA_BUILD_EMULATION CUDA_VERBOSE_BUILD)
 mark_as_advanced(CUDA_SDK_ROOT_DIR CUDA_SEPARABLE_COMPILATION)
