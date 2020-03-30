@@ -97,7 +97,7 @@ NCCLExecution<T>::NCCLExecution(std::vector<NCCLElement<T>>&& elements)
 }
 
 template <typename T>
-NCCLExecution<T>::~NCCLExecution() {
+NCCLExecution<T>::~NCCLExecution() noexcept(false) {
   for (auto i = 0; i < this->elements.size(); i++) {
     CudaDeviceScope scope(this->elements[i].device);
     CUDA_CHECK(cudaEventDestroy(ncclEvents[i]));

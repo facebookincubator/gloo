@@ -73,7 +73,7 @@ class NCCLExecution {
  public:
   /* implicit */ NCCLExecution(std::vector<NCCLElement<T>>&& elements);
   NCCLExecution(NCCLExecution&&) = default;
-  ~NCCLExecution();
+  ~NCCLExecution() noexcept(false);
 
   std::vector<int> getDevices() const;
   std::string getKey() const;
