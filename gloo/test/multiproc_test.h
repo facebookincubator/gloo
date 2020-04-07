@@ -24,7 +24,7 @@ namespace gloo {
 namespace test {
 
 const int kExitWithIoException = 10;
-const auto kMultiProcTimeout = std::chrono::milliseconds(200);
+const auto kMultiProcTimeout = std::chrono::milliseconds(500);
 
 class MultiProcTest : public ::testing::Test {
  protected:
