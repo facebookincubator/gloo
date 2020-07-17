@@ -56,6 +56,12 @@ struct options {
   int destinations  = 1;
   int threads = 1;
   int base = 2;
+
+  // TLS
+  std::string pkey;
+  std::string cert;
+  std::string caFile;
+  std::string caPath;
 };
 
 struct options parseOptions(int argc, char** argv);

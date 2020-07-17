@@ -32,12 +32,12 @@ class Buffer : public ::gloo::transport::Buffer {
   virtual void waitRecv() override;
   virtual void waitSend() override;
 
+  void handleRecvCompletion();
+  void handleSendCompletion();
+
  protected:
   // May only be constructed from helper function in pair.cc
   Buffer(Pair* pair, int slot, void* ptr, size_t size);
-
-  void handleRecvCompletion();
-  void handleSendCompletion();
 
   Pair* pair_;
 

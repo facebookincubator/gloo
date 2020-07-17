@@ -150,6 +150,10 @@ struct options parseOptions(int argc, char** argv) {
       {"ib-port", required_argument, nullptr, 0x100f},
       {"tcp-device", required_argument, nullptr, 0x1010},
       {"base", required_argument, nullptr, 0x1011},
+      {"pkey", required_argument, nullptr, 0x2001},
+      {"cert", required_argument, nullptr, 0x2002},
+      {"ca-file", required_argument, nullptr, 0x2003},
+      {"ca-path", required_argument, nullptr, 0x2004},
       {"help", no_argument, nullptr, 0xffff},
       {nullptr, 0, nullptr, 0}};
 
@@ -280,6 +284,26 @@ struct options parseOptions(int argc, char** argv) {
       case 0x1012: // --shared-path
       {
         result.sharedPath = std::string(optarg, strlen(optarg));
+        break;
+      }
+      case 0x2001: // --pkey
+      {
+        result.pkey = std::string(optarg, strlen(optarg));
+        break;
+      }
+      case 0x2002: // --cert
+      {
+        result.cert = std::string(optarg, strlen(optarg));
+        break;
+      }
+      case 0x2003: // --ca-file
+      {
+        result.caFile = std::string(optarg, strlen(optarg));
+        break;
+      }
+      case 0x2004: // --ca-path
+      {
+        result.caPath = std::string(optarg, strlen(optarg));
         break;
       }
       case 0xffff: // --help

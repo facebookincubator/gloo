@@ -24,6 +24,10 @@
 #include "gloo/transport/tcp/device.h"
 #endif
 
+#if GLOO_HAVE_TRANSPORT_TCP_TLS
+#include "gloo/transport/tcp/tls/device.h"
+#endif
+
 #if GLOO_HAVE_TRANSPORT_UV
 #include "gloo/transport/uv/device.h"
 #endif
@@ -54,12 +58,18 @@ class Barrier {
 
 enum Transport {
   TCP,
+#if GLOO_HAVE_TRANSPORT_TCP_TLS
+  TCP_TLS,
+#endif
   UV,
 };
 
 // Transports that instantiated algorithms can be tested against.
 const std::vector<Transport> kTransportsForClassAlgorithms{
     Transport::TCP,
+#if GLOO_HAVE_TRANSPORT_TCP_TLS
+    Transport::TCP_TLS,
+#endif
 };
 
 // Transports that function algorithms can be tested against.
@@ -67,34 +77,16 @@ const std::vector<Transport> kTransportsForClassAlgorithms{
 // preferred over the instantiated style.
 const std::vector<Transport> kTransportsForFunctionAlgorithms{
     Transport::TCP,
+#if GLOO_HAVE_TRANSPORT_TCP_TLS
+    Transport::TCP_TLS,
+#endif
     Transport::UV,
 };
 
+std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport);
+
 class BaseTest : public ::testing::Test {
  protected:
-  std::shared_ptr<::gloo::transport::Device> createDevice(
-      const Transport transport) {
-#if GLOO_HAVE_TRANSPORT_TCP
-    if (transport == Transport::TCP) {
-      static auto dev = ::gloo::transport::tcp::CreateDevice("localhost");
-      return dev;
-    }
-#endif
-#if GLOO_HAVE_TRANSPORT_UV
-    if (transport == Transport::UV) {
-#ifdef _WIN32
-      gloo::transport::uv::attr attr;
-      attr.ai_family = AF_UNSPEC;
-      static auto dev = ::gloo::transport::uv::CreateDevice(attr);
-#else
-      static auto dev = ::gloo::transport::uv::CreateDevice("localhost");
-#endif
-      return dev;
-    }
-#endif
-    return std::shared_ptr<::gloo::transport::Device>();
-  }
-
   void spawnThreads(int size, std::function<void(int)> fn) {
     std::vector<std::thread> threads;
     std::vector<std::exception_ptr> errors;
@@ -122,12 +114,13 @@ class BaseTest : public ::testing::Test {
   void spawn(
       Transport transport,
       int size,
+      std::function<std::shared_ptr<::gloo::transport::Device>(Transport)> device_creator,
       std::function<void(std::shared_ptr<Context>)> fn,
       int base = 2) {
     Barrier barrier(size);
     ::gloo::rendezvous::HashStore store;
 
-    auto device = createDevice(transport);
+    auto device = device_creator(transport);
     if (!device) {
       return;
     }
@@ -159,6 +152,13 @@ class BaseTest : public ::testing::Test {
         context->closeConnections();
       }
     });
+  }
+
+  void spawn(Transport transport, int size,
+             std::function<void(std::shared_ptr<Context>)> fn, int base = 2) {
+    spawn(
+        transport, size,
+        [](Transport transport) { return createDevice(transport); }, fn, base);
   }
 };
 

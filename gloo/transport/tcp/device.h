@@ -22,6 +22,8 @@ namespace gloo {
 namespace transport {
 namespace tcp {
 
+struct attr CreateDeviceAttr(const struct attr& src);
+
 std::shared_ptr<::gloo::transport::Device> CreateDevice(
     const struct attr&);
 
@@ -44,10 +46,10 @@ class Device : public ::gloo::transport::Device,
   virtual std::shared_ptr<::gloo::transport::Context> createContext(
       int rank, int size) override;
 
- protected:
   void registerDescriptor(int fd, int events, Handler* h);
   void unregisterDescriptor(int fd);
 
+ protected:
   const struct attr attr_;
 
   friend class Pair;
