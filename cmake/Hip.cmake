@@ -112,9 +112,16 @@ find_package(HIP 1.0)
 IF(HIP_FOUND)
   set(HAVE_HIP TRUE)
 
+  if(HIP_COMPILER STREQUAL clang)
+    set(hip_library_name amdhip64)
+  else()
+    set(hip_library_name hip_hcc)
+  endif()
+  message("HIP library name: ${hip_library_name}")
+
   set(CMAKE_HCC_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
   set(CMAKE_HCC_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-  FIND_LIBRARY(GLOO_HIP_HCC_LIBRARIES hip_hcc HINTS ${HIP_PATH}/lib)
+  FIND_LIBRARY(GLOO_HIP_HCC_LIBRARIES ${hip_library_name} HINTS ${HIP_PATH}/lib)
   # Necessary includes for building Gloo since we include HIP headers that depend on hcc/hsa headers.
   set(hcc_INCLUDE_DIRS ${HCC_PATH}/include)
   set(hsa_INCLUDE_DIRS ${HSA_PATH}/include)
