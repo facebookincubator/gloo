@@ -62,7 +62,7 @@ if(USE_LIBUV)
     endif()
     
     if(NOT EXISTS ${libuv_LIBRARY})
-      message(FATAL "Unable to find static libuv library in " ${libuv_LIBDIR})
+      message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
     endif()
     add_library(uv_a INTERFACE IMPORTED)
     set_target_properties(uv_a PROPERTIES
