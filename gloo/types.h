@@ -25,6 +25,11 @@
 
 #include "gloo/common/common.h"
 
+#ifdef _WIN32
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
 namespace gloo {
 
 // Unlike old style collectives that are class instances that hold
@@ -84,7 +89,11 @@ struct float16;
 float16 cpu_float2half_rn(float f);
 float cpu_half2float(float16 h);
 
+#ifndef _WIN32
 struct __attribute__((__aligned__(2))) float16 {
+#else
+__declspec(align(2)) struct float16 {
+#endif
   uint16_t x;
 
   float16() : x(0) {}
@@ -103,6 +112,13 @@ struct __attribute__((__aligned__(2))) float16 {
     float16 res = cpu_float2half_rn(static_cast<float>(val));
     x = res.x;
   }
+
+#ifdef _WIN64
+  explicit float16(unsigned __int64 val) {
+    float16 res = cpu_float2half_rn(static_cast<float>(val));
+    x = res.x;
+  }
+#endif
 
   float16& operator=(const int& rhs) {
     float16 res = cpu_float2half_rn(static_cast<float>(rhs));

@@ -42,13 +42,25 @@ if(USE_LIBUV)
     #     )
     #
   else()
-    include(FindPkgConfig)
-    pkg_search_module(libuv REQUIRED libuv>=1.26)
-    find_file(
-      libuv_LIBRARY
-      NAMES libuv.a libuv_a.a
-      PATHS ${libuv_LIBDIR}
-      NO_DEFAULT_PATH)
+    if(MSVC)
+      find_package(libuv REQUIRED libuv>=1.26)
+      if(NOT LIBUV_FOUND)
+        find_file(
+          libuv_LIBRARY
+          NAMES uv.lib uv_a.lib
+          PATHS ${libuv_LIBDIR}
+          NO_DEFAULT_PATH)
+        endif()
+    else()
+      include(FindPkgConfig)
+      pkg_search_module(libuv REQUIRED libuv>=1.26)
+      find_file(
+        libuv_LIBRARY
+        NAMES libuv.a libuv_a.a
+        PATHS ${libuv_LIBDIR}
+        NO_DEFAULT_PATH)
+    endif()
+    
     if(NOT EXISTS ${libuv_LIBRARY})
       message(FATAL "Unable to find static libuv library in " ${libuv_LIBDIR})
     endif()

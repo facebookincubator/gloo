@@ -108,7 +108,9 @@ add_subdirectory(rendezvous)
 add_subdirectory(transport)
 
 # Depend on pthreads for transport device threads
-list(APPEND gloo_DEPENDENCY_LIBS pthread)
+if(NOT MSVC)
+  list(APPEND gloo_DEPENDENCY_LIBS pthread)
+endif()
 
 # Enable the following to get a list of source files
 if(FALSE)

@@ -12,7 +12,9 @@
 namespace {
 struct Initializer {
   Initializer() {
+#ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
+#endif
   }
 };
 Initializer initializer;

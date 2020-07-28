@@ -8,7 +8,11 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include <gloo/common/win.h>
+#else
 #include <unistd.h>
+#endif
 
 #include <memory>
 
@@ -140,7 +144,12 @@ class ShareableNonOwningPtr final {
     ptr_.reset();
     // Wait for all shared_ptr's to T have been released
     while (!weak.expired()) {
+#ifdef _WIN32
+      //Due to here sleep time is 0, does not want implement a usleep on windows
+      Sleep(0);
+#else
       usleep(0);
+#endif
     }
   }
 

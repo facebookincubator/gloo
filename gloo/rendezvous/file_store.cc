@@ -14,13 +14,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
 #include <array>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <thread>
+
+#ifndef _WIN32
+#include <unistd.h>
+#else
+#include <io.h>
+#endif
 
 #include "gloo/common/error.h"
 #include "gloo/common/logging.h"

@@ -11,18 +11,33 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+#include <Windows.h>
+#include <process.h>
+#endif
+
 namespace gloo {
 namespace test {
 namespace {
 
 size_t readResidentSetSize() {
   std::stringstream path;
+#ifdef _WIN32
+  path << "/proc/" << _getpid() << "/statm";
+#else
   path << "/proc/" << getpid() << "/statm";
+#endif
   std::ifstream f(path.str());
   size_t size;
   size_t resident;
   f >> size >> resident;
+#ifdef _WIN32
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return (si.dwPageSize * resident);
+#else
   return (getpagesize() * resident);
+#endif
 }
 
 class MemoryTest : public BaseTest {};

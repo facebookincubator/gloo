@@ -34,6 +34,14 @@ option(USE_NCCL "Support using NCCL for local collectives" ${USE_NCCL_DEFAULT})
 option(USE_RCCL "Support using RCCL for local collectives" ${USE_RCCL_DEFAULT})
 option(USE_LIBUV "Build libuv transport" ${USE_LIBUV_DEFAULT})
 
+if(MSVC)
+  set(USE_REDIS OFF)
+  set(USE_IBVERBS OFF)
+  set(USE_NCCL OFF)
+  set(USE_RCCL OFF)
+  set(USE_LIBUV ON)
+endif()
+
 # Set default build type
 if(NOT CMAKE_BUILD_TYPE)
   message(STATUS "Build type not set -- defaulting to Release")

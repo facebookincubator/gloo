@@ -32,7 +32,11 @@ class AllreduceRingChunked : public Algorithm {
     // Use chunks of no less than 1024 bytes (256 * sizeof(float))
     constexpr unsigned long minSize = 256;
     chunks_ = this->contextSize_ * 2;
-    chunkSize_ = std::max(minSize, (count_ + chunks_ - 1) / chunks_);
+#ifdef _WIN32
+  chunkSize_ = std::max((int64_t)minSize, (int64_t)((count_ + chunks_ - 1) / chunks_));
+#else
+  chunkSize_ = std::max(minSize, (count_ + chunks_ - 1) / chunks_);
+#endif
     chunkBytes_ = chunkSize_ * sizeof(T);
 
     // Allocate inboxes

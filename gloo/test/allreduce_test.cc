@@ -26,8 +26,13 @@ namespace {
 
 // RAII handle for aligned buffer
 template <typename T>
+#ifdef _WIN32
+std::vector<T> newBuffer(int size) {
+  return std::vector<T>(size);
+#else
 std::vector<T, aligned_allocator<T, kBufferAlignment>> newBuffer(int size) {
   return std::vector<T, aligned_allocator<T, kBufferAlignment>>(size);
+#endif
 }
 
 // Function to instantiate and run algorithm.
@@ -379,7 +384,7 @@ AllreduceOptions::Func getFunction() {
 }
 
 TEST_F(AllreduceNewTest, TestTimeout) {
-  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::UV, 2, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> outputs(context, 1, 1);
     AllreduceOptions opts(context);
     opts.setOutputs(outputs.getPointers(), 1);

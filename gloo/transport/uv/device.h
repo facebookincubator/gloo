@@ -15,11 +15,14 @@
 #include <thread>
 #include <unordered_map>
 
-#include <sys/socket.h>
 #include <sys/types.h>
 
 #include <gloo/transport/device.h>
 #include <gloo/transport/uv/address.h>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#endif
 
 namespace gloo {
 namespace transport {
