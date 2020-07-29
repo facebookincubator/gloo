@@ -36,10 +36,20 @@ option(USE_LIBUV "Build libuv transport" ${USE_LIBUV_DEFAULT})
 
 if(MSVC)
   set(USE_REDIS OFF)
+  message(STATUS "Set USE_REDIS OFF")
   set(USE_IBVERBS OFF)
+  message(STATUS "Set USE_IBVERBS OFF")
   set(USE_NCCL OFF)
+  message(STATUS "Set USE_NCCL OFF")
   set(USE_RCCL OFF)
+  message(STATUS "Set USE_RCCL OFF")
   set(USE_LIBUV ON)
+  message(STATUS "Set USE_LIBUV OFF")
+  message(STATUS "Only USE_LIBUV is supported on Windows")
+
+  if(BUILD_BENCHMARK)
+    message(FATAL_ERROR "BUILD_BENCHMARK is not supported on Windows yet")
+  endif()
 endif()
 
 # Set default build type

@@ -28,15 +28,17 @@ add_executable(gloo_test ${GLOO_TEST_SRCS})
 target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
 
 if(USE_CUDA)
-  set(GLOO_TEST_CUDA_SRCS
+  if(NOT MSVC)
+    set(GLOO_TEST_CUDA_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_allreduce_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_base_test.cu"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_broadcast_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
 
-  cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
-  target_link_libraries(gloo_test_cuda gloo_cuda gtest)
+    cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
+    target_link_libraries(gloo_test_cuda gloo_cuda gtest)
+  endif()
 endif()
 
 if(USE_ROCM)
