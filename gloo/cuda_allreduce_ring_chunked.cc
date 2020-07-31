@@ -72,7 +72,7 @@ CudaAllreduceRingChunked<T, W>::CudaAllreduceRingChunked(
   constexpr unsigned long minSize = 256;
   chunks_ = this->contextSize_ * 2;
 #ifdef _WIN32
-  chunkSize_ = std::max((int64_t)minSize, (int64_t)((count_ + chunks_ - 1) / chunks_));
+  chunkSize_ = std::max((size_t)minSize, (size_t)((count_ + chunks_ - 1) / chunks_));
 #else
   chunkSize_ = std::max(minSize, (count_ + chunks_ - 1) / chunks_);
 #endif

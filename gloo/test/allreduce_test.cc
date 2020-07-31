@@ -384,7 +384,7 @@ AllreduceOptions::Func getFunction() {
 }
 
 TEST_F(AllreduceNewTest, TestTimeout) {
-  spawn(Transport::UV, 2, [&](std::shared_ptr<Context> context) {
+  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
     Fixture<uint64_t> outputs(context, 1, 1);
     AllreduceOptions opts(context);
     opts.setOutputs(outputs.getPointers(), 1);

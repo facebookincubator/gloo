@@ -55,14 +55,14 @@ if(USE_LIBUV)
         PATHS ${libuv_LIBDIR}
         NO_DEFAULT_PATH)
 
-        if(NOT EXISTS ${libuv_LIBRARY})
-          message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
-        endif()
-        add_library(uv_a INTERFACE IMPORTED)
-        set_target_properties(uv_a PROPERTIES
-          INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
-          INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
-          )
+      if(NOT EXISTS ${libuv_LIBRARY})
+        message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
+      endif()
+      add_library(uv_a INTERFACE IMPORTED)
+      set_target_properties(uv_a PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
+        INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
+        )
     endif()
   endif()
 endif()

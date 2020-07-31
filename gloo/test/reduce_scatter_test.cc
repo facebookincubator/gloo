@@ -151,7 +151,7 @@ TEST_F(ReduceScatterTest, MultipleAlgorithms) {
     }
   });
 }
-/*
+
 TEST_F(ReduceScatterTestHP, HalfPrecisionTest) {
   const auto transport = Transport::TCP;
   const auto contextSize = 4;
@@ -185,7 +185,7 @@ TEST_F(ReduceScatterTestHP, HalfPrecisionTest) {
     }
   });
 }
-*/
+
 INSTANTIATE_TEST_CASE_P(
     ReduceScatterHalvingDoubling,
     ReduceScatterTest,

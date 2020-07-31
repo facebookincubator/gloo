@@ -15,8 +15,8 @@
 // Open two terminals. Run the same program in both terminals, using
 // a different RANK in each. For example:
 //
-// A: PREFIX=test1 SIZE=2 RANK=0 example1
-// B: PREFIX=test1 SIZE=2 RANK=1 example1
+// A: PREFIX=test1 SIZE=2 RANK=0 example_allreduce
+// B: PREFIX=test1 SIZE=2 RANK=1 example_allreduce
 //
 // Expected output:
 //
@@ -27,7 +27,6 @@
 //
 
 void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
-  //printf("c_ %d, a_ %d, b_ %d, n %d\r\n", (*c_), (*a_), (*b_), n);
   printf("n=%d\r\n", n);
   int* c = static_cast<int*>(c_);
   const int* a = static_cast<const int*>(a_);
@@ -42,7 +41,6 @@ void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
 }
 
 int main(void) {
-  // Unrelated to the example: perform some sanity checks.
   if (getenv("PREFIX") == nullptr ||
       getenv("SIZE") == nullptr ||
       getenv("RANK") == nullptr) {
@@ -86,7 +84,6 @@ int main(void) {
   //
   std::cout << "CreateDevice" << std::endl;
   auto dev = gloo::transport::uv::CreateDevice(attr);
-  std::cout << "CreateDevice" << std::endl;
   // Now that we have a device, we can connect all participating
   // processes. We call this process "rendezvous". It can be performed
   // using a shared filesystem, a Redis instance, or something else by
@@ -157,11 +154,9 @@ int main(void) {
     for (size_t i = 0; i < elements; i++) {
       int *value = (int*)malloc(sizeof(int));
       *value = i * (rank + 1);
-      printf("inputPointers jozh ptr %p\r\n", value);
       inputPointers.push_back(value);
       int *value1 = (int*)malloc(sizeof(int));
       *value1 = 0;
-      printf("outputPointers jozh ptr %p\r\n", value1);
       outputPointers.push_back(value1);
     }
     

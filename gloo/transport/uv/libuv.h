@@ -619,7 +619,7 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
         this->template get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
 #ifdef _WIN32
     if(rv == UV_EALREADY) {
-      rv = 0;
+      return;
     }
 #endif
     UV_ASSERT(rv, "uv_read_start");
@@ -631,7 +631,7 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
         uv_read_start(this->get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
 #ifdef _WIN32
     if(rv == UV_EALREADY) {
-      rv = 0;
+      return;
     }
 #endif
     UV_ASSERT(rv, "uv_read_start");

@@ -14,8 +14,8 @@
 // Open two terminals. Run the same program in both terminals, using
 // a different RANK in each. For example:
 //
-// A: PREFIX=test1 SIZE=2 RANK=0 example1
-// B: PREFIX=test1 SIZE=2 RANK=1 example1
+// A: PREFIX=test1 SIZE=2 RANK=0 example_reduce
+// B: PREFIX=test1 SIZE=2 RANK=1 example_reduce
 //
 // Expected output:
 //
