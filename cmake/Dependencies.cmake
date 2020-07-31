@@ -44,7 +44,7 @@ if(USE_LIBUV)
   else()
     if(MSVC)
       add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/libuv
-      ${PROJECT_BINARY_DIR}/third_party/libuv)
+        ${PROJECT_BINARY_DIR}/third_party/libuv)
       add_library(uv::uv ALIAS uv_a)
     else()
       include(FindPkgConfig)
