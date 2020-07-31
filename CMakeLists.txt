@@ -99,7 +99,10 @@ include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_BINARY_DIR})
 
 # Compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
+
+if(NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
+endif()
 
 # Recurse into main project directory
 add_subdirectory(gloo)
@@ -115,12 +118,14 @@ configure_file(
   @ONLY)
 
 if(GLOO_INSTALL)
-  install(FILES
-    ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
-    ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
-    DESTINATION share/cmake/Gloo
-    COMPONENT dev)
-  install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
-    FILE GlooTargets.cmake
-    COMPONENT dev)
+  if(NOT MSVC)
+    install(FILES
+      ${PROJECT_BINARY_DIR}/cmake/GlooConfig.cmake
+      ${PROJECT_BINARY_DIR}/cmake/GlooConfigVersion.cmake
+      DESTINATION share/cmake/Gloo
+      COMPONENT dev)
+    install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
+      FILE GlooTargets.cmake
+      COMPONENT dev)
+  endif()
 endif()

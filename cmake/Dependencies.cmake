@@ -43,14 +43,17 @@ if(USE_LIBUV)
     #
   else()
     if(MSVC)
-      find_package(libuv REQUIRED libuv>=1.26)
-      if(NOT LIBUV_FOUND)
-        find_file(
-          libuv_LIBRARY
-          NAMES uv.lib uv_a.lib
-          PATHS ${libuv_LIBDIR}
-          NO_DEFAULT_PATH)
-        endif()
+      add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/libuv
+      ${PROJECT_BINARY_DIR}/third_party/libuv)
+      add_library(uv::uv ALIAS uv_a)
+#      find_package(libuv REQUIRED libuv>=1.26)
+#      if(NOT LIBUV_FOUND)
+#        find_file(
+#          libuv_LIBRARY
+#          NAMES uv.lib uv_a.lib
+#          PATHS ${libuv_LIBDIR}
+#          NO_DEFAULT_PATH)
+#      endif()
     else()
       include(FindPkgConfig)
       pkg_search_module(libuv REQUIRED libuv>=1.26)
@@ -59,16 +62,16 @@ if(USE_LIBUV)
         NAMES libuv.a libuv_a.a
         PATHS ${libuv_LIBDIR}
         NO_DEFAULT_PATH)
+
+        if(NOT EXISTS ${libuv_LIBRARY})
+          message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
+        endif()
+        add_library(uv_a INTERFACE IMPORTED)
+        set_target_properties(uv_a PROPERTIES
+          INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
+          INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
+          )
     endif()
-    
-    if(NOT EXISTS ${libuv_LIBRARY})
-      message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
-    endif()
-    add_library(uv_a INTERFACE IMPORTED)
-    set_target_properties(uv_a PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
-      INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
-      )
   endif()
 endif()
 
