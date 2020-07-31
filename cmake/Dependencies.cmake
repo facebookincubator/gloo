@@ -46,14 +46,6 @@ if(USE_LIBUV)
       add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/libuv
       ${PROJECT_BINARY_DIR}/third_party/libuv)
       add_library(uv::uv ALIAS uv_a)
-#      find_package(libuv REQUIRED libuv>=1.26)
-#      if(NOT LIBUV_FOUND)
-#        find_file(
-#          libuv_LIBRARY
-#          NAMES uv.lib uv_a.lib
-#          PATHS ${libuv_LIBDIR}
-#          NO_DEFAULT_PATH)
-#      endif()
     else()
       include(FindPkgConfig)
       pkg_search_module(libuv REQUIRED libuv>=1.26)
