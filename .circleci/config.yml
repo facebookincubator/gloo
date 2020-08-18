@@ -1,6 +1,36 @@
 version: 2.1
 
+executors:
+  windows-cpu:
+    machine:
+      resource_class: windows.medium
+      image: windows-server-2019-vs2019:stable
+      shell: bash.exe
+
 jobs:
+  windows_build:
+    executor:
+      name: windows-cpu
+    steps:
+      - checkout
+      - run:
+          name: Test
+          command: |
+            PATH=$PATH:"C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin"
+            which msbuild.exe
+      - run:
+          name: Build
+          command: |
+            git submodule sync
+            git submodule update --init --recursive
+            eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+            conda create -n py376_build python=3.7.6
+            conda activate py376_build
+            conda install cmake
+            mkdir build
+            cd build
+            cmake ..
+            msbuild.exe ALL_BUILD.vcxproj
   build:
     parameters:
       docker_image:
@@ -90,6 +120,8 @@ jobs:
 workflows:
   build:
     jobs:
+      - windows_build:
+          name: windows_build
       - build:
           name: gcc5
           docker_image: ubuntu:18.04
