@@ -9,28 +9,57 @@ executors:
 
 jobs:
   windows_build:
+    parameters:
+      gtest_lib_path:
+        type: string
+        default: ""
     executor:
       name: windows-cpu
     steps:
       - checkout
       - run:
-          name: Test
+          name: Setup Build Env
           command: |
             PATH=$PATH:"C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin"
-            which msbuild.exe
-      - run:
-          name: Build
-          command: |
-            git submodule sync
-            git submodule update --init --recursive
             eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
             conda create -n py376_build python=3.7.6
             conda activate py376_build
             conda install cmake
+      - run:
+          name: Install googletest
+          command: |
+            eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+            conda activate py376_build
+            curl https://codeload.github.com/google/googletest/tar.gz/release-1.10.0 \
+              --output googletest-release-1.10.0.tar.gz
+            tar xzvf googletest-release-1.10.0.tar.gz
+            cd googletest-release-1.10.0
+            mkdir -p build
+            cd build
+            mkdir << parameters.gtest_lib_path >>
+            cmake .. \
+              -DCMAKE_INSTALL_PREFIX=<< parameters.gtest_lib_path >> \
+              -Dgtest_force_shared_crt=ON
+            msbuild.exe INSTALL.vcxproj
+      - run:
+          name: Build
+          command: |
+            eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+            conda activate py376_build
+            git submodule sync
+            git submodule update --init --recursive
             mkdir build
             cd build
-            cmake ..
+            cmake .. \
+              -DBUILD_TEST=ON \
+              -DGTEST_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtestd.lib \
+              -DGTEST_INCLUDE_DIR=<< parameters.gtest_lib_path >>/include \
+              -DGTEST_MAIN_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtest_maind.lib
             msbuild.exe ALL_BUILD.vcxproj
+      - run:
+          name: Test
+          command: |
+            build/gloo/test/Debug/gloo_test.exe
   build:
     parameters:
       docker_image:
@@ -122,6 +151,7 @@ workflows:
     jobs:
       - windows_build:
           name: windows_build
+          gtest_lib_path: c:/googletest
       - build:
           name: gcc5
           docker_image: ubuntu:18.04
