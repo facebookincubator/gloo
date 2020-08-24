@@ -33,10 +33,10 @@ jobs:
           command: |
             eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
             conda activate py376_build
-            curl https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz \
-              --output libuv-v1.26.0.tar.gz
-            tar xzvf libuv-v1.26.0.tar.gz
-            cd libuv-v1.26.0
+            curl https://dist.libuv.org/dist/v1.38.0/libuv-v1.38.0.tar.gz \
+              --output libuv-v1.38.0.tar.gz
+            tar xzvf libuv-v1.38.0.tar.gz
+            cd libuv-v1.38.0
             mkdir -p build
             cd build
             mkdir << parameters.libuv_path >>
