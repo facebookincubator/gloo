@@ -171,6 +171,7 @@ workflows:
       - windows_build:
           name: windows_build
           gtest_lib_path: c:/googletest
+          libuv_path: c:/libuv
       - build:
           name: gcc5
           docker_image: ubuntu:18.04
