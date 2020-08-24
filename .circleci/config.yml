@@ -13,6 +13,10 @@ jobs:
       gtest_lib_path:
         type: string
         default: ""
+    parameters:
+      libuv_path:
+        type: string
+        default: ""
     executor:
       name: windows-cpu
     steps:
@@ -25,6 +29,20 @@ jobs:
             conda create -n py376_build python=3.7.6
             conda activate py376_build
             conda install cmake
+      - run:
+          name: Install libuv
+          command: |
+            eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+            conda activate py376_build
+            curl https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz \
+              --output libuv-v1.26.0.tar.gz
+            tar xzvf libuv-v1.26.0.tar.gz
+            cd libuv-v1.26.0
+            mkdir -p build
+            cd build
+            mkdir << parameters.libuv_path >>
+            cmake .. -DCMAKE_INSTALL_PREFIX=<< parameters.libuv_path >>
+            msbuild.exe INSTALL.vcxproj
       - run:
           name: Install googletest
           command: |
@@ -52,6 +70,8 @@ jobs:
             cd build
             cmake .. \
               -DBUILD_TEST=ON \
+              -Dlibuv_LIBDIR=<< parameters.libuv_path >>/lib/Debug \
+              -Dlibuv_INCLUDE_DIRS=<< parameters.libuv_path >>/include \
               -DGTEST_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtestd.lib \
               -DGTEST_INCLUDE_DIR=<< parameters.gtest_lib_path >>/include \
               -DGTEST_MAIN_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtest_maind.lib

@@ -43,27 +43,33 @@ if(USE_LIBUV)
     #
   else()
     if(MSVC)
-      add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/libuv
-        ${PROJECT_BINARY_DIR}/third_party/libuv)
-      add_library(uv::uv ALIAS uv_a)
+      if(DEFINED ENV{libuv_LIBDIR})
+        set(libuv_LIBDIR $ENV{libuv_LIBDIR})
+      endif()
+      if(DEFINED ENV{libuv_INCLUDE_DIRS})
+        set(libuv_INCLUDE_DIRS $ENV{libuv_INCLUDE_DIRS})
+      endif()
+      set(libuv_find_names uv.lib uv_a.lib)
     else()
       include(FindPkgConfig)
       pkg_search_module(libuv REQUIRED libuv>=1.26)
-      find_file(
-        libuv_LIBRARY
-        NAMES libuv.a libuv_a.a
-        PATHS ${libuv_LIBDIR}
-        NO_DEFAULT_PATH)
-
-      if(NOT EXISTS ${libuv_LIBRARY})
-        message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
-      endif()
-      add_library(uv_a INTERFACE IMPORTED)
-      set_target_properties(uv_a PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
-        INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
-        )
+      set(libuv_find_names libuv.a libuv_a.a)
     endif()
+
+    find_file(
+      libuv_LIBRARY
+      NAMES ${libuv_find_names}
+      PATHS ${libuv_LIBDIR}
+      NO_DEFAULT_PATH)
+
+    if(NOT EXISTS ${libuv_LIBRARY})
+      message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
+    endif()
+    add_library(uv_a INTERFACE IMPORTED)
+    set_target_properties(uv_a PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
+      INTERFACE_LINK_LIBRARIES ${libuv_LIBRARY}
+      )
   endif()
 endif()
 
@@ -124,7 +130,7 @@ if(USE_ROCM)
     list(APPEND HIP_CXX_FLAGS -Wno-unused-command-line-argument)
     list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
     list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
-    
+
     set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
