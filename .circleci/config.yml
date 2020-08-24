@@ -13,7 +13,6 @@ jobs:
       gtest_lib_path:
         type: string
         default: ""
-    parameters:
       libuv_path:
         type: string
         default: ""
