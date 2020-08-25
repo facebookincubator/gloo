@@ -4,10 +4,12 @@ if(MSVC)
     add_executable(example_allreduce example_allreduce.cc)
     target_link_libraries(example_allreduce gloo)
 
-    add_custom_command(TARGET example_reduce POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${libuv_LIBDIR}/uv.dll"
-            $<TARGET_FILE_DIR:example_reduce>)
+    if(USE_LIBUV)
+        add_custom_command(TARGET example_reduce POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${libuv_LIBDIR}/uv.dll"
+                $<TARGET_FILE_DIR:example_reduce>)
+    endif()
 else()
     add_executable(example1 example1.cc)
     target_link_libraries(example1 gloo)
