@@ -195,11 +195,11 @@ if(GLOO_INSTALL)
 endif()
 
 if(BUILD_TEST)
-add_subdirectory(test)
+  add_subdirectory(test)
 endif()
 
 if(BUILD_BENCHMARK)
-add_subdirectory(benchmark)
+  add_subdirectory(benchmark)
 endif()
 
 if(BUILD_EXAMPLES)

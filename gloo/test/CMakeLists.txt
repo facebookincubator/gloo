@@ -27,6 +27,13 @@ endif()
 add_executable(gloo_test ${GLOO_TEST_SRCS})
 target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
 
+if(MSVC)
+  add_custom_command(TARGET gloo_test POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${libuv_LIBDIR}/uv.dll"
+          $<TARGET_FILE_DIR:gloo_test>)
+endif()
+
 if(USE_CUDA)
   if(NOT MSVC)
     set(GLOO_TEST_CUDA_SRCS
