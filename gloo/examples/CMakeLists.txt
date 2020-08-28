@@ -7,7 +7,7 @@ if(MSVC)
     if(USE_LIBUV)
         add_custom_command(TARGET example_reduce POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${libuv_LIBDIR}/uv.dll"
+                "${libuv_DLL_PATH}"
                 $<TARGET_FILE_DIR:example_reduce>)
     endif()
 else()

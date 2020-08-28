@@ -197,7 +197,7 @@ endif()
 if(MSVC AND USE_LIBUV)
   add_custom_command(TARGET gloo POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${libuv_LIBRARY}/../uv.dll"
+          "${libuv_DLL_PATH}"
           $<TARGET_FILE_DIR:gloo>)
 endif()
 
