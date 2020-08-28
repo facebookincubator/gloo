@@ -43,28 +43,39 @@ if(USE_LIBUV)
     #
   else()
     if(MSVC)
-      if(DEFINED ENV{libuv_LIBDIR})
-        set(libuv_LIBDIR $ENV{libuv_LIBDIR})
+      find_library(
+        libuv_LIBRARY
+        NAMES uv libuv
+        HINTS ${libuv_ROOT} ENV libuv_ROOT
+        PATH_SUFFIXES lib/release lib/debug
+        REQUIRED
+        NO_DEFAULT_PATH)
+      if(NOT EXISTS ${libuv_LIBRARY})
+        message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_ROOT})
       endif()
-      if(DEFINED ENV{libuv_INCLUDE_DIRS})
-        set(libuv_INCLUDE_DIRS $ENV{libuv_INCLUDE_DIRS})
+
+      find_file(
+        uv_HEADER_PATH
+        NAMES uv.h
+        PATHS ${libuv_LIBRARY}/../../../include
+        NO_DEFAULT_PATH)
+      if(NOT EXISTS ${uv_HEADER_PATH})
+        message(FATAL_ERROR "Unable to find headers of libuv in " ${libuv_ROOT})
       endif()
-      set(libuv_find_names uv.lib uv_a.lib)
+      set(libuv_INCLUDE_DIRS ${uv_HEADER_PATH}/..)
     else()
       include(FindPkgConfig)
       pkg_search_module(libuv REQUIRED libuv>=1.26)
-      set(libuv_find_names libuv.a libuv_a.a)
+      find_file(
+        libuv_LIBRARY
+        NAMES libuv.a libuv_a.a
+        PATHS ${libuv_LIBDIR}
+        NO_DEFAULT_PATH)
+      if(NOT EXISTS ${libuv_LIBRARY})
+        message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
+      endif()
     endif()
 
-    find_file(
-      libuv_LIBRARY
-      NAMES ${libuv_find_names}
-      PATHS ${libuv_LIBDIR}
-      NO_DEFAULT_PATH)
-
-    if(NOT EXISTS ${libuv_LIBRARY})
-      message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_LIBDIR})
-    endif()
     add_library(uv_a INTERFACE IMPORTED)
     set_target_properties(uv_a PROPERTIES
       INTERFACE_INCLUDE_DIRECTORIES ${libuv_INCLUDE_DIRS}
