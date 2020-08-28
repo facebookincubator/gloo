@@ -69,8 +69,7 @@ jobs:
             cd build
             cmake .. \
               -DBUILD_TEST=ON \
-              -Dlibuv_LIBDIR=<< parameters.libuv_path >>/lib/Debug \
-              -Dlibuv_INCLUDE_DIRS=<< parameters.libuv_path >>/include \
+              -Dlibuv_ROOT=<< parameters.libuv_path >> \
               -DGTEST_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtestd.lib \
               -DGTEST_INCLUDE_DIR=<< parameters.gtest_lib_path >>/include \
               -DGTEST_MAIN_LIBRARY=<< parameters.gtest_lib_path >>/lib/gtest_maind.lib
