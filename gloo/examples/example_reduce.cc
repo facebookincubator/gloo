@@ -25,7 +25,7 @@
 //   data[3] = 6
 //
 
-void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
+void mysum(void* c_, const void* a_, const void* b_, int n) {
   printf("n=%d\r\n", n);
   int* c = static_cast<int*>(c_);
   const int* a = static_cast<const int*>(a_);
@@ -35,7 +35,6 @@ void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
     printf("b[%d]=%d\r\n", i, b[i]);
     c[i] = a[i] + b[i];
     printf("c[%d]=%d\r\n", i, c[i]);
-    
   }
 }
 
@@ -63,13 +62,13 @@ int main(void) {
   // name, for example.
   //
   gloo::transport::uv::attr attr;
-  //attr.iface = "eth0";
-  //attr.iface = "ib0";
-  //attr.iface = "Wi-Fi";
+  // attr.iface = "eth0";
+  // attr.iface = "ib0";
+  // attr.iface = "Wi-Fi";
 
-  // attr.ai_family = AF_INET; // Force IPv4
+  // attr.ai_family = AF_INET;  // Force IPv4
   // attr.ai_family = AF_INET6; // Force IPv6
-  attr.ai_family = AF_UNSPEC; // Use either (default)
+  attr.ai_family = AF_UNSPEC;   // Use either (default)
 
   // A string is implicitly converted to an "attr" struct with its
   // hostname field populated. This will try to resolve the interface
@@ -114,57 +113,49 @@ int main(void) {
   const int rank = atoi(getenv("RANK"));
   const int size = atoi(getenv("SIZE"));
   auto context = std::make_shared<gloo::rendezvous::Context>(rank, size);
-  try{
-    context->connectFullMesh(prefixStore, dev);
-    std::cout << "connectFullMesh" << std::endl;
-    // All connections are now established. We can now initialize some
-    // test data, instantiate the collective algorithm, and run it.
-    std::array<int, 4> data;
-    std::cout << "Input: " << std::endl;
-    for (int i = 0; i < data.size(); i++) {
-      data[i] = i;
-      std::cout << "data[" << i << "] = " << data[i] << std::endl;
-    }
-    
 
-    std::vector<int*> ptrs;
-    ptrs.push_back(&data[0]);
-    int count = data.size();
-    size_t elements = 10;
-    int inputs = 4;
-
-    int *inputPointers = (int*)malloc(sizeof(int) * 4);
-    int *outputPointers = (int*)malloc(sizeof(int) * 4);
-    gloo::ReduceOptions opts(context);
-    opts.setInput(inputPointers, 4);
-    opts.setOutput(outputPointers, 4);
-    for (int i = 0; i < 4; i++)
-    {
-      inputPointers[i] = i * (rank + 1);
-      outputPointers[i] = 0;
-    }
-
-    void (*fn)(void*, const void*, const void*, long unsigned int) = &mysum;
-
-    opts.setReduceFunction(fn);
-    // A small maximum segment size triggers code paths where we'll
-    // have a number of segments larger than the lower bound of
-    // twice the context size.
-    opts.setMaxSegmentSize(128);
-    opts.setRoot(size - 1);
-    reduce(opts);
-  
-    // Print the result.
-    std::cout << "Output: " << std::endl;
-    for (int i = 0; i < 4; i++)
-    {
-      std::cout << "data = " << outputPointers[i] << std::endl;
-    }
-    
+  context->connectFullMesh(prefixStore, dev);
+  std::cout << "connectFullMesh" << std::endl;
+  // All connections are now established. We can now initialize some
+  // test data, instantiate the collective algorithm, and run it.
+  std::array<int, 4> data;
+  std::cout << "Input: " << std::endl;
+  for (int i = 0; i < data.size(); i++) {
+    data[i] = i;
+    std::cout << "data[" << i << "] = " << data[i] << std::endl;
   }
-  catch (const std::exception &exc)
-  {
-      std::cerr << exc.what();
+
+
+  std::vector<int*> ptrs;
+  ptrs.push_back(&data[0]);
+  int count = data.size();
+  size_t elements = 10;
+  int inputs = 4;
+
+  int *inputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
+  int *outputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
+  gloo::ReduceOptions opts(context);
+  opts.setInput(inputPointers, 4);
+  opts.setOutput(outputPointers, 4);
+  for (int i = 0; i < 4; i++) {
+    inputPointers[i] = i * (rank + 1);
+    outputPointers[i] = 0;
+  }
+
+  void (*fn)(void*, const void*, const void*, int) = &mysum;
+
+  opts.setReduceFunction(fn);
+  // A small maximum segment size triggers code paths where we'll
+  // have a number of segments larger than the lower bound of
+  // twice the context size.
+  opts.setMaxSegmentSize(128);
+  opts.setRoot(size - 1);
+  reduce(opts);
+
+  // Print the result.
+  std::cout << "Output: " << std::endl;
+  for (int i = 0; i < 4; i++) {
+    std::cout << "data = " << outputPointers[i] << std::endl;
   }
 
   return 0;

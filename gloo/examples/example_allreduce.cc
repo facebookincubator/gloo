@@ -26,7 +26,7 @@
 //   data[3] = 6
 //
 
-void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
+void mysum(void* c_, const void* a_, const void* b_, int n) {
   printf("n=%d\r\n", n);
   int* c = static_cast<int*>(c_);
   const int* a = static_cast<const int*>(a_);
@@ -36,7 +36,6 @@ void mysum(void* c_, const void* a_, const void* b_, long unsigned int n) {
     printf("b[%d]=%d\r\n", i, b[i]);
     c[i] = a[i] + b[i];
     printf("c[%d]=%d\r\n", i, c[i]);
-    
   }
 }
 
@@ -63,13 +62,13 @@ int main(void) {
   // name, for example.
   //
   gloo::transport::uv::attr attr;
-  //attr.iface = "eth0";
-  //attr.iface = "ib0";
-  //attr.iface = "Wi-Fi";
+  // attr.iface = "eth0";
+  // attr.iface = "ib0";
+  // attr.iface = "Wi-Fi";
 
   // attr.ai_family = AF_INET; // Force IPv4
   // attr.ai_family = AF_INET6; // Force IPv6
-  attr.ai_family = AF_UNSPEC; // Use either (default)
+  attr.ai_family = AF_UNSPEC;  // Use either (default)
 
   // A string is implicitly converted to an "attr" struct with its
   // hostname field populated. This will try to resolve the interface
@@ -114,74 +113,68 @@ int main(void) {
   const int rank = atoi(getenv("RANK"));
   const int size = atoi(getenv("SIZE"));
   auto context = std::make_shared<gloo::rendezvous::Context>(rank, size);
-  try{
-    context->connectFullMesh(prefixStore, dev);
-    std::cout << "connectFullMesh" << std::endl;
-    // All connections are now established. We can now initialize some
-    // test data, instantiate the collective algorithm, and run it.
-    std::array<int, 4> data;
-    std::cout << "Input: " << std::endl;
-    for (int i = 0; i < data.size(); i++) {
-      data[i] = i;
-      std::cout << "data[" << i << "] = " << data[i] << std::endl;
-    }
-    
-    // Allreduce operates on memory that is already managed elsewhere.
-    // Every instance can take multiple pointers and perform reduction
-    // across local buffers as well. If you have a single buffer only,
-    // you must pass a std::vector with a single pointer.
-    std::vector<int*> ptrs;
-    ptrs.push_back(&data[0]);
 
-    // The number of elements at the specified pointer.
-    int count = data.size();
-    
-    // Instantiate the collective algorithm.
-    /*
-    auto allreduce =
-      std::make_shared<gloo::AllreduceRing<int>>(
-        context, ptrs, count);
-    std::cout << "push_back" << std::endl;
-    // Run the algorithm.
-    allreduce->run();
-    */
-    size_t elements = 10;
-    int inputs = 4;
-
-    // Generate vectors with pointers to populate the options struct.
-    std::vector<int*> inputPointers;
-    std::vector<int*> outputPointers;
-    for (size_t i = 0; i < elements; i++) {
-      int *value = (int*)malloc(sizeof(int));
-      *value = i * (rank + 1);
-      inputPointers.push_back(value);
-      int *value1 = (int*)malloc(sizeof(int));
-      *value1 = 0;
-      outputPointers.push_back(value1);
-    }
-    
-    
-    // Configure AllreduceOptions struct
-    gloo::AllreduceOptions opts_(context);
-    opts_.setInputs(inputPointers, 1);
-    opts_.setOutputs(outputPointers, 1);
-    opts_.setAlgorithm(gloo::AllreduceOptions::Algorithm::RING);
-    void (*fn)(void*, const void*, const void*, long unsigned int) = &mysum;
-    opts_.setReduceFunction(fn);
-    gloo::allreduce(opts_);
-    
-
-    // Print the result.
-    std::cout << "Output: " << std::endl;
-    for (int i = 0; i < outputPointers.size(); i++) {
-      std::cout << "data[" << i << "] = " << *outputPointers[i] << std::endl;
-    }
+  context->connectFullMesh(prefixStore, dev);
+  std::cout << "connectFullMesh" << std::endl;
+  // All connections are now established. We can now initialize some
+  // test data, instantiate the collective algorithm, and run it.
+  std::array<int, 4> data;
+  std::cout << "Input: " << std::endl;
+  for (int i = 0; i < data.size(); i++) {
+    data[i] = i;
+    std::cout << "data[" << i << "] = " << data[i] << std::endl;
   }
-  catch (const std::exception &exc)
-  {
-      std::cerr << exc.what();
+
+  // Allreduce operates on memory that is already managed elsewhere.
+  // Every instance can take multiple pointers and perform reduction
+  // across local buffers as well. If you have a single buffer only,
+  // you must pass a std::vector with a single pointer.
+  std::vector<int*> ptrs;
+  ptrs.push_back(&data[0]);
+
+  // The number of elements at the specified pointer.
+  int count = data.size();
+
+  // Instantiate the collective algorithm.
+  /*
+  auto allreduce =
+    std::make_shared<gloo::AllreduceRing<int>>(
+      context, ptrs, count);
+  std::cout << "push_back" << std::endl;
+  // Run the algorithm.
+  allreduce->run();
+  */
+  size_t elements = 10;
+  int inputs = 4;
+
+  // Generate vectors with pointers to populate the options struct.
+  std::vector<int*> inputPointers;
+  std::vector<int*> outputPointers;
+  for (size_t i = 0; i < elements; i++) {
+    int *value = reinterpret_cast<int*>(malloc(sizeof(int)));
+    *value = i * (rank + 1);
+    inputPointers.push_back(value);
+    int *value1 = reinterpret_cast<int*>(malloc(sizeof(int)));
+    *value1 = 0;
+    outputPointers.push_back(value1);
   }
-  
+
+
+  // Configure AllreduceOptions struct
+  gloo::AllreduceOptions opts_(context);
+  opts_.setInputs(inputPointers, 1);
+  opts_.setOutputs(outputPointers, 1);
+  opts_.setAlgorithm(gloo::AllreduceOptions::Algorithm::RING);
+  void (*fn)(void*, const void*, const void*, int) = &mysum;
+  opts_.setReduceFunction(fn);
+  gloo::allreduce(opts_);
+
+
+  // Print the result.
+  std::cout << "Output: " << std::endl;
+  for (int i = 0; i < outputPointers.size(); i++) {
+    std::cout << "data[" << i << "] = " << *outputPointers[i] << std::endl;
+  }
 
   return 0;
 }
