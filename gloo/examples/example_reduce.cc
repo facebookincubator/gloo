@@ -20,9 +20,9 @@
 // Expected output:
 //
 //   data[0] = 0
-//   data[1] = 2
-//   data[2] = 4
-//   data[3] = 6
+//   data[1] = 3
+//   data[2] = 6
+//   data[3] = 9
 //
 
 void mysum(void* c_, const void* a_, const void* b_, int n) {
@@ -81,8 +81,9 @@ int main(void) {
   //
   //   auto dev = gloo::transport::tcp::CreateDevice("localhost");
   //
-  std::cout << "CreateDevice" << std::endl;
+
   auto dev = gloo::transport::uv::CreateDevice(attr);
+
   // Now that we have a device, we can connect all participating
   // processes. We call this process "rendezvous". It can be performed
   // using a shared filesystem, a Redis instance, or something else by
@@ -95,7 +96,6 @@ int main(void) {
   // this example uses multiple processes on a single machine.
   //
   auto fileStore = gloo::rendezvous::FileStore("/libtmp");
-  std::cout << "FileStore" << std::endl;
 
   // To be able to reuse the same store over and over again and not have
   // interference between runs, we scope it to a unique prefix with the
@@ -103,7 +103,6 @@ int main(void) {
   // forwarding the call to the underlying store.
   std::string prefix = getenv("PREFIX");
   auto prefixStore = gloo::rendezvous::PrefixStore(prefix, fileStore);
-  std::cout << "prefixStore" << std::endl;
 
   // Using this store, we can now create a Gloo context. The context
   // holds a reference to every communication pair involving this
@@ -113,25 +112,10 @@ int main(void) {
   const int rank = atoi(getenv("RANK"));
   const int size = atoi(getenv("SIZE"));
   auto context = std::make_shared<gloo::rendezvous::Context>(rank, size);
-
   context->connectFullMesh(prefixStore, dev);
-  std::cout << "connectFullMesh" << std::endl;
+
   // All connections are now established. We can now initialize some
   // test data, instantiate the collective algorithm, and run it.
-  std::array<int, 4> data;
-  std::cout << "Input: " << std::endl;
-  for (int i = 0; i < data.size(); i++) {
-    data[i] = i;
-    std::cout << "data[" << i << "] = " << data[i] << std::endl;
-  }
-
-
-  std::vector<int*> ptrs;
-  ptrs.push_back(&data[0]);
-  int count = data.size();
-  size_t elements = 10;
-  int inputs = 4;
-
   int *inputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
   int *outputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
   gloo::ReduceOptions opts(context);
@@ -143,8 +127,8 @@ int main(void) {
   }
 
   void (*fn)(void*, const void*, const void*, int) = &mysum;
-
   opts.setReduceFunction(fn);
+
   // A small maximum segment size triggers code paths where we'll
   // have a number of segments larger than the lower bound of
   // twice the context size.
