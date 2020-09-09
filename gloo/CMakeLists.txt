@@ -194,6 +194,10 @@ if(GLOO_INSTALL)
   endif()
 endif()
 
+if(MSVC)
+  add_definitions(-DNOMINMAX=1)
+endif()
+
 if(MSVC AND USE_LIBUV)
   add_custom_command(TARGET gloo POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
