@@ -31,10 +31,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-
-#ifdef _WIN32
 #include <stdio.h>
-#endif
 
 #include <uv.h>
 
@@ -284,21 +281,13 @@ class Resource : public Emitter<T>, public std::enable_shared_from_this<T> {
 
   template <typename R>
   const R* get() const noexcept {
-  #ifdef _WIN32
     static_assert(!std::is_same<R, U>::value, "!");
-  #else
-    static_assert(not std::is_same<R, U>::value, "!");
-  #endif
     return reinterpret_cast<const R*>(&resource_);
   }
 
   template <typename R>
   R* get() noexcept {
-  #ifdef _WIN32
     static_assert(!std::is_same<R, U>::value, "!");
-  #else
-    static_assert(not std::is_same<R, U>::value, "!");
-  #endif
     return reinterpret_cast<R*>(&resource_);
   }
 
@@ -393,15 +382,9 @@ class Request : public Resource<T, U>, public BaseRequest {
   // The request is leaked if the call is successful, under the
   // assumption that it is unleaked when the callback gets called.
   template <typename F, typename... Args>
-#ifdef _WIN32
   typename std::enable_if<
       !std::is_void<typename std::result_of<F(Args...)>::type>::value,
       typename std::result_of<F(Args...)>::type>::type
-#else
-  typename std::enable_if<
-      not std::is_void<typename std::result_of<F(Args...)>::type>::value,
-      typename std::result_of<F(Args...)>::type>::type
-#endif
   invoke(F&& f, Args&&... args) {
     auto err = std::forward<F>(f)(std::forward<Args>(args)...);
     if (err) {

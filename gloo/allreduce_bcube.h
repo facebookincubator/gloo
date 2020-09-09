@@ -15,10 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <unordered_map>
-
-#ifdef _WIN32
 #include <algorithm>
-#endif
 
 #include "gloo/algorithm.h"
 #include "gloo/common/error.h"

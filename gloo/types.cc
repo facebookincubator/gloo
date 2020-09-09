@@ -9,9 +9,7 @@
 #include "gloo/types.h"
 
 #include <stdexcept>
-#ifdef _WIN32
 #include <string>
-#endif
 
 namespace gloo {
 

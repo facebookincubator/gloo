@@ -9,16 +9,16 @@
 #include <gtest/gtest.h>
 
 // One-time init to use EPIPE errors instead of SIGPIPE
+#ifndef _WIN32
 namespace {
 struct Initializer {
   Initializer() {
-#ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
-#endif
   }
 };
 Initializer initializer;
 } // namespace
+#endif
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
