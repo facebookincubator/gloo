@@ -8,9 +8,12 @@
 
 #pragma once
 
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include <memory>
+#include <thread>
 
 namespace gloo {
 
@@ -140,7 +143,7 @@ class ShareableNonOwningPtr final {
     ptr_.reset();
     // Wait for all shared_ptr's to T have been released
     while (!weak.expired()) {
-      usleep(0);
+      std::this_thread::yield();
     }
   }
 

@@ -11,10 +11,22 @@
 #include <fstream>
 #include <sstream>
 
+#ifdef _WIN32
+#include <Windows.h>
+#include <psapi.h>
+#endif
+
 namespace gloo {
 namespace test {
 namespace {
 
+#ifdef _WIN32
+size_t readResidentSetSize() {
+  PROCESS_MEMORY_COUNTERS counters{};
+  GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters));
+  return counters.WorkingSetSize;
+}
+#else
 size_t readResidentSetSize() {
   std::stringstream path;
   path << "/proc/" << getpid() << "/statm";
@@ -24,6 +36,7 @@ size_t readResidentSetSize() {
   f >> size >> resident;
   return (getpagesize() * resident);
 }
+#endif
 
 class MemoryTest : public BaseTest {};
 

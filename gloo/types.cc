@@ -9,6 +9,7 @@
 #include "gloo/types.h"
 
 #include <stdexcept>
+#include <string>
 
 namespace gloo {
 

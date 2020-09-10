@@ -8,7 +8,11 @@
 
 #pragma once
 
+#ifdef _WIN32
+#include "gloo/common/win.h"
+#else
 #include <sys/socket.h>
+#endif
 
 #include <gloo/transport/address.h>
 

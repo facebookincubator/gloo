@@ -71,7 +71,11 @@ CudaAllreduceRingChunked<T, W>::CudaAllreduceRingChunked(
   // (256 * sizeof(float)).
   constexpr unsigned long minSize = 256;
   chunks_ = this->contextSize_ * 2;
+#ifdef _WIN32
+  chunkSize_ = std::max((size_t)minSize, (size_t)((count_ + chunks_ - 1) / chunks_));
+#else
   chunkSize_ = std::max(minSize, (count_ + chunks_ - 1) / chunks_);
+#endif
   chunkBytes_ = chunkSize_ * sizeof(T);
 
   // Workspace specific initialization (see below)
