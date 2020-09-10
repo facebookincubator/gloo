@@ -13,32 +13,30 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-#include <process.h>
+#include <psapi.h>
 #endif
 
 namespace gloo {
 namespace test {
 namespace {
 
+#ifdef _WIN32
+size_t readResidentSetSize() {
+  PROCESS_MEMORY_COUNTERS counters{};
+  GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters));
+  return counters.WorkingSetSize;
+}
+#else
 size_t readResidentSetSize() {
   std::stringstream path;
-#ifdef _WIN32
-  path << "/proc/" << _getpid() << "/statm";
-#else
   path << "/proc/" << getpid() << "/statm";
-#endif
   std::ifstream f(path.str());
   size_t size;
   size_t resident;
   f >> size >> resident;
-#ifdef _WIN32
-  SYSTEM_INFO si;
-  GetSystemInfo(&si);
-  return (si.dwPageSize * resident);
-#else
   return (getpagesize() * resident);
-#endif
 }
+#endif
 
 class MemoryTest : public BaseTest {};
 

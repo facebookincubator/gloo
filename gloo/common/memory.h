@@ -8,12 +8,6 @@
 
 #pragma once
 
-#ifdef _WIN32
-#include <gloo/common/win.h>
-#else
-#include <unistd.h>
-#endif
-
 #include <memory>
 #include <thread>
 
