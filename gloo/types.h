@@ -101,6 +101,11 @@ struct alignas(2) float16 {
     x = res.x;
   }
 
+  explicit float16(unsigned long val) {
+    float16 res = cpu_float2half_rn(static_cast<float>(val));
+    x = res.x;
+  }
+
   explicit float16(unsigned long long val) {
     float16 res = cpu_float2half_rn(static_cast<float>(val));
     x = res.x;
