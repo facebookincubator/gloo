@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 #include "gloo/algorithm.h"
 #include "gloo/common/error.h"

@@ -31,6 +31,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <stdio.h>
 
 #include <uv.h>
 
@@ -280,13 +281,13 @@ class Resource : public Emitter<T>, public std::enable_shared_from_this<T> {
 
   template <typename R>
   const R* get() const noexcept {
-    static_assert(not std::is_same<R, U>::value, "!");
+    static_assert(!std::is_same<R, U>::value, "!");
     return reinterpret_cast<const R*>(&resource_);
   }
 
   template <typename R>
   R* get() noexcept {
-    static_assert(not std::is_same<R, U>::value, "!");
+    static_assert(!std::is_same<R, U>::value, "!");
     return reinterpret_cast<R*>(&resource_);
   }
 
@@ -382,7 +383,7 @@ class Request : public Resource<T, U>, public BaseRequest {
   // assumption that it is unleaked when the callback gets called.
   template <typename F, typename... Args>
   typename std::enable_if<
-      not std::is_void<typename std::result_of<F(Args...)>::type>::value,
+      !std::is_void<typename std::result_of<F(Args...)>::type>::value,
       typename std::result_of<F(Args...)>::type>::type
   invoke(F&& f, Args&&... args) {
     auto err = std::forward<F>(f)(std::forward<Args>(args)...);
@@ -599,6 +600,11 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
     reads_.emplace_back(ptr, length);
     auto rv = uv_read_start(
         this->template get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
+#ifdef _WIN32
+    if(rv == UV_EALREADY) {
+      return;
+    }
+#endif
     UV_ASSERT(rv, "uv_read_start");
   }
 
@@ -606,6 +612,11 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
     reads_.emplace_back(std::move(buf), length);
     auto rv =
         uv_read_start(this->get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
+#ifdef _WIN32
+    if(rv == UV_EALREADY) {
+      return;
+    }
+#endif
     UV_ASSERT(rv, "uv_read_start");
   }
 

@@ -20,8 +20,13 @@ namespace {
 
 // RAII handle for aligned buffer
 template <typename T>
+#ifdef _WIN32
+std::vector<T> newBuffer(int size) {
+  return std::vector<T>(size);
+#else
 std::vector<T, aligned_allocator<T, kBufferAlignment>> newBuffer(int size) {
   return std::vector<T, aligned_allocator<T, kBufferAlignment>>(size);
+#endif
 }
 
 // Function to instantiate and run algorithm.

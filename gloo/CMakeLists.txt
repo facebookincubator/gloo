@@ -108,7 +108,9 @@ add_subdirectory(rendezvous)
 add_subdirectory(transport)
 
 # Depend on pthreads for transport device threads
-list(APPEND gloo_DEPENDENCY_LIBS pthread)
+if(NOT MSVC)
+  list(APPEND gloo_DEPENDENCY_LIBS pthread)
+endif()
 
 # Enable the following to get a list of source files
 if(FALSE)
@@ -192,12 +194,23 @@ if(GLOO_INSTALL)
   endif()
 endif()
 
+if(MSVC)
+  add_definitions(-DNOMINMAX=1)
+endif()
+
+if(MSVC AND USE_LIBUV)
+  add_custom_command(TARGET gloo POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${libuv_DLL_PATH}"
+          $<TARGET_FILE_DIR:gloo>)
+endif()
+
 if(BUILD_TEST)
-add_subdirectory(test)
+  add_subdirectory(test)
 endif()
 
 if(BUILD_BENCHMARK)
-add_subdirectory(benchmark)
+  add_subdirectory(benchmark)
 endif()
 
 if(BUILD_EXAMPLES)

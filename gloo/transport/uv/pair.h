@@ -22,8 +22,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/uio.h>
+#endif
 
 #include <gloo/common/memory.h>
 #include <gloo/transport/pair.h>

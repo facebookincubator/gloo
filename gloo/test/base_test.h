@@ -82,7 +82,13 @@ class BaseTest : public ::testing::Test {
 #endif
 #if GLOO_HAVE_TRANSPORT_UV
     if (transport == Transport::UV) {
+#ifdef _WIN32
+      gloo::transport::uv::attr attr;
+      attr.ai_family = AF_UNSPEC;
+      static auto dev = ::gloo::transport::uv::CreateDevice(attr);
+#else
       static auto dev = ::gloo::transport::uv::CreateDevice("localhost");
+#endif
       return dev;
     }
 #endif
