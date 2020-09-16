@@ -108,6 +108,15 @@ static bool lookupAddrForIface(struct attr* attr) {
 }
 
 static void lookupAddrForHostname(struct attr& attr) {
+#ifdef _WIN32
+  WSADATA wsa_data;
+  int res;
+  res = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+  if (res != 0) {
+    GLOO_ENFORCE(false, "WSAStartup failed: ", res);
+  }
+#endif
+
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = attr.ai_family;
