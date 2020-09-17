@@ -130,5 +130,7 @@ if(GLOO_INSTALL)
     install(EXPORT GlooTargets DESTINATION share/cmake/Gloo
       FILE GlooTargets.cmake
       COMPONENT dev)
+  else()
+    install(FILES ${libuv_DLL_PATH} DESTINATION lib)
   endif()
 endif()
