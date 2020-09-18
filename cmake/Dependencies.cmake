@@ -47,23 +47,35 @@ if(USE_LIBUV)
         libuv_LIBRARY
         NAMES uv libuv
         HINTS ${libuv_ROOT} ENV libuv_ROOT
-        PATH_SUFFIXES lib/release lib/debug
+        PATH_SUFFIXES lib/release lib/debug lib
         REQUIRED
         NO_DEFAULT_PATH)
       if(NOT EXISTS ${libuv_LIBRARY})
-        message(FATAL_ERROR "Unable to find static libuv library in " ${libuv_ROOT})
+        message(FATAL_ERROR "Unable to find static libuv library in " $ENV{libuv_ROOT})
+      endif()
+
+      find_file(
+        libuv_DLL_PATH
+        NAMES uv.dll
+        HINTS ${libuv_ROOT} ENV libuv_ROOT
+        PATH_SUFFIXES lib/release lib/debug bin
+        REQUIRED
+        NO_DEFAULT_PATH)
+      if(NOT EXISTS ${libuv_DLL_PATH})
+        message(FATAL_ERROR "Unable to find uv.dll in " $ENV{libuv_ROOT})
       endif()
 
       find_file(
         uv_HEADER_PATH
         NAMES uv.h
-        PATHS ${libuv_LIBRARY}/../../../include
+        HINTS ${libuv_ROOT} ENV libuv_ROOT
+        PATH_SUFFIXES include
+        REQUIRED
         NO_DEFAULT_PATH)
       if(NOT EXISTS ${uv_HEADER_PATH})
-        message(FATAL_ERROR "Unable to find headers of libuv in " ${libuv_ROOT})
+        message(FATAL_ERROR "Unable to find headers of libuv in " $ENV{libuv_ROOT})
       endif()
       set(libuv_INCLUDE_DIRS ${uv_HEADER_PATH}/..)
-      set(libuv_DLL_PATH ${libuv_LIBRARY}/../uv.dll)
     else()
       include(FindPkgConfig)
       pkg_search_module(libuv REQUIRED libuv>=1.26)

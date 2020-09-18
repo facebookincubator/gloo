@@ -6,4 +6,14 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#pragma once
+
 #include <winsock2.h>
+
+#pragma comment(lib, "Ws2_32.lib")
+
+namespace gloo {
+
+void init_winsock();
+
+} // namespace gloo

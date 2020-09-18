@@ -20,7 +20,7 @@
 #ifndef _WIN32
 #include <gloo/common/linux.h>
 #else
-#pragma comment(lib, "Ws2_32.lib")
+#include <gloo/common/win.h>
 #endif
 #include <gloo/common/logging.h>
 #include <gloo/transport/uv/common.h>
@@ -108,6 +108,10 @@ static bool lookupAddrForIface(struct attr* attr) {
 }
 
 static void lookupAddrForHostname(struct attr& attr) {
+#ifdef _WIN32
+  init_winsock();
+#endif
+
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = attr.ai_family;
