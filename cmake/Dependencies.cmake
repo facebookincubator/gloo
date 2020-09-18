@@ -47,35 +47,33 @@ if(USE_LIBUV)
         libuv_LIBRARY
         NAMES uv libuv
         HINTS ${libuv_ROOT} ENV libuv_ROOT
-        PATH_SUFFIXES lib
+        PATH_SUFFIXES lib/release lib/debug lib
         REQUIRED
         NO_DEFAULT_PATH)
-      if(EXISTS ${libuv_LIBRARY})
-        set(libuv_HEADER_SEARCH_PATH ${libuv_LIBRARY}/../../include)
-        set(libuv_DLL_PATH ${libuv_LIBRARY}/../../bin/uv.dll)
-      else()
-        find_library(
-          libuv_LIBRARY
-          NAMES uv libuv
-          HINTS ${libuv_ROOT} ENV libuv_ROOT
-          PATH_SUFFIXES lib/release lib/debug
-          REQUIRED
-          NO_DEFAULT_PATH)
-        if(EXISTS ${libuv_LIBRARY})
-          set(libuv_HEADER_SEARCH_PATH ${libuv_LIBRARY}/../../../include)
-          set(libuv_DLL_PATH ${libuv_LIBRARY}/../uv.dll)
-        else()
-          message(FATAL_ERROR "Unable to find static libuv library in " $ENV{libuv_ROOT})
-        endif()
+      if(NOT EXISTS ${libuv_LIBRARY})
+        message(FATAL_ERROR "Unable to find static libuv library in " $ENV{libuv_ROOT})
+      endif()
+
+      find_file(
+        libuv_DLL_PATH
+        NAMES uv.dll
+        HINTS ${libuv_ROOT} ENV libuv_ROOT
+        PATH_SUFFIXES lib/release lib/debug bin
+        REQUIRED
+        NO_DEFAULT_PATH)
+      if(NOT EXISTS ${libuv_DLL_PATH})
+        message(FATAL_ERROR "Unable to find uv.dll in " $ENV{libuv_ROOT})
       endif()
 
       find_file(
         uv_HEADER_PATH
         NAMES uv.h
-        PATHS ${libuv_HEADER_SEARCH_PATH}
+        HINTS ${libuv_ROOT} ENV libuv_ROOT
+        PATH_SUFFIXES include
+        REQUIRED
         NO_DEFAULT_PATH)
       if(NOT EXISTS ${uv_HEADER_PATH})
-        message(FATAL_ERROR "Unable to find headers of libuv in " ${libuv_HEADER_SEARCH_PATH})
+        message(FATAL_ERROR "Unable to find headers of libuv in " $ENV{libuv_ROOT})
       endif()
       set(libuv_INCLUDE_DIRS ${uv_HEADER_PATH}/..)
     else()

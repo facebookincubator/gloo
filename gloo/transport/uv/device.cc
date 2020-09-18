@@ -20,7 +20,7 @@
 #ifndef _WIN32
 #include <gloo/common/linux.h>
 #else
-#pragma comment(lib, "Ws2_32.lib")
+#include <gloo/common/win.h>
 #endif
 #include <gloo/common/logging.h>
 #include <gloo/transport/uv/common.h>
@@ -109,12 +109,7 @@ static bool lookupAddrForIface(struct attr* attr) {
 
 static void lookupAddrForHostname(struct attr& attr) {
 #ifdef _WIN32
-  WSADATA wsa_data;
-  int res;
-  res = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-  if (res != 0) {
-    GLOO_ENFORCE(false, "WSAStartup failed: ", res);
-  }
+  init_winsock();
 #endif
 
   struct addrinfo hints;
