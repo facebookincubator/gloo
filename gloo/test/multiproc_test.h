@@ -18,20 +18,21 @@
 #include "gloo/common/logging.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/rendezvous/file_store.h"
-#include "gloo/transport/tcp/device.h"
+#include "gloo/test/base_test.h"
 
 namespace gloo {
 namespace test {
 
 const int kExitWithIoException = 10;
-const auto kMultiProcTimeout = std::chrono::milliseconds(500);
+const auto kMultiProcTimeout = std::chrono::milliseconds(3000);
 
 class MultiProcTest : public ::testing::Test {
  protected:
   void SetUp() override;
   void TearDown() override;
 
-  void spawnAsync(int size, std::function<void(std::shared_ptr<Context>)> fn);
+  void spawnAsync(Transport transport, int size,
+                  std::function<void(std::shared_ptr<Context>)> fn);
   void wait();
   void waitProcess(int rank);
   void signalProcess(int rank, int signal);
@@ -40,10 +41,11 @@ class MultiProcTest : public ::testing::Test {
     return workerResults_[rank];
   }
 
-  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn);
+  void spawn(Transport transport, int size, std::function<void(std::shared_ptr<Context>)> fn);
 
  private:
   int runWorker(
+      Transport transport,
       int size,
       int rank,
       std::function<void(std::shared_ptr<Context>)> fn);
@@ -71,11 +73,12 @@ class MultiProcWorker {
   }
 
   void run(
+      Transport transport,
       int size,
       int rank,
       std::function<void(std::shared_ptr<Context>)> fn) {
     auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
-    auto device = ::gloo::transport::tcp::CreateDevice("localhost");
+    auto device = createDevice(transport);
     context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
     context->connectFullMesh(*store_, device);
     device.reset();

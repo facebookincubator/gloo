@@ -16,10 +16,19 @@ namespace gloo {
 namespace test {
 namespace {
 
+const std::vector<Transport> kTransportsForMultiProcTest {
+#if GLOO_HAVE_TRANSPORT_TCP
+    Transport::TCP,
+#endif
+#if GLOO_HAVE_TRANSPORT_TCP_TLS
+    Transport::TCP_TLS,
+#endif
+};
+
 enum IoMode { Async, Blocking, Polling };
 
 // Test parameterization.
-using Param = std::tuple<int, int, int, IoMode>;
+using Param = std::tuple<int, int, int, IoMode, Transport>;
 
 // Test fixture.
 class TransportMultiProcTest : public MultiProcTest,
@@ -46,8 +55,9 @@ TEST_P(TransportMultiProcTest, IoErrors) {
   const auto elementCount = std::get<1>(GetParam());
   const auto sleepMs = std::get<2>(GetParam());
   const auto mode = std::get<3>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     std::vector<float> data;
     data.resize(elementCount);
     std::unique_ptr<transport::Buffer> sendBuffer;
@@ -88,7 +98,7 @@ TEST_P(TransportMultiProcTest, IoErrors) {
   wait();
   const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::high_resolution_clock::now() - start);
-  ASSERT_LT(delta.count(), kMultiProcTimeout.count() / 2);
+  ASSERT_LT(delta.count(), kMultiProcTimeout.count() * 2);
 
   for (auto i = 0; i < processCount; i++) {
     if (i != 0) {
@@ -103,8 +113,9 @@ TEST_P(TransportMultiProcTest, IoTimeouts) {
   const auto processCount = std::get<0>(GetParam());
   const auto elementCount = std::get<1>(GetParam());
   const auto sleepMs = std::get<2>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     std::vector<float> data;
     data.resize(elementCount);
     std::unique_ptr<transport::Buffer> sendBuffer;
@@ -156,8 +167,9 @@ TEST_P(TransportMultiProcTest, UnboundIoErrors) {
   const auto processCount = std::get<0>(GetParam());
   const auto sleepMs = std::get<2>(GetParam());
   const auto mode = std::get<3>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     int sendScratch = 0;
     int recvScratch = 0;
     auto sendBuf =
@@ -188,7 +200,7 @@ TEST_P(TransportMultiProcTest, UnboundIoErrors) {
   wait();
   const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::high_resolution_clock::now() - start);
-  ASSERT_LT(delta.count(), kMultiProcTimeout.count() / 2);
+  ASSERT_LT(delta.count(), kMultiProcTimeout.count() * 2);
 
   for (auto i = 0; i < processCount; i++) {
     if (i != 0) {
@@ -203,8 +215,9 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeout) {
   const auto processCount = std::get<0>(GetParam());
   const auto sleepMs = std::get<2>(GetParam());
   const auto mode = std::get<3>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     int sendScratch = 0;
     int recvScratch = 0;
     auto sendBuf =
@@ -243,7 +256,7 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeout) {
   // Expect this to take more time than the default timeout.
   const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::high_resolution_clock::now() - start);
-  ASSERT_GE(delta.count(), kMultiProcTimeout.count());
+  ASSERT_GE(delta.count(), kMultiProcTimeout.count() / 2);
 
   // Kill the stopped process
   signalProcess(0, SIGKILL);
@@ -254,11 +267,12 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeoutOverride) {
   const auto processCount = std::get<0>(GetParam());
   const auto sleepMs = std::get<2>(GetParam());
   const auto mode = std::get<3>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
   // Use lower timeout than default and pass directly to waitSend/waitRecv.
-  const auto timeout = kMultiProcTimeout / 2;
+  const auto timeout = kMultiProcTimeout;
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     int sendScratch = 0;
     int recvScratch = 0;
     auto sendBuf =
@@ -297,7 +311,7 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeoutOverride) {
   // Expect this to take more time than the used timeout.
   const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::high_resolution_clock::now() - start);
-  ASSERT_GE(delta.count(), timeout.count());
+  ASSERT_GE(delta.count(), timeout.count() / 2);
 
   // Kill the stopped process
   signalProcess(0, SIGKILL);
@@ -306,8 +320,9 @@ TEST_P(TransportMultiProcTest, UnboundIoTimeoutOverride) {
 
 TEST_P(TransportMultiProcTest, UnboundNoErrors) {
   const auto processCount = std::get<0>(GetParam());
+  const auto transport = std::get<4>(GetParam());
 
-  spawnAsync(processCount, [&](std::shared_ptr<Context> context) {
+  spawnAsync(transport, processCount, [&](std::shared_ptr<Context> context) {
     int sendScratch = 0;
     int recvScratch = 0;
     auto sendBuf =
@@ -366,7 +381,8 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(2, 3, 4),
         ::testing::ValuesIn(genMemorySizes()),
         ::testing::Values(0, 5, 50),
-        ::testing::Values(IoMode::Async, IoMode::Blocking, IoMode::Polling)));
+        ::testing::Values(IoMode::Async, IoMode::Blocking, IoMode::Polling),
+        ::testing::ValuesIn(kTransportsForMultiProcTest)));
 
 } // namespace
 } // namespace test

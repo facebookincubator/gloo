@@ -61,6 +61,7 @@ Pair::Pair(
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
+      is_client_(false),
       ex_(nullptr) {
   listen();
 }
@@ -71,7 +72,7 @@ Pair::~Pair() {
   // underlying file descriptor on the device thread.
   std::lock_guard<std::mutex> lock(m_);
   if (state_ != CLOSED) {
-    changeState(CLOSED);
+    Pair::changeState(CLOSED);
   }
 }
 
@@ -234,8 +235,10 @@ void Pair::connect(const Address& peer) {
     GLOO_THROW_INVALID_OPERATION_EXCEPTION("cannot connect to self");
   }
 
+  is_client_ = rv > 0;
+
   // self_ < peer_; we are listening side.
-  if (rv < 0) {
+  if (!is_client_) {
     waitUntilConnected(lock, true);
     return;
   }
@@ -337,6 +340,9 @@ ssize_t Pair::prepareWrite(
 // below inherits it.
 //
 bool Pair::write(Op& op) {
+  if (state_ == CLOSED) {
+    return false;
+  }
   NonOwningPtr<UnboundBuffer> buf;
   std::array<struct iovec, 2> iov;
   int ioc;
@@ -366,6 +372,17 @@ bool Pair::write(Op& op) {
           // Async mode: can't write more than this.
         }
         return false;
+      }
+
+      if (errno == ECONNRESET) {
+        if (!sync_) {
+          return false;
+        }
+      }
+      if (errno == EPIPE) {
+        if (!sync_) {
+          return false;
+        }
       }
 
       // Retry on EINTR
@@ -400,21 +417,24 @@ bool Pair::write(Op& op) {
     break;
   }
 
-  // Write completed
+  writeComplete(op, buf, opcode);
+  return true;
+}
+
+void Pair::writeComplete(const Op &op, NonOwningPtr<UnboundBuffer> &buf,
+                         const Op::Opcode &opcode) const {
   switch (opcode) {
     case Op::SEND_BUFFER:
       op.buf->handleSendCompletion();
       break;
     case Op::SEND_UNBOUND_BUFFER:
-      buf->handleSendCompletion(rank_);
+      buf->handleSendCompletion(this->rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       break;
     case Op::NOTIFY_RECV_READY:
       break;
   }
-
-  return true;
 }
 
 // Populates the iovec struct. May populate the 'buf' or 'ubuf' member field
@@ -502,6 +522,9 @@ ssize_t Pair::prepareRead(
 // below inherits it.
 //
 bool Pair::read() {
+  if (state_ == CLOSED) {
+    return false;
+  }
   NonOwningPtr<UnboundBuffer> buf;
   auto start = std::chrono::steady_clock::now();
 
@@ -579,30 +602,33 @@ bool Pair::read() {
     rx_.nread += rv;
   }
 
-  // Read completed
-  const auto opcode = rx_.getOpcode();
+  readComplete(buf);
+  return true;
+}
+
+void Pair::readComplete(NonOwningPtr<UnboundBuffer> &buf) {
+  const auto opcode = this->rx_.getOpcode();
   switch (opcode) {
     case Op::SEND_BUFFER:
       // Done sending data to pinned buffer; trigger completion.
-      rx_.buf->handleRecvCompletion();
+      this->rx_.buf->handleRecvCompletion();
       break;
     case Op::SEND_UNBOUND_BUFFER:
       // Remote side is sending data to unbound buffer; trigger completion
-      buf->handleRecvCompletion(rank_);
+      buf->handleRecvCompletion(this->rank_);
       break;
     case Op::NOTIFY_SEND_READY:
       // Remote side has pending send operation
-      handleRemotePendingSend(rx_);
+      this->handleRemotePendingSend(this->rx_);
       break;
     case Op::NOTIFY_RECV_READY:
       // Remote side has pending recv operation
-      handleRemotePendingRecv(rx_);
+      this->handleRemotePendingRecv(this->rx_);
       break;
-  }
+    }
 
-  // Reset read operation state.
-  rx_ = Op();
-  return true;
+    // Reset read operation state.
+  this->rx_ = Op();
 }
 
 // This function is called upon receiving a message from the peer
@@ -693,28 +719,7 @@ void Pair::handleEvents(int events) {
   GLOO_ENFORCE(ex_ == nullptr);
 
   if (state_ == CONNECTED) {
-    if (state_ == CONNECTED && (events & EPOLLOUT)) {
-      GLOO_ENFORCE(
-          !tx_.empty(), "tx_ cannot be empty because EPOLLOUT happened");
-      while (!tx_.empty()) {
-        auto& op = tx_.front();
-        if (!write(op)) {
-          // Write did not complete; wait for epoll.
-          break;
-        }
-        // Write completed; remove from queue.
-        tx_.pop_front();
-      }
-      // If there is nothing to transmit; remove EPOLLOUT.
-      if (tx_.empty()) {
-        device_->registerDescriptor(fd_, EPOLLIN, this);
-      }
-    }
-    if (state_ == CONNECTED && (events & EPOLLIN)) {
-      while (read()) {
-        // Keep going
-      }
-    }
+    handleReadWrite(events);
     return;
   }
 
@@ -729,6 +734,31 @@ void Pair::handleEvents(int events) {
   }
 
   GLOO_ENFORCE(false, "Unexpected state: ", state_);
+}
+
+void Pair::handleReadWrite(int events) {
+  if (events & EPOLLOUT) {
+    GLOO_ENFORCE(
+        !tx_.empty(), "tx_ cannot be empty because EPOLLOUT happened");
+    while (!tx_.empty()) {
+      auto& op = tx_.front();
+      if (!write(op)) {
+        // Write did not complete; wait for epoll.
+        break;
+      }
+      // Write completed; remove from queue.
+      tx_.pop_front();
+    }
+    // If there is nothing to transmit; remove EPOLLOUT.
+    if (tx_.empty()) {
+      device_->registerDescriptor(fd_, EPOLLIN, this);
+    }
+  }
+  if (events & EPOLLIN) {
+    while (read()) {
+      // Keep going
+    }
+  }
 }
 
 void Pair::handleListening() {
@@ -890,16 +920,7 @@ void Pair::waitUntilConnected(
     throwIfException();
     return state_ >= CONNECTED;
   };
-  auto timeoutSet = timeout_ != kNoTimeout;
-  if (useTimeout && timeoutSet) {
-    // Use a longer timeout when waiting for initial connect
-    auto done = cv_.wait_for(lock, timeout_ * 5, pred);
-    if (!done) {
-      signalAndThrowException(GLOO_ERROR_MSG("Connect timeout ", peer_.str()));
-    }
-  } else {
-    cv_.wait(lock, pred);
-  }
+  waitUntil(pred, lock, useTimeout);
 }
 
 void Pair::verifyConnected() {

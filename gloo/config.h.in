@@ -34,5 +34,6 @@ static_assert(
 #cmakedefine01 GLOO_USE_LIBUV
 
 #cmakedefine01 GLOO_HAVE_TRANSPORT_TCP
+#cmakedefine01 GLOO_HAVE_TRANSPORT_TCP_TLS
 #cmakedefine01 GLOO_HAVE_TRANSPORT_IBVERBS
 #cmakedefine01 GLOO_HAVE_TRANSPORT_UV
