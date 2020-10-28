@@ -13,10 +13,10 @@
 #include <errno.h>
 #include <ifaddrs.h>
 #include <linux/ethtool.h>
-#include <linux/if.h>
 #include <linux/sockios.h>
 #include <linux/version.h>
-#include <netdb.h>
+#include <net/if.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -193,7 +193,7 @@ static int getInterfaceSpeedGLinkSettings(int sock, struct ifreq* ifr) {
   } ecmd;
   int rv;
 
-  ifr->ifr_data = &ecmd;
+  ifr->ifr_data = (__caddr_t)&ecmd;
   memset(&ecmd, 0, sizeof(ecmd));
   ecmd.req.cmd = ETHTOOL_GLINKSETTINGS;
 
@@ -221,7 +221,7 @@ static int getInterfaceSpeedGSet(int sock, struct ifreq* ifr) {
   struct ethtool_cmd edata;
   int rv;
 
-  ifr->ifr_data = &edata;
+  ifr->ifr_data = (__caddr_t)&edata;
   memset(&edata, 0, sizeof(edata));
   edata.cmd = ETHTOOL_GSET;
 
