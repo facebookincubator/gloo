@@ -11,8 +11,17 @@
 #include "gloo/common/logging.h"
 #include "gloo/transport/address.h"
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <gloo/common/win.h>
+#else
+#include <unistd.h>
+#endif
+
 namespace gloo {
 namespace rendezvous {
+
+constexpr int64_t HOSTNAME_MAX_SIZE = 256;
 
 Context::Context(int rank, int size, int base)
     : ::gloo::Context(rank, size, base) {
@@ -35,6 +44,36 @@ void Context::connectFullMesh(
     rendezvous::Store& store,
     std::shared_ptr<transport::Device>& dev) {
   std::vector<char> allBytes;
+  int localRank = 0;
+
+  // Get Hostname using syscall
+  char hostname[HOSTNAME_MAX_SIZE]; // NOLINT
+  int rv = gethostname(hostname, HOSTNAME_MAX_SIZE);
+  if (rv != 0) {
+    throw std::system_error(errno, std::system_category());
+  }
+
+  auto localHostName = std::string(hostname);
+  // Add global rank <> hostname pair to the Store. This store is then passed
+  // to Gloo when connectFullMesh is called, where Gloo uses the global rank <>
+  // hostname mapping to compute local ranks.
+  std::string localKey("rank_" + std::to_string(rank));
+  const std::vector<char> value(localHostName.begin(), localHostName.end());
+  store.set(localKey, value);
+
+  for (int i = 0; i < size; i++) {
+    if (i == rank) {
+      break;
+    }
+
+    std::string key("rank_" + std::to_string(i));
+    auto val = store.get(key);
+    auto hostName = std::string((const char*)val.data(), val.size());
+
+    if (hostName == localHostName) {
+      localRank++;
+    }
+  }
 
   // Create pairs
   auto transportContext = dev->createContext(rank, size);
