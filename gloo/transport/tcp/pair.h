@@ -44,6 +44,9 @@ class Context;
 // Forward declaration
 class UnboundBuffer;
 
+// Sufficiently large timeout (of 100 hours) to prevent overflow
+constexpr auto kLargeTimeDuration = std::chrono::hours(100);
+
 struct Op {
   enum Opcode {
     SEND_BUFFER = 0,
@@ -310,7 +313,13 @@ class Pair : public ::gloo::transport::Pair, public Handler {
     auto timeoutSet = timeout_ != kNoTimeout;
     if (useTimeout && timeoutSet) {
       // Use a longer timeout when waiting for initial connect
-      auto done = cv_.wait_for(lock, timeout_ * 5, pred);
+
+      // relTime must be small enough not to overflow when
+      // added to std::chrono::steady_clock::now()
+      auto relTime = std::min(
+        timeout_ * 5,
+        std::chrono::duration_cast<std::chrono::milliseconds>(kLargeTimeDuration));
+      auto done = cv_.wait_for(lock, relTime, pred);
       if (!done) {
         signalAndThrowException(GLOO_ERROR_MSG("Connect timeout ", peer_.str()));
       }
