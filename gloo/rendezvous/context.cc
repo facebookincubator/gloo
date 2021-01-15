@@ -84,6 +84,7 @@ void Context::connectFullMesh(
     }
 
     auto& pair = transportContext->createPair(i);
+    pair->setLocalRank(localRank);
     auto addrBytes = pair->address().bytes();
     allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
   }
