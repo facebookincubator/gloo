@@ -10,6 +10,7 @@
 
 #include <memory>
 
+#include "gloo/common/logging.h"
 #include "gloo/transport/address.h"
 #include "gloo/transport/buffer.h"
 #include "gloo/transport/unbound_buffer.h"
@@ -48,6 +49,29 @@ class Pair {
       uint64_t tag,
       size_t offset = 0,
       size_t nbytes = 0) = 0;
+
+  // Sets the local rank of the process to be localRank
+  // (See below for description of local rank)
+  void setLocalRank(int localRank) {
+    // Local rank should be a non-negative number
+    GLOO_ENFORCE(localRank >= 0, "LocalRank must be non-negative");
+
+    localRank_ = localRank;
+  }
+
+  // Returns the local rank of the process
+  // (See below for description of local rank)
+  int getLocalRank() const {
+    return localRank_;
+  }
+
+ protected:
+  // Rank of the process on the local machine
+  // e.g. Suppose we have 2 machines with 8 GPUs per machine.
+  //      This means we have a total of 16 processes with
+  //      global ranks 0 to 15. The local ranks would then
+  //      be 0 to 7 on each machine.
+  int localRank_;
 };
 
 } // namespace transport
