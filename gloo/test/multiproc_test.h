@@ -31,7 +31,7 @@ class MultiProcTest : public ::testing::Test {
   void SetUp() override;
   void TearDown() override;
 
-  void spawnAsync(Transport transport, int size,
+  void spawnAsync(Transport transport, int numRanks,
                   std::function<void(std::shared_ptr<Context>)> fn);
   void wait();
   void waitProcess(int rank);
