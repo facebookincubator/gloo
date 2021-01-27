@@ -87,7 +87,7 @@ void MultiProcTest::spawnAsync(
 void MultiProcTest::signalProcess(int rank, int signal) {
   ASSERT_LT(rank, workers_.size());
   const auto result = kill(workers_[rank], signal);
-  ASSERT_EQ(0, result);
+  ASSERT_EQ(0, result) << "Unable to kill process with pid " << workers_[rank];
 }
 
 void MultiProcTest::wait() {
@@ -100,7 +100,7 @@ void MultiProcTest::waitProcess(int rank) {
   ASSERT_LT(rank, workers_.size());
   const auto& worker = workers_[rank];
   const auto& pid = waitpid(worker, &workerResults_[rank], 0);
-  ASSERT_EQ(pid, worker);
+  ASSERT_EQ(pid, worker) << "Encountered error while waiting for pid " << pid << " to change state.";
 }
 
 void MultiProcTest::spawn(
