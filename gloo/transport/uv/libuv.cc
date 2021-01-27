@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ */
+
 #include <gloo/transport/uv/libuv.h>
 
 #include <cassert>

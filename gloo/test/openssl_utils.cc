@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ */
+
 #include "gloo/test/openssl_utils.h"
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
 
