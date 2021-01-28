@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include "gloo/allgather.h"
+#include "gloo/allgatherv.h"
 #include "gloo/allgather_ring.h"
 #include "gloo/allreduce.h"
 #include "gloo/allreduce_halving_doubling.h"
@@ -38,6 +40,89 @@ namespace {
 
 template <typename T>
 class AllgatherBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    AllgatherBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Create input/output buffers
+      auto inPtrs = this->allocate(this->options_.inputs, elements);
+      output_.resize(this->options_.inputs * this->context_->size * elements);
+
+      // Configure AllgatherOptions struct
+      opts_.setInput(inPtrs.front(), elements);
+      opts_.setOutput(output_.data(), this->context_->size * elements);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      allgather(opts_);
+    }
+
+  protected:
+    AllgatherOptions opts_;
+
+    // Used to configure options
+    std::vector<T> output_;
+};
+
+template <typename T>
+class AllgathervBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    AllgathervBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Initialize input/output buffers
+      auto size = this->context_->size;
+      auto inPtrs = this->allocate(this->options_.inputs, elements * size);
+      output_.resize(elements * (size * (size - 1)) / 2);
+
+      // Initialize counts
+      counts_.resize(size);
+      GLOO_ENFORCE(
+        counts_.size() == size,
+        "Size mismatch for counts in AllgathervBenchmark");
+      for (auto i = 0; i < size; i++) {
+        counts_[i] = i * elements;
+      }
+
+      // Configure AllgathervOptions struct
+      opts_.setInput<T>(inPtrs.front(), this->context_->rank * elements);
+      opts_.setOutput<T>(output_.data(), counts_);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      allgatherv(opts_);
+    }
+
+  protected:
+    AllgathervOptions opts_;
+
+    // Used to configure options
+    std::vector<T> output_;
+    std::vector<size_t> counts_;
+};
+
+template <typename T>
+class AllgatherRingBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
   void initialize(size_t elements) override {
@@ -388,9 +473,17 @@ class NewAllreduceBenchmark : public Benchmark<T> {
 
 #define RUN_BENCHMARK(T)                                                   \
   Runner::BenchmarkFn<T> fn;                                               \
-  if (x.benchmark == "allgather_ring") {                                   \
+  if (x.benchmark == "allgather") {                                        \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<AllgatherBenchmark<T>>(context, x);         \
+    };                                                                     \
+  } else if (x.benchmark == "allgather_v") {                               \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<AllgathervBenchmark<T>>(context, x);        \
+    };                                                                     \
+  } else if (x.benchmark == "allgather_ring") {                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<AllgatherRingBenchmark<T>>(context, x);     \
     };                                                                     \
   } else if (x.benchmark == "allreduce_ring") {                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
