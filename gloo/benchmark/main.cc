@@ -14,6 +14,8 @@
 #include "gloo/allreduce_bcube.h"
 #include "gloo/allreduce_ring.h"
 #include "gloo/allreduce_ring_chunked.h"
+#include "gloo/allreduce_local.h"
+#include "gloo/alltoall.h"
 #include "gloo/barrier_all_to_all.h"
 #include "gloo/barrier_all_to_one.h"
 #include "gloo/broadcast_one_to_all.h"
@@ -93,6 +95,54 @@ class AllreduceBenchmark : public Benchmark<T> {
       }
     }
   }
+};
+
+template <typename T>
+class AllToAllBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    AllToAllBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Create new input/output vectors based on number of elements
+      int size = this->context_->size;
+      input_ = std::vector<uint64_t>(size * elements);
+      output_ = std::vector<uint64_t>(size * elements);
+
+      // Populate data for the input
+      for (int i = 0; i < size; i++) {
+        for (int j = 0; j < elements; j++) {
+          input_[i * elements + j] =
+            this->context_->rank * j + i * kAlltoallOffset;
+        }
+      }
+
+      // Configure AlltoallOptions struct
+      opts_.setInput(input_.data(), size * elements);
+      opts_.setOutput(output_.data(), size * elements);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      alltoall(opts_);
+    }
+
+  protected:
+    AlltoallOptions opts_;
+
+    // input and output vectors used to configure options
+    std::vector<uint64_t> input_;
+    std::vector<uint64_t> output_;
+    // constant offset used when populating input data
+    static constexpr int kAlltoallOffset = 127;
 };
 
 template <typename T>
@@ -291,6 +341,15 @@ class NewAllreduceBenchmark : public Benchmark<T> {
       return gloo::make_unique<                                            \
           AllreduceBenchmark<AllreduceBcube<T>, T>>(context, x);           \
     };                                                                     \
+  }  else if (x.benchmark == "allreduce_local") {                          \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          AllreduceBenchmark<AllreduceLocal<T>, T>>(context, x);           \
+    };                                                                     \
+  } else if (x.benchmark == "alltoall") {                                  \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<AllToAllBenchmark<T>>(context, x);          \
+    };                                                                     \
   } else if (x.benchmark == "barrier_all_to_all") {                        \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<BarrierAllToAllBenchmark<T>>(context, x);   \
@@ -309,7 +368,7 @@ class NewAllreduceBenchmark : public Benchmark<T> {
     };                                                                     \
   } else if (x.benchmark == "reduce_scatter") {                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
-      return gloo::make_unique<ReduceScatterBenchmark<T>>(context, x);  \
+      return gloo::make_unique<ReduceScatterBenchmark<T>>(context, x);     \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \
