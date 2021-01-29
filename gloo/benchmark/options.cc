@@ -75,6 +75,9 @@ static void usage(int status, const char* argv0) {
   X("      --base   The base for allreduce_bcube (if applicable)");
   X("");
   X("BENCHMARK is one of:");
+  X("  allgather");
+  X("  allgather_v");
+  X("  allgather_ring");
   X("  allreduce_ring");
   X("  allreduce_ring_chunked");
   X("  allreduce_halving_doubling");
@@ -85,6 +88,7 @@ static void usage(int status, const char* argv0) {
   X("  barrier_all_to_all");
   X("  broadcast_one_to_all");
   X("  pairwise_exchange");
+  X("  reduce_scatter");
   X("");
 
   exit(status);
