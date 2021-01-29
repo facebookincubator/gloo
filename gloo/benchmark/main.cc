@@ -265,7 +265,7 @@ class AllToAllvBenchmark : public Benchmark<T> {
       for (int i = 0; i < size; i++) {
         size_t length = size + rank - i;
         for (int j = 0; j < length * elements; j++) {
-          input_[offset + j] = rank * j + i * alltoallOffset;
+          input_[offset + j] = rank * j + i * kAlltoallOffset;
         }
         offset += length * elements;
       }
@@ -301,7 +301,7 @@ class AllToAllvBenchmark : public Benchmark<T> {
     std::vector<int64_t> inElementsPerRank_;
     std::vector<int64_t> outElementsPerRank_;
     // constant offset used when populating input data
-    const int alltoallOffset = 127;
+    static constexpr int kAlltoallOffset = 127;
 };
 
 template <typename T>
