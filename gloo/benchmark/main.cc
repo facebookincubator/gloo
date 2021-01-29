@@ -16,6 +16,7 @@
 #include "gloo/allreduce_ring_chunked.h"
 #include "gloo/allreduce_local.h"
 #include "gloo/alltoall.h"
+#include "gloo/alltoallv.h"
 #include "gloo/barrier_all_to_all.h"
 #include "gloo/barrier_all_to_one.h"
 #include "gloo/broadcast_one_to_all.h"
@@ -143,6 +144,76 @@ class AllToAllBenchmark : public Benchmark<T> {
     std::vector<uint64_t> output_;
     // constant offset used when populating input data
     static constexpr int kAlltoallOffset = 127;
+};
+
+template <typename T>
+class AllToAllvBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    AllToAllvBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Get size and rank
+      int size = this->context_->size;
+      int rank = this->context_->rank;
+
+      // Calculate input/output length
+      size_t inLength = size * (rank + 1) +
+          size * (size - 1) / 2;
+      size_t outlength = size * (size - rank) +
+          size * (size - 1) / 2;
+
+      // Initialize input and output
+      input_ = std::vector<uint64_t>(inLength * elements);
+      output_ = std::vector<uint64_t>(outlength * elements);
+
+      // Fill input buffer
+      size_t offset = 0;
+      for (int i = 0; i < size; i++) {
+        size_t length = size + rank - i;
+        for (int j = 0; j < length * elements; j++) {
+          input_[offset + j] = rank * j + i * alltoallOffset;
+        }
+        offset += length * elements;
+      }
+
+      // Set up splits
+      for (int i = 0; i < size; i++) {
+        inElementsPerRank_.push_back(
+            elements * (rank + size - i));
+        outElementsPerRank_.push_back(
+            elements * (size - rank + i));
+      }
+
+      // Configure AlltoallvOptions struct
+      opts_.setInput(input_.data(), inElementsPerRank_);
+      opts_.setOutput(output_.data(), outElementsPerRank_);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      alltoallv(opts_);
+    }
+
+  protected:
+    AlltoallvOptions opts_;
+
+    // input and output vectors used to configure options
+    std::vector<uint64_t> input_;
+    std::vector<uint64_t> output_;
+    // split vectors used to configure options
+    std::vector<int64_t> inElementsPerRank_;
+    std::vector<int64_t> outElementsPerRank_;
+    // constant offset used when populating input data
+    const int alltoallOffset = 127;
 };
 
 template <typename T>
@@ -349,6 +420,10 @@ class NewAllreduceBenchmark : public Benchmark<T> {
   } else if (x.benchmark == "alltoall") {                                  \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<AllToAllBenchmark<T>>(context, x);          \
+    };                                                                     \
+  } else if (x.benchmark == "alltoall_v") {                                \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<AllToAllvBenchmark<T>>(context, x);         \
     };                                                                     \
   } else if (x.benchmark == "barrier_all_to_all") {                        \
     fn = [&](std::shared_ptr<Context>& context) {                          \

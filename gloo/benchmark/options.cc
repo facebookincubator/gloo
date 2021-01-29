@@ -81,6 +81,7 @@ static void usage(int status, const char* argv0) {
   X("  allreduce_bcube");
   X("  allreduce_local");
   X("  alltoall");
+  X("  alltoall_v");
   X("  barrier_all_to_all");
   X("  broadcast_one_to_all");
   X("  pairwise_exchange");
