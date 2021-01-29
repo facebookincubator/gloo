@@ -86,9 +86,12 @@ static void usage(int status, const char* argv0) {
   X("  alltoall");
   X("  alltoall_v");
   X("  barrier_all_to_all");
+  X("  broadcast");
   X("  broadcast_one_to_all");
   X("  pairwise_exchange");
+  X("  reduce");
   X("  reduce_scatter");
+  X("  scatter");
   X("");
 
   exit(status);

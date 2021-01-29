@@ -21,9 +21,12 @@
 #include "gloo/alltoallv.h"
 #include "gloo/barrier_all_to_all.h"
 #include "gloo/barrier_all_to_one.h"
+#include "gloo/broadcast.h"
 #include "gloo/broadcast_one_to_all.h"
 #include "gloo/pairwise_exchange.h"
+#include "gloo/reduce.h"
 #include "gloo/reduce_scatter.h"
+#include "gloo/scatter.h"
 #include "gloo/common/aligned_allocator.h"
 #include "gloo/common/common.h"
 #include "gloo/common/logging.h"
@@ -323,6 +326,42 @@ class BarrierAllToOneBenchmark : public Benchmark<T> {
 };
 
 template <typename T>
+class BroadcastBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    BroadcastBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Create input buffer
+      auto inPtrs = this->allocate(this->options_.inputs, elements);
+      // Configure BroadcastOptions struct
+      // Use rank 0 as root
+      opts_.setRoot(rootRank_);
+      // Do in place, use input as output
+      opts_.setOutput(inPtrs.front(), elements);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      broadcast(opts_);
+    }
+
+  protected:
+    BroadcastOptions opts_;
+
+    // Always use rank 0 as the root
+    const int rootRank_ = 0;
+};
+
+template <typename T>
 class BroadcastOneToAllBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
  public:
@@ -355,6 +394,53 @@ class PairwiseExchangeBenchmark : public Benchmark<T> {
     this->algorithm_.reset(new PairwiseExchange(
         this->context_, elements, this->getOptions().destinations));
   }
+};
+
+template <typename T>
+class ReduceBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    ReduceBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t /* unused */) override {
+      // Create input/output buffers
+      auto inPtrs = this->allocate(this->options_.inputs, dataSize_);
+      output_.resize(dataSize_);
+
+      // Configure ReduceOptions struct
+      // Use rank 0 as root
+      opts_.setRoot(rootRank_);
+      // Set reduce function
+      void (*fn)(void*, const void*, const void*, long unsigned int) = &sum<T>;
+      opts_.setReduceFunction(fn);
+      // MaxSegmentSize must be a multiple of the element size T
+      // For simplicity, use size of T
+      opts_.setMaxSegmentSize(sizeof(T));
+      opts_.setInput(inPtrs.front(), dataSize_);
+      opts_.setOutput(output_.data(), dataSize_);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      reduce(opts_);
+    }
+
+  protected:
+    ReduceOptions opts_;
+
+    // Use constant data size for now
+    static constexpr int dataSize_ = 100;
+    // Always use rank 0 as the root
+    const int rootRank_ = 0;
+    std::vector<T> output_;
 };
 
 template <typename T>
@@ -399,6 +485,46 @@ class ReduceScatterBenchmark : public Benchmark<T> {
 
  protected:
    std::vector<int> recvCounts_;
+};
+
+template <typename T>
+class ScatterBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+
+  public:
+    ScatterBenchmark(
+      std::shared_ptr<::gloo::Context>& context,
+      struct options& options)
+        : Benchmark<T>(context, options),
+          opts_(context) {}
+
+    void initialize(size_t elements) override {
+      // Create input buffer
+      auto inPtrs = this->allocate(this->context_->size, elements);
+      output_.resize(elements);
+
+      // Configure ReduceOptions struct
+      // Use rank 0 as root
+      opts_.setRoot(rootRank_);
+      // Do in place, use input as output
+      opts_.setInputs(inPtrs, elements);
+      opts_.setOutput(output_.data(), elements);
+    }
+
+    // Default run function calls Algorithm::run
+    // Need to override this function for collectives that
+    // do not inherit from the Algorithm class
+    void run() override {
+      // Run the collective on the previously created options
+      scatter(opts_);
+    }
+
+  protected:
+    ScatterOptions opts_;
+
+    // Always use rank 0 as the root
+    const int rootRank_ = 0;
+    std::vector<T> output_;
 };
 
 } // namespace
@@ -526,6 +652,10 @@ class NewAllreduceBenchmark : public Benchmark<T> {
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<BarrierAllToOneBenchmark<T>>(context, x);   \
     };                                                                     \
+  } else if (x.benchmark == "broadcast") {                                 \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<BroadcastBenchmark<T>>(context, x);         \
+    };                                                                     \
   } else if (x.benchmark == "broadcast_one_to_all") {                      \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<BroadcastOneToAllBenchmark<T>>(context, x); \
@@ -534,9 +664,17 @@ class NewAllreduceBenchmark : public Benchmark<T> {
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<PairwiseExchangeBenchmark<T>>(context, x);  \
     };                                                                     \
+  } else if (x.benchmark == "reduce") {                                    \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<ReduceBenchmark<T>>(context, x);            \
+    };                                                                     \
   } else if (x.benchmark == "reduce_scatter") {                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<ReduceScatterBenchmark<T>>(context, x);     \
+    };                                                                     \
+  } else if (x.benchmark == "scatter") {                                   \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<ScatterBenchmark<T>>(context, x);           \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \
