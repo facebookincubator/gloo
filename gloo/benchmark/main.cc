@@ -41,7 +41,33 @@ using namespace gloo::benchmark;
 
 namespace {
 
+// constant offset used for alltoall when populating input data
+constexpr int kAlltoallOffset = 127;
 const std::string errorStr = "Mismatch at index: ";
+
+// Verify function used for AllgatherBenchmark and
+// AllgatherRingBenchmark. The result/output from both
+// should be the same, but created two separate classes because
+// the setup is different for each implementation of the collective
+template<typename T>
+void allgatherVerify(std::vector<T> outputs, int size, int inputs, int elements) {
+  // Stride is the total number of total number of
+  // pointers across the context
+  const auto stride = size * inputs;
+  for (int rank = 0; rank < size; rank++) {
+    auto val = rank * inputs;
+    for (int elem = 0; elem < elements; elem++) {
+      T expected(elem * stride + val);
+      for (int input = 0; input < inputs; input++) {
+        const auto rankOffset = rank * elements * inputs;
+        const auto inputOffset = input * elements;
+        GLOO_ENFORCE_EQ(
+          outputs[rankOffset + inputOffset + elem], expected + T(input),
+          errorStr, "[", rank, ", ", input, ", ", elem, "]");
+      }
+    }
+  }
+}
 
 template <typename T>
 class AllgatherBenchmark : public Benchmark<T> {
@@ -70,6 +96,17 @@ class AllgatherBenchmark : public Benchmark<T> {
     void run() override {
       // Run the collective on the previously created options
       allgather(opts_);
+    }
+
+    // Verify is identical for AllgatherBenchmark
+    // and AllgatherRingBenchmark
+    void verify() override {
+      allgatherVerify(
+        output_,
+        this->context_->size,
+        this->inputs_.size(),
+        this->inputs_[0].size()
+      );
     }
 
   protected:
@@ -118,6 +155,20 @@ class AllgathervBenchmark : public Benchmark<T> {
       allgatherv(opts_);
     }
 
+    void verify() override {
+      const int size = this->context_->size;
+      const auto stride = size * this->options_.inputs;
+      size_t offset = 0;
+      for (auto i = 0; i < size; i++) {
+        for (auto j = 0; j < counts_[i]; j++) {
+          GLOO_ENFORCE_EQ(
+            T(j * stride + i), output_[offset + j],
+            errorStr, offset + j);
+        }
+        offset += counts_[i];
+      }
+    }
+
   protected:
     AllgathervOptions opts_;
 
@@ -138,22 +189,15 @@ class AllgatherRingBenchmark : public Benchmark<T> {
         this->context_, this->getInputs(), outputs_.data(), elements));
   }
 
+  // Verify is identical for AllgatherBenchmark
+  // and AllgatherRingBenchmark
   void verify() override {
-    const auto stride = this->context_->size * this->inputs_.size();
-    const auto elements = this->inputs_[0].size();
-    for (int rank = 0; rank < this->context_->size; rank++) {
-      auto val = rank * this->inputs_.size();
-      for (int elem = 0; elem < elements; elem++) {
-        T exp(elem * stride + val);
-        for (int input = 0; input < this->inputs_.size(); input++) {
-          const auto rankOffset = rank * elements * this->inputs_.size();
-          const auto inputOffset = input * elements;
-          GLOO_ENFORCE_EQ(
-            outputs_[rankOffset + inputOffset + elem], exp + T(input),
-            errorStr, "[", rank, ", ", input, ", ", elem, "]");
-        }
-      }
-    }
+    allgatherVerify(
+      outputs_,
+      this->context_->size,
+      this->inputs_.size(),
+      this->inputs_[0].size()
+    );
   }
 
  protected:
@@ -250,14 +294,26 @@ class AllToAllBenchmark : public Benchmark<T> {
       alltoall(opts_);
     }
 
+    void verify() override {
+      const int rank = this->context_->rank;
+      for (const auto& input : this->inputs_) {
+        const int size = input.size();
+        for (int i = 0; i < size; i++) {
+          GLOO_ENFORCE_EQ(
+            output_[rank * size + i],
+            rank * (kAlltoallOffset + i),
+            errorStr, rank * size + i
+          );
+        }
+      }
+    }
+
   protected:
     AlltoallOptions opts_;
 
     // input and output vectors used to configure options
     std::vector<uint64_t> input_;
     std::vector<uint64_t> output_;
-    // constant offset used when populating input data
-    static constexpr int kAlltoallOffset = 127;
 };
 
 template <typename T>
@@ -317,6 +373,21 @@ class AllToAllvBenchmark : public Benchmark<T> {
       alltoallv(opts_);
     }
 
+    void verify() override {
+      const int size = this->context_->size;
+      const int rank = this->context_->rank;
+      for (const auto& input : this->inputs_) {
+        int dataSize = input.size();
+        for (int i = 0; i < size * dataSize; i++) {
+          GLOO_ENFORCE_EQ(
+            output_[i],
+            rank * (kAlltoallOffset + i),
+            errorStr, i
+          );
+        }
+      }
+    }
+
   protected:
     AlltoallvOptions opts_;
 
@@ -326,8 +397,6 @@ class AllToAllvBenchmark : public Benchmark<T> {
     // split vectors used to configure options
     std::vector<int64_t> inElementsPerRank_;
     std::vector<int64_t> outElementsPerRank_;
-    // constant offset used when populating input data
-    static constexpr int kAlltoallOffset = 127;
 };
 
 template <typename T>
