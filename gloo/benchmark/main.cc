@@ -41,6 +41,8 @@ using namespace gloo::benchmark;
 
 namespace {
 
+const std::string errorStr = "Mismatch at index: ";
+
 template <typename T>
 class AllgatherBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
@@ -148,7 +150,7 @@ class AllgatherRingBenchmark : public Benchmark<T> {
           const auto inputOffset = input * elements;
           GLOO_ENFORCE_EQ(
             outputs_[rankOffset + inputOffset + elem], exp + T(input),
-            "Mismatch at index: [", rank, ", ", input, ", ", elem, "]");
+            errorStr, "[", rank, ", ", input, ", ", elem, "]");
         }
       }
     }
@@ -170,6 +172,29 @@ class AllreduceBenchmark : public Benchmark<T> {
   void verify() override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
+
+    // allreduce_local does not have knowledge of the other
+    // processes. So, it essentially reduces on a single
+    // process meaning that the output should be identical
+    // to the input.
+    if (this->options_.benchmark == "allreduce_local") {
+      // Stride is equal to the "size" since we only have one process
+      const auto stride = size;
+      for (const auto& input : this->inputs_) {
+        // Expected value at ptr[0] should just be
+        // the rank since the input size is 1
+        const auto expected = this->context_->rank;
+        for (int i = 0; i < input.size(); i++) {
+          auto offset = i * stride;
+          GLOO_ENFORCE_EQ(
+              T(offset + expected), input[i],
+              errorStr, i);
+        }
+      }
+      return;
+    }
+
+    // For all other allreduce algorithms:
     // Expected is set to the expected value at ptr[0]
     const auto expected = (size * (size - 1)) / 2;
     // The stride between values at subsequent indices is equal to
@@ -180,7 +205,8 @@ class AllreduceBenchmark : public Benchmark<T> {
       for (int i = 0; i < input.size(); i++) {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(
-            T(offset + expected), input[i], "Mismatch at index: ", i);
+            T(offset + expected), input[i],
+            errorStr, i);
       }
     }
   }
@@ -354,6 +380,21 @@ class BroadcastBenchmark : public Benchmark<T> {
       broadcast(opts_);
     }
 
+    void verify() override {
+      // Stride is the total number of
+      // pointers across the context
+      auto stride = this->context_->size * this->inputs_.size();
+      for (const auto& input : this->inputs_) {
+        for (int i = 0; i < input.size(); i++) {
+          // Should be the same as the values in root (rank 0)
+          auto offset = i * stride;
+          GLOO_ENFORCE_EQ(
+            T(offset + rootRank_), input[i],
+            errorStr, i);
+        }
+      }
+    }
+
   protected:
     BroadcastOptions opts_;
 
@@ -377,7 +418,8 @@ class BroadcastOneToAllBenchmark : public Benchmark<T> {
       for (int i = 0; i < input.size(); i++) {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(
-            T(offset + rootRank_), input[i], "Mismatch at index: ", i);
+            T(offset + rootRank_), input[i],
+            errorStr, i);
       }
     }
   }
@@ -433,6 +475,29 @@ class ReduceBenchmark : public Benchmark<T> {
       reduce(opts_);
     }
 
+    void verify() override {
+      // Size is the total number of pointers across the context
+      const auto size = this->context_->size * this->inputs_.size();
+      // Expected is set to be the expected value of ptr[0]
+      // after reduce gets called (calculation depends on the
+      // reduction function used and how we initialized the inputs)
+      const auto expected = (size * (size - 1)) / 2;
+      // The stride between values at subsequent indices is equal to
+      // "size", and we have "size" of them. Therefore, after
+      // reduce, the stride between expected values is "size^2".
+      const auto stride = size * size;
+
+      // Verify only for root
+      if (this->context_->rank == rootRank_) {
+        for (int i = 0; i < output_.size(); i++) {
+          auto offset = i * stride;
+          GLOO_ENFORCE_EQ(
+            T(offset + expected), output_[i],
+            errorStr, i);
+        }
+      }
+    }
+
   protected:
     ReduceOptions opts_;
 
@@ -478,7 +543,8 @@ class ReduceScatterBenchmark : public Benchmark<T> {
       for (int i = 0; i < recvCounts_[this->context_->rank]; ++i) {
         auto offset = (numElemsSoFar + i) * stride;
         GLOO_ENFORCE_EQ(
-            T(offset + expected), input[i], "Mismatch at index: ", i);
+            T(offset + expected), input[i],
+            errorStr, i);
       }
     }
   }
@@ -506,7 +572,6 @@ class ScatterBenchmark : public Benchmark<T> {
       // Configure ReduceOptions struct
       // Use rank 0 as root
       opts_.setRoot(rootRank_);
-      // Do in place, use input as output
       opts_.setInputs(inPtrs, elements);
       opts_.setOutput(output_.data(), elements);
     }
@@ -517,6 +582,18 @@ class ScatterBenchmark : public Benchmark<T> {
     void run() override {
       // Run the collective on the previously created options
       scatter(opts_);
+    }
+
+    void verify() override {
+      auto stride = this->context_->size * this->inputs_.size();
+      for (int i = 0; i < output_.size(); i++) {
+        const auto base = (rootRank_ * this->context_->size)
+          + this->context_->rank;
+        const auto offset = i * stride;
+        GLOO_ENFORCE_EQ(
+          T(base + offset), output_[i],
+          errorStr, i);
+      }
     }
 
   protected:
