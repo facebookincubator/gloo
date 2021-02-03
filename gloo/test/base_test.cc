@@ -12,16 +12,18 @@
 namespace gloo {
 namespace test {
 
+const char *kDefaultDevice = "localhost";
+
 std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
 #if GLOO_HAVE_TRANSPORT_TCP
   if (transport == Transport::TCP) {
-    return ::gloo::transport::tcp::CreateDevice("localhost");
+    return ::gloo::transport::tcp::CreateDevice(kDefaultDevice);
   }
 #endif
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
   if (transport == Transport::TCP_TLS) {
     return ::gloo::transport::tcp::tls::CreateDevice(
-        "localhost", pkey_file, cert_file, ca_cert_file, "");
+        kDefaultDevice, pkey_file, cert_file, ca_cert_file, "");
   }
 #endif
 #if GLOO_HAVE_TRANSPORT_UV
@@ -31,7 +33,7 @@ std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
     attr.ai_family = AF_UNSPEC;
     return ::gloo::transport::uv::CreateDevice(attr);
 #else
-    return ::gloo::transport::uv::CreateDevice("localhost");
+    return ::gloo::transport::uv::CreateDevice(kDefaultDevice);
 #endif
   }
 #endif

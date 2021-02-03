@@ -18,6 +18,8 @@ namespace gloo {
 namespace test {
 namespace {
 
+const char *kDefaultDevice = "localhost";
+
 class TlsTcpTest : public BaseTest {};
 
 TEST_F(TlsTcpTest, CreateDeviceWithAllEmptyFilePaths) {
@@ -25,7 +27,7 @@ TEST_F(TlsTcpTest, CreateDeviceWithAllEmptyFilePaths) {
   try {
     ::gloo::rendezvous::HashStore store;
     auto device =
-        ::gloo::transport::tcp::tls::CreateDevice("localhost", "", "", "", "");
+        ::gloo::transport::tcp::tls::CreateDevice(kDefaultDevice, "", "", "", "");
     auto context = device->createContext(0, 1);
   } catch (::gloo::EnforceNotMet e) {
     exception_thrown = true;
@@ -41,7 +43,7 @@ TEST_F(TlsTcpTest, CreateDeviceWithCAEmptyFilePaths) {
   try {
     ::gloo::rendezvous::HashStore store;
     auto device = ::gloo::transport::tcp::tls::CreateDevice(
-        "localhost", pkey_file, cert_file, "", "");
+        kDefaultDevice, pkey_file, cert_file, "", "");
     auto context = device->createContext(0, 1);
   } catch (::gloo::EnforceNotMet e) {
     exception_thrown = true;
@@ -53,7 +55,7 @@ TEST_F(TlsTcpTest, CreateDeviceWithCAEmptyFilePaths) {
 
 TEST_F(TlsTcpTest, CreateDeviceWithUnknownCA) {
   auto device = ::gloo::transport::tcp::tls::CreateDevice(
-      "localhost", pkey_file, cert_file, cert_file, "");
+      kDefaultDevice, pkey_file, cert_file, cert_file, "");
   auto context = device->createContext(0, 2);
   auto &pair0 = context->createPair(0);
   auto addrBytes0 = pair0->address().bytes();
