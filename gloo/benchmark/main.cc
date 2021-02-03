@@ -39,11 +39,19 @@
 using namespace gloo;
 using namespace gloo::benchmark;
 
+// NOTE:
+// Before running the benchmark, ensure that previously
+// generated rendezvous files have been deleted.
+// Rendezvous files are saved in the path specified
+// by the --shared-path option and have names
+// consisting of only numbers.
+
 namespace {
 
 // constant offset used for alltoall when populating input data
 constexpr int kAlltoallOffset = 127;
-const std::string errorStr = "Mismatch at index: ";
+// constant string for error message
+const std::string kMismatchErrorString = "Mismatch at index: ";
 
 // Verify function used for AllgatherBenchmark and
 // AllgatherRingBenchmark. The result/output from both
@@ -63,7 +71,7 @@ void allgatherVerify(std::vector<T> outputs, int size, int inputs, int elements)
         const auto inputOffset = input * elements;
         GLOO_ENFORCE_EQ(
           outputs[rankOffset + inputOffset + elem], expected + T(input),
-          errorStr, "[", rank, ", ", input, ", ", elem, "]");
+          kMismatchErrorString, "[", rank, ", ", input, ", ", elem, "]");
       }
     }
   }
@@ -163,7 +171,7 @@ class AllgathervBenchmark : public Benchmark<T> {
         for (auto j = 0; j < counts_[i]; j++) {
           GLOO_ENFORCE_EQ(
             T(j * stride + i), output_[offset + j],
-            errorStr, offset + j);
+            kMismatchErrorString, offset + j);
         }
         offset += counts_[i];
       }
@@ -232,7 +240,7 @@ class AllreduceBenchmark : public Benchmark<T> {
           auto offset = i * stride;
           GLOO_ENFORCE_EQ(
               T(offset + expected), input[i],
-              errorStr, i);
+              kMismatchErrorString, i);
         }
       }
       return;
@@ -250,7 +258,7 @@ class AllreduceBenchmark : public Benchmark<T> {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(
             T(offset + expected), input[i],
-            errorStr, i);
+            kMismatchErrorString, i);
       }
     }
   }
@@ -302,7 +310,7 @@ class AllToAllBenchmark : public Benchmark<T> {
           GLOO_ENFORCE_EQ(
             output_[rank * size + i],
             rank * (kAlltoallOffset + i),
-            errorStr, rank * size + i
+            kMismatchErrorString, rank * size + i
           );
         }
       }
@@ -382,7 +390,7 @@ class AllToAllvBenchmark : public Benchmark<T> {
           GLOO_ENFORCE_EQ(
             output_[i],
             rank * (kAlltoallOffset + i),
-            errorStr, i
+            kMismatchErrorString, i
           );
         }
       }
@@ -459,7 +467,7 @@ class BroadcastBenchmark : public Benchmark<T> {
           auto offset = i * stride;
           GLOO_ENFORCE_EQ(
             T(offset + rootRank_), input[i],
-            errorStr, i);
+            kMismatchErrorString, i);
         }
       }
     }
@@ -488,7 +496,7 @@ class BroadcastOneToAllBenchmark : public Benchmark<T> {
         auto offset = i * stride;
         GLOO_ENFORCE_EQ(
             T(offset + rootRank_), input[i],
-            errorStr, i);
+            kMismatchErrorString, i);
       }
     }
   }
@@ -562,7 +570,7 @@ class ReduceBenchmark : public Benchmark<T> {
           auto offset = i * stride;
           GLOO_ENFORCE_EQ(
             T(offset + expected), output_[i],
-            errorStr, i);
+            kMismatchErrorString, i);
         }
       }
     }
@@ -613,7 +621,7 @@ class ReduceScatterBenchmark : public Benchmark<T> {
         auto offset = (numElemsSoFar + i) * stride;
         GLOO_ENFORCE_EQ(
             T(offset + expected), input[i],
-            errorStr, i);
+            kMismatchErrorString, i);
       }
     }
   }
@@ -661,7 +669,7 @@ class ScatterBenchmark : public Benchmark<T> {
         const auto offset = i * stride;
         GLOO_ENFORCE_EQ(
           T(base + offset), output_[i],
-          errorStr, i);
+          kMismatchErrorString, i);
       }
     }
 
