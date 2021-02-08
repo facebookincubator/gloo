@@ -738,6 +738,88 @@ class SendRecvRoundtripBenchmark : public Benchmark<T> {
   const int source_ = 0;
 };
 
+// This benchmark shows the time it takes to send
+// a large number (default 1000, can be set from command line)
+// of messages of size elements from point A->B.
+// Can be run synchronously or asynchronously.
+template <typename T>
+class SendRecvStressBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+ public:
+  SendRecvStressBenchmark(
+    std::shared_ptr<::gloo::Context>& context,
+    struct options& options,
+    bool async)
+      : Benchmark<T>(context, options),
+        async_(async) {}
+
+  void initialize(size_t elements) override {
+    auto ptr = this->allocate(this->options_.inputs, elements);
+    buf_ = this->context_->createUnboundBuffer(ptr.front(), elements * sizeof(T));
+  }
+
+  void run() override {
+    const int niters = this->options_.messages;
+    // Only send on process with rank 0
+    if (this->context_->rank == send_) {
+      for (int i = 0; i < niters; i++) {
+        buf_->send(recv_, kSlot);
+        // If we run synchronously, call waitSend after each send
+        if (!async_) {
+          buf_->waitSend();
+        }
+      }
+      // If we run asynchronously, call waitSend after all sends
+      if (async_) {
+        for (int i = 0; i < niters; i++) {
+          buf_->waitSend();
+        }
+      }
+    // Only recv on process with rank 1
+    } else {
+      for (int i = 0; i < niters; i++) {
+        buf_->recv(send_, kSlot);
+        // If we run synchronously, call waitRecv after each recv
+        if (!async_) {
+          buf_->waitRecv();
+        }
+      }
+      // If we run asynchronously, call waitRecv after all recvs
+      if (async_) {
+        for (int i = 0; i < niters; i++) {
+          buf_->waitRecv();
+        }
+      }
+    }
+  }
+
+  void verify() override {
+    // Only verify for rank that actually got sent data
+    if (this->context_->rank == recv_) {
+      // Stride is the total number of
+      // pointers across the context
+      auto stride = this->context_->size * this->inputs_.size();
+      for (const auto& input : this->inputs_) {
+        for (int i = 0; i < input.size(); i++) {
+          auto offset = i * stride;
+          // Input should match the values from sender
+          GLOO_ENFORCE_EQ(
+            T(offset + send_), input[i],
+            kMismatchErrorString, i);
+        }
+      }
+    }
+  }
+
+ protected:
+  std::unique_ptr<transport::UnboundBuffer> buf_;
+  // Always send from rank 0 and receive from rank 1
+  const int send_ = 0;
+  const int recv_ = 1;
+  // Whether to send/recv asynchronously or not
+  const bool async_;
+};
+
 } // namespace
 
 // Namespace for the new style algorithm benchmarks.
@@ -892,6 +974,20 @@ class NewAllreduceBenchmark : public Benchmark<T> {
       kNumProcessesErrorString, x.contextSize);                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<SendRecvRoundtripBenchmark<T>>(context, x); \
+    };                                                                     \
+  } else if (x.benchmark == "sendrecv_stress") {                           \
+    GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
+      kNumProcessesErrorString, x.contextSize);                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          SendRecvStressBenchmark<T>>(context, x, false);                  \
+    };                                                                     \
+  } else if (x.benchmark == "isendirecv_stress") {                         \
+    GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
+      kNumProcessesErrorString, x.contextSize);                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          SendRecvStressBenchmark<T>>(context, x, true);                   \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \

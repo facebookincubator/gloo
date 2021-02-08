@@ -75,7 +75,9 @@ static void usage(int status, const char* argv0) {
   X("      --destinations     Number of separate destinations per host in "
                               "pairwise exchange benchmark");
   X("Algorithm parameters:");
-  X("      --base   The base for allreduce_bcube (if applicable)");
+  X("      --base           The base for allreduce_bcube (if applicable)");
+  X("      --messages       The number of messages to send from A to B for");
+  X("                       sendrecv_stress and isendirecv_stress (default: 1000)");
   X("");
   X("BENCHMARK is one of:");
   X("  allgather");
@@ -96,6 +98,8 @@ static void usage(int status, const char* argv0) {
   X("  reduce_scatter");
   X("  scatter");
   X("  sendrecv_roundtrip");
+  X("  sendrecv_stress");
+  X("  isendirecv_stress");
   X("");
 
   exit(status);
@@ -164,6 +168,7 @@ struct options parseOptions(int argc, char** argv) {
       {"ib-port", required_argument, nullptr, 0x100f},
       {"tcp-device", required_argument, nullptr, 0x1010},
       {"base", required_argument, nullptr, 0x1011},
+      {"messages", required_argument, nullptr, 0x1013},
       {"pkey", required_argument, nullptr, 0x2001},
       {"cert", required_argument, nullptr, 0x2002},
       {"ca-file", required_argument, nullptr, 0x2003},
@@ -298,6 +303,11 @@ struct options parseOptions(int argc, char** argv) {
       case 0x1012: // --shared-path
       {
         result.sharedPath = std::string(optarg, strlen(optarg));
+        break;
+      }
+      case 0x1013: // --messages
+      {
+        result.messages = atoi(optarg);
         break;
       }
       case 0x2001: // --pkey
