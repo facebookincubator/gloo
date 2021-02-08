@@ -50,8 +50,15 @@ namespace {
 
 // constant offset used for alltoall when populating input data
 constexpr int kAlltoallOffset = 127;
-// constant string for error message
+// constant slot used for send/recv
+constexpr uint64_t kSlot = 0x1337;
+// exact number of processes needed for send/recv benchmarks
+constexpr uint64_t kSendRecvProcesses = 2;
+
+// constant strings for error messages
 const std::string kMismatchErrorString = "Mismatch at index: ";
+const std::string kNumProcessesErrorString =
+  "Incorrect number of processes used for send/recv benchmarks: ";
 
 // Verify function used for AllgatherBenchmark and
 // AllgatherRingBenchmark. The result/output from both
@@ -681,6 +688,56 @@ class ScatterBenchmark : public Benchmark<T> {
     std::vector<T> output_;
 };
 
+template <typename T>
+class SendRecvRoundtripBenchmark : public Benchmark<T> {
+  using Benchmark<T>::Benchmark;
+ public:
+  void initialize(size_t elements) override {
+    auto ptr = this->allocate(this->options_.inputs, elements);
+    buf_ = this->context_->createUnboundBuffer(ptr.front(), elements * sizeof(T));
+  }
+
+  void run() override {
+    if (this->context_->rank == source_) {
+      const int other = 1;
+      // If source rank, send first
+      buf_->send(other, kSlot);
+      buf_->waitSend();
+      // and receive after
+      buf_->recv(other, kSlot);
+      buf_->waitRecv();
+    } else {
+      // Otherwise, receive from source first
+      buf_->recv(source_, kSlot);
+      buf_->waitRecv();
+      // and send after
+      buf_->send(source_, kSlot);
+      buf_->waitSend();
+    }
+  }
+
+  void verify() override {
+    // Stride is the total number of
+    // pointers across the context
+    auto stride = this->context_->size * this->inputs_.size();
+    for (const auto& input : this->inputs_) {
+      for (int i = 0; i < input.size(); i++) {
+        auto offset = i * stride;
+        // Input should match the values from source rank
+        GLOO_ENFORCE_EQ(
+          T(offset + source_), input[i],
+          kMismatchErrorString, i);
+      }
+    }
+  }
+
+ protected:
+  std::unique_ptr<transport::UnboundBuffer> buf_;
+  // Data will always be sent from rank 0 to rank 1 and
+  // then back to rank 0, so the source rank will always be 0
+  const int source_ = 0;
+};
+
 } // namespace
 
 // Namespace for the new style algorithm benchmarks.
@@ -829,6 +886,12 @@ class NewAllreduceBenchmark : public Benchmark<T> {
   } else if (x.benchmark == "scatter") {                                   \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<ScatterBenchmark<T>>(context, x);           \
+    };                                                                     \
+  } else if (x.benchmark == "sendrecv_roundtrip") {                        \
+    GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
+      kNumProcessesErrorString, x.contextSize);                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<SendRecvRoundtripBenchmark<T>>(context, x); \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \
