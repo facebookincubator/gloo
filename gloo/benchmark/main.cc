@@ -741,21 +741,41 @@ class SendRecvRoundtripBenchmark : public Benchmark<T> {
 // This benchmark shows the time it takes to send
 // a large number (default 1000, can be set from command line)
 // of messages of size elements from point A->B.
+//
+// Can also add the option to alternates between
+// small and large size messages from point A->B.
+//
 // Can be run synchronously or asynchronously.
 template <typename T>
-class SendRecvStressBenchmark : public Benchmark<T> {
+class SendRecvBenchmark : public Benchmark<T> {
   using Benchmark<T>::Benchmark;
+ private:
+  // Used to alternate the size of message being sent
+  void toggleSize() {
+    if (size_ == sizeof(T)) {
+      size_ = maxSize_;
+    } else {
+      size_ = sizeof(T);
+    }
+  }
+
  public:
-  SendRecvStressBenchmark(
+  SendRecvBenchmark(
     std::shared_ptr<::gloo::Context>& context,
     struct options& options,
-    bool async)
+    bool async = false, bool alt = false)
       : Benchmark<T>(context, options),
-        async_(async) {}
+        async_(async),
+        alt_(alt) {}
 
   void initialize(size_t elements) override {
     auto ptr = this->allocate(this->options_.inputs, elements);
     buf_ = this->context_->createUnboundBuffer(ptr.front(), elements * sizeof(T));
+    // Maximum size of the message is the size of the buffer
+    maxSize_ = elements * sizeof(T);
+    // These values for offset and size sends the entire buffer
+    offset_ = 0;
+    size_ = maxSize_;
   }
 
   void run() override {
@@ -763,7 +783,15 @@ class SendRecvStressBenchmark : public Benchmark<T> {
     // Only send on process with rank 0
     if (this->context_->rank == send_) {
       for (int i = 0; i < niters; i++) {
-        buf_->send(recv_, kSlot);
+        if (alt_) {
+          // Toggles message size after each iteration
+          toggleSize();
+        }
+        // Sends a message of size size_
+        // If alternating, the message size will be updated
+        // each iteration, otherwise message size
+        // will always be the maximum size
+        buf_->send(recv_, kSlot, offset_, size_);
         // If we run synchronously, call waitSend after each send
         if (!async_) {
           buf_->waitSend();
@@ -778,7 +806,15 @@ class SendRecvStressBenchmark : public Benchmark<T> {
     // Only recv on process with rank 1
     } else {
       for (int i = 0; i < niters; i++) {
-        buf_->recv(send_, kSlot);
+        if (alt_) {
+          // Toggles message size after each iteration
+          toggleSize();
+        }
+        // Receives a message of size size_
+        // If alternating, the message size will be updated
+        // each iteration, otherwise message size
+        // will always be the maximum size
+        buf_->recv(send_, kSlot, offset_, size_);
         // If we run synchronously, call waitRecv after each recv
         if (!async_) {
           buf_->waitRecv();
@@ -818,6 +854,15 @@ class SendRecvStressBenchmark : public Benchmark<T> {
   const int recv_ = 1;
   // Whether to send/recv asynchronously or not
   const bool async_;
+  // Whether to send messages of alternating size
+  // True for sendrecv_alt and isendirecv_alt
+  const bool alt_;
+  // Size and offset of buffer to send
+  // Only gets modified if alt_ is true
+  int offset_;
+  int size_;
+  // Large message size is the maximum size of the message
+  int maxSize_;
 };
 
 } // namespace
@@ -980,14 +1025,28 @@ class NewAllreduceBenchmark : public Benchmark<T> {
       kNumProcessesErrorString, x.contextSize);                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<                                            \
-          SendRecvStressBenchmark<T>>(context, x, false);                  \
+          SendRecvBenchmark<T>>(context, x);                               \
     };                                                                     \
   } else if (x.benchmark == "isendirecv_stress") {                         \
     GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
       kNumProcessesErrorString, x.contextSize);                            \
     fn = [&](std::shared_ptr<Context>& context) {                          \
       return gloo::make_unique<                                            \
-          SendRecvStressBenchmark<T>>(context, x, true);                   \
+          SendRecvBenchmark<T>>(context, x, true);                         \
+    };                                                                     \
+  } else if (x.benchmark == "sendrecv_alt") {                              \
+    GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
+      kNumProcessesErrorString, x.contextSize);                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          SendRecvBenchmark<T>>(context, x, false, true);                  \
+    };                                                                     \
+  } else if (x.benchmark == "isendirecv_alt") {                            \
+    GLOO_ENFORCE_EQ(x.contextSize, kSendRecvProcesses,                     \
+      kNumProcessesErrorString, x.contextSize);                            \
+    fn = [&](std::shared_ptr<Context>& context) {                          \
+      return gloo::make_unique<                                            \
+          SendRecvBenchmark<T>>(context, x, true, true);                   \
     };                                                                     \
   }                                                                        \
   if (!fn) {                                                               \

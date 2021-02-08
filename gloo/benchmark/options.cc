@@ -77,7 +77,8 @@ static void usage(int status, const char* argv0) {
   X("Algorithm parameters:");
   X("      --base           The base for allreduce_bcube (if applicable)");
   X("      --messages       The number of messages to send from A to B for");
-  X("                       sendrecv_stress and isendirecv_stress (default: 1000)");
+  X("                       sendrecv_stress, isendirecv_stress, sendrecv_alt,");
+  X("                       and isendirecv_alt (default: 1000)");
   X("");
   X("BENCHMARK is one of:");
   X("  allgather");
@@ -100,6 +101,8 @@ static void usage(int status, const char* argv0) {
   X("  sendrecv_roundtrip");
   X("  sendrecv_stress");
   X("  isendirecv_stress");
+  X("  sendrecv_alt");
+  X("  isendirecv_alt");
   X("");
 
   exit(status);
