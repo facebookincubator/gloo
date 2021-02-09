@@ -56,6 +56,7 @@ struct options {
   int destinations  = 1;
   int threads = 1;
   int base = 2;
+  int messages = 10000;
 
   // TLS
   std::string pkey;
