@@ -30,6 +30,7 @@ static void usage(int status, const char* argv0) {
   X("");
   X("Participation:");
   X("  -s, --size=SIZE        Number of processes");
+  X("                         Note: Need exactly two processes for sendrecv benchmarks");
   X("  -r, --rank=RANK        Rank of this process");
   X("");
   X("Rendezvous:");
@@ -94,6 +95,7 @@ static void usage(int status, const char* argv0) {
   X("  reduce");
   X("  reduce_scatter");
   X("  scatter");
+  X("  sendrecv_roundtrip");
   X("");
 
   exit(status);
