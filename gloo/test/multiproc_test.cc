@@ -103,15 +103,22 @@ void MultiProcTest::waitProcess(int rank) {
   ASSERT_EQ(pid, worker) << "Encountered error while waiting for pid " << pid << " to change state.";
 }
 
-void MultiProcTest::spawn(
+void MultiProcTest::spawnProcesses(
     Transport transport,
     int size,
     std::function<void(std::shared_ptr<Context>)> fn) {
+  // Spawn Child Processes
   spawnAsync(transport, size, fn);
+
+  // Wait for them to change state
   wait();
+
+  // Assert that each child process exited cleanly
   for (auto i = 0; i < workerResults_.size(); i++) {
-    ASSERT_TRUE(WIFEXITED(workerResults_[i]));
-    ASSERT_EQ(EXIT_SUCCESS, WEXITSTATUS(workerResults_[i]));
+    auto exitStatus = workerResults_[i];
+    ASSERT_TRUE(WIFEXITED(exitStatus));
+    auto exitCode = WEXITSTATUS(exitStatus);
+    ASSERT_EQ(EXIT_SUCCESS, exitCode) << "Rank " << i << " exited with code " << exitCode;
   }
 }
 
@@ -125,6 +132,8 @@ int MultiProcTest::runWorker(
     worker.run(transport, size, rank, fn);
   } catch (const ::gloo::IoException&) {
     return kExitWithIoException;
+  } catch (...) {
+    return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
