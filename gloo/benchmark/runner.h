@@ -100,6 +100,12 @@ class Runner {
   template <typename T>
   void run(BenchmarkFn<T>& fn, size_t n);
 
+  template <typename T>
+  Samples createAndRun(
+    std::vector<std::unique_ptr<Benchmark<T>>> &benchmarks,
+    int niters
+  );
+
  protected:
 #if GLOO_USE_REDIS
   void rendezvousRedis();

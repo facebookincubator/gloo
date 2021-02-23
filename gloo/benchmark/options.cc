@@ -67,6 +67,7 @@ static void usage(int status, const char* argv0) {
   X("      --inputs           Number of input buffers");
   X("      --elements         Number of floats to use per input buffer");
   X("      --iteration-count  Number of iterations to run benchmark for");
+  X("                         Iteration time is used instead if not specified");
   X("      --iteration-time   Time to run benchmark for (default: 2s)");
   X("      --threads          Number of threads to spawn (default: 1)");
   X("      --nanos            Display timing data in nanos instead of micros");
