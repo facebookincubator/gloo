@@ -263,46 +263,44 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
     benchmarks.push_back(std::move(benchmark));
   }
 
-  // Switch mode based on iteration count or time spent
+  // Create and run warmup jobs for every thread
+  Samples warmupResults = createAndRun(benchmarks, options_.warmupIterationCount);
+
+  // Iterations is the number of samples we will get.
+  // If none specified, it will calculate an iteration count
+  // based on the iteration time (default 2s) and median
+  // time spent during warmup iters.
   auto iterations = options_.iterationCount;
   if (iterations <= 0) {
-    GLOO_ENFORCE_GT(options_.iterationTimeNanos, 0);
-
-    // Create warmup jobs for every thread
-    std::vector<std::unique_ptr<RunnerJob>> jobs;
-    for (auto i = 0; i < options_.threads; i++) {
-      auto& benchmark = benchmarks[i];
-      auto fn = [&benchmark] { benchmark->run(); };
-      auto job = make_unique<RunnerJob>(fn, options_.warmupIterationCount);
-      jobs.push_back(std::move(job));
-    }
-
-    // Start jobs on every thread (synchronized across processes)
-    barrier_->run();
-    for (auto i = 0; i < options_.threads; i++) {
-      threads_[i]->run(jobs[i].get());
-    }
-
-    // Wait for completion and merge latency distributions
-    Samples samples;
-    for (auto i = 0; i < options_.threads; i++) {
-      jobs[i]->wait();
-      samples.merge(jobs[i]->getSamples());
-    }
-
+    GLOO_ENFORCE_GT(
+      options_.iterationTimeNanos, 0,
+      "Iteration time must be positive");
+    // Sort warmup iteration times
+    Distribution warmup(warmupResults);
     // Broadcast duration of median iteration during warmup,
     // so all nodes agree on the number of iterations to run for.
-    Distribution warmup(samples);
     auto nanos = broadcast(warmup.percentile(0.5));
     iterations = std::max(1L, options_.iterationTimeNanos / nanos);
   }
 
+  // Runs the benchmark
+  Samples results = createAndRun(benchmarks, iterations);
+
+  // Print results
+  Distribution latency(results);
+  printDistribution(n, sizeof(T), latency);
+}
+
+template <typename T>
+Samples Runner::createAndRun(
+  std::vector<std::unique_ptr<Benchmark<T>>> &benchmarks,
+  int niters) {
   // Create jobs for every thread
   std::vector<std::unique_ptr<RunnerJob>> jobs;
   for (auto i = 0; i < options_.threads; i++) {
     auto& benchmark = benchmarks[i];
     auto fn = [&benchmark] { benchmark->run(); };
-    auto job = make_unique<RunnerJob>(fn, iterations);
+    auto job = make_unique<RunnerJob>(fn, niters);
     jobs.push_back(std::move(job));
   }
 
@@ -317,15 +315,15 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
     jobs[i]->wait();
   }
 
+  // Synchronize again after running
+  barrier_->run();
+
   // Merge results
   Samples samples;
   for (auto i = 0; i < options_.threads; i++) {
     samples.merge(jobs[i]->getSamples());
   }
-
-  // Print results
-  Distribution latency(samples);
-  printDistribution(n, sizeof(T), latency);
+  return samples;
 }
 
 void Runner::printHeader() {
@@ -374,7 +372,7 @@ void Runner::printHeader() {
   std::cout << std::setw(11) << ("p50 " + suffix);
   std::cout << std::setw(11) << ("p99 " + suffix);
   std::cout << std::setw(11) << ("max " + suffix);
-  std::cout << std::setw(13) << ("avg " + bwSuffix);
+  std::cout << std::setw(20) << ("bandwidth " + bwSuffix);
   std::cout << std::setw(11) << "samples";
   std::cout << std::endl;
 }
@@ -394,10 +392,15 @@ void Runner::printDistribution(
 
   GLOO_ENFORCE_GE(latency.size(), 1, "No latency samples found");
 
+  // Calculate total number of bytes (B) being sent
   auto bytes = elements * elementSize;
   auto totalBytes = bytes * latency.size();
+  // Calculate total time (s) it took to send those bytes
   auto totalNanos = latency.sum() / options_.threads;
-  auto totalBytesPerSec = (totalBytes * 1e9f) / totalNanos;
+  auto totalSecs = totalNanos / 1e9f;
+  // Calculate B/s being sent
+  auto totalBytesPerSec = totalBytes / totalSecs;
+  // Convert to GB/s
   auto totalGigaBytesPerSec = totalBytesPerSec / (1024 * 1024 * 1024);
 
   std::cout << std::setw(11) << elements;
@@ -406,7 +409,7 @@ void Runner::printDistribution(
   std::cout << std::setw(11) << (latency.percentile(0.99) / div);
   std::cout << std::setw(11) << (latency.max() / div);
   std::cout << std::fixed << std::setprecision(3);
-  std::cout << std::setw(13) << totalGigaBytesPerSec;
+  std::cout << std::setw(20) << totalGigaBytesPerSec;
   std::cout << std::setw(11) << latency.size();
   std::cout << std::endl;
 }
