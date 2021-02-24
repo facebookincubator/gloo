@@ -598,26 +598,20 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
 
   void read(char* ptr, size_t length) {
     reads_.emplace_back(ptr, length);
-    auto rv = uv_read_start(
-        this->template get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
-#ifdef _WIN32
-    if(rv == UV_EALREADY) {
-      return;
+    if (reads_.size() == 1) {
+      auto rv = uv_read_start(
+          this->template get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
+      UV_ASSERT(rv, "uv_read_start");
     }
-#endif
-    UV_ASSERT(rv, "uv_read_start");
   }
 
   void read(std::unique_ptr<char[]> buf, size_t length) {
     reads_.emplace_back(std::move(buf), length);
-    auto rv =
-        uv_read_start(this->get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
-#ifdef _WIN32
-    if(rv == UV_EALREADY) {
-      return;
+    if (reads_.size() == 1) {
+      auto rv =
+          uv_read_start(this->get<uv_stream_t>(), &uv__alloc_cb, &uv__read_cb);
+      UV_ASSERT(rv, "uv_read_start");
     }
-#endif
-    UV_ASSERT(rv, "uv_read_start");
   }
 
   void write(char* ptr, size_t length) {
