@@ -533,10 +533,10 @@ class ReduceBenchmark : public Benchmark<T> {
         : Benchmark<T>(context, options),
           opts_(context) {}
 
-    void initialize(size_t /* unused */) override {
+    void initialize(size_t elements) override {
       // Create input/output buffers
-      auto inPtrs = this->allocate(this->options_.inputs, dataSize_);
-      output_.resize(dataSize_);
+      auto inPtrs = this->allocate(this->options_.inputs, elements);
+      output_.resize(elements);
 
       // Configure ReduceOptions struct
       // Use rank 0 as root
@@ -545,10 +545,11 @@ class ReduceBenchmark : public Benchmark<T> {
       void (*fn)(void*, const void*, const void*, long unsigned int) = &sum<T>;
       opts_.setReduceFunction(fn);
       // MaxSegmentSize must be a multiple of the element size T
-      // For simplicity, use size of T
-      opts_.setMaxSegmentSize(sizeof(T));
-      opts_.setInput(inPtrs.front(), dataSize_);
-      opts_.setOutput(output_.data(), dataSize_);
+      // Can't be too small otherwise benchmark will run for a long time
+      // Use a factor of (elements / 2)
+      opts_.setMaxSegmentSize(sizeof(T) * elements / 2);
+      opts_.setInput(inPtrs.front(), elements);
+      opts_.setOutput(output_.data(), elements);
     }
 
     // Default run function calls Algorithm::run
@@ -585,8 +586,6 @@ class ReduceBenchmark : public Benchmark<T> {
   protected:
     ReduceOptions opts_;
 
-    // Use constant data size for now
-    static constexpr int dataSize_ = 100;
     // Always use rank 0 as the root
     const int rootRank_ = 0;
     std::vector<T> output_;
