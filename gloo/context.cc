@@ -62,11 +62,8 @@ void Context::closeConnections() {
   }
 }
 
-void Context::setTimeout(std::chrono::milliseconds timeout) {
-  if (timeout < std::chrono::milliseconds::zero()) {
-    GLOO_THROW_INVALID_OPERATION_EXCEPTION("Invalid timeout", timeout.count());
-  }
-
+void Context::setTimeout(std::chrono::milliseconds timeout=kTimeoutDefault) {
+  GLOO_ENFORCE(timeout.count() >= 0, "Invalid timeout");
   timeout_ = timeout;
 }
 
