@@ -43,6 +43,12 @@
 namespace gloo {
 namespace benchmark {
 
+// Constant multiplier used to increase the iteration count
+constexpr float kItersMultiplier = 1.2;
+// Maximum number of iterations the benchmark will run when
+// minimum time has been specified
+constexpr int kMaxIterations = 1000000000;
+
 Runner::Runner(const options& options) : options_(options) {
 #if GLOO_HAVE_TRANSPORT_TCP
   if (options_.transport == "tcp") {
@@ -267,24 +273,53 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
   Samples warmupResults = createAndRun(benchmarks, options_.warmupIterationCount);
 
   // Iterations is the number of samples we will get.
-  // If none specified, it will calculate an iteration count
-  // based on the iteration time (default 2s) and median
-  // time spent during warmup iters.
+  // If none specified, it will calculate an initial
+  // iteration count based on the iteration time
+  // (default 2s) and median time spent during warmup iters.
   auto iterations = options_.iterationCount;
   if (iterations <= 0) {
     GLOO_ENFORCE_GT(
-      options_.iterationTimeNanos, 0,
+      options_.minIterationTimeNanos, 0,
       "Iteration time must be positive");
     // Sort warmup iteration times
     Distribution warmup(warmupResults);
     // Broadcast duration of median iteration during warmup,
     // so all nodes agree on the number of iterations to run for.
     auto nanos = broadcast(warmup.percentile(0.5));
-    iterations = std::max(1L, options_.iterationTimeNanos / nanos);
+    iterations = std::max(1L, options_.minIterationTimeNanos / nanos);
   }
 
-  // Runs the benchmark
-  Samples results = createAndRun(benchmarks, iterations);
+  Samples results;
+  // Run the benchmark until results are significant enough to report
+  while (1) {
+    results = createAndRun(benchmarks, iterations);
+    // If iteration count is explicitly specified by
+    // user, report these results right away
+    if (options_.iterationCount > 0) {
+      break;
+    }
+    // Report these results if benchmark has run
+    // for at least the minimum time
+    auto totalNanos = results.sum() / options_.threads;
+    if (totalNanos > options_.minIterationTimeNanos) {
+      break;
+    }
+    // Stop if this run already used the maximum number of iterations
+    if (iterations == kMaxIterations) {
+      break;
+    }
+    // Otherwise, increase the number of iterations again
+    // and broadcast this value so all nodes agree on the
+    // number of iterations to run for
+    int nextIterations = static_cast<int>(kItersMultiplier * iterations);
+    // When iterations is too small and multiplier has no effect,
+    // just increment the number of iterations
+    if (nextIterations <= iterations) {
+      nextIterations++;
+    }
+    // Limit the number of iterations to kMaxIterations
+    iterations = broadcast(std::min(nextIterations, kMaxIterations));
+  }
 
   // Print results
   Distribution latency(results);

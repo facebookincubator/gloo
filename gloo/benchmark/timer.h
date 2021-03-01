@@ -59,6 +59,14 @@ public:
       other.samples_.end());
   }
 
+  long sum() const {
+    long result = 0;
+    for (auto& sample : samples_) {
+      result += sample;
+    }
+    return result;
+  }
+
  protected:
   std::vector<long> samples_;
 

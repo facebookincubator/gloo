@@ -66,9 +66,11 @@ static void usage(int status, const char* argv0) {
   X("      --verify           Verify result first iteration (if applicable)");
   X("      --inputs           Number of input buffers");
   X("      --elements         Number of floats to use per input buffer");
+  X("      --warmup-iters     Number of warmup iterations to run (default: 5)");
   X("      --iteration-count  Number of iterations to run benchmark for");
-  X("                         Iteration time is used instead if not specified");
-  X("      --iteration-time   Time to run benchmark for (default: 2s)");
+  X("                         Iteration time is used by default if not specified");
+  X("      --iteration-time   Minimum time to run benchmark for (default: 2s)");
+  X("                         This value is unused if iteration count is specified");
   X("      --threads          Number of threads to spawn (default: 1)");
   X("      --nanos            Display timing data in nanos instead of micros");
   X("      --gpudirect        Use GPUDirect (CUDA only)");
@@ -154,6 +156,7 @@ struct options parseOptions(int argc, char** argv) {
       {"transport", required_argument, nullptr, 't'},
       {"verify", no_argument, nullptr, 0x1001},
       {"elements", required_argument, nullptr, 0x1002},
+      {"warmup-iters", required_argument, nullptr, 0x1014},
       {"iteration-count", required_argument, nullptr, 0x1003},
       {"iteration-time", required_argument, nullptr, 0x1004},
       {"sync", required_argument, nullptr, 0x1005},
@@ -220,6 +223,11 @@ struct options parseOptions(int argc, char** argv) {
         result.elements = atoi(optarg);
         break;
       }
+      case 0x1014: // --warmup-iters
+      {
+        result.warmupIterationCount = atoi(optarg);
+        break;
+      }
       case 0x1003: // --iteration-count
       {
         result.iterationCount = atoi(optarg);
@@ -227,7 +235,7 @@ struct options parseOptions(int argc, char** argv) {
       }
       case 0x1004: // --iteration-time
       {
-        result.iterationTimeNanos = argToNanos(argv, optarg);
+        result.minIterationTimeNanos = argToNanos(argv, optarg);
         break;
       }
       case 0x1005: // --sync

@@ -47,7 +47,7 @@ struct options {
   bool verify = false;
   int elements = -1;
   long iterationCount = -1;
-  long iterationTimeNanos = 2 * 1000 * 1000 * 1000;
+  long minIterationTimeNanos = 2 * 1000 * 1000 * 1000;
   int warmupIterationCount = 5;
   bool showNanos = false;
   int inputs = 1;
