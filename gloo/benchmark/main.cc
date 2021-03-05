@@ -7,6 +7,7 @@
  */
 
 #include <memory>
+#include <string>
 
 #include "gloo/allgather.h"
 #include "gloo/allgatherv.h"
@@ -60,12 +61,17 @@ const std::string kMismatchErrorString = "Mismatch at index: ";
 const std::string kNumProcessesErrorString =
   "Incorrect number of processes used for send/recv benchmarks (please use 2 processes): ";
 
+// Returns the rank as a string with format "Rank: rank "
+std::string formatRank(int rank) {
+  return "Rank: " + std::to_string(rank) + " ";
+}
+
 // Verify function used for AllgatherBenchmark and
 // AllgatherRingBenchmark. The result/output from both
 // should be the same, but created two separate classes because
 // the setup is different for each implementation of the collective
 template<typename T>
-void allgatherVerify(std::vector<T> outputs, int size, int inputs, int elements) {
+void allgatherVerify(std::vector<T> outputs, int size, int inputs, int elements, std::vector<std::string> &errors) {
   // Stride is the total number of total number of
   // pointers across the context
   const auto stride = size * inputs;
@@ -76,9 +82,38 @@ void allgatherVerify(std::vector<T> outputs, int size, int inputs, int elements)
       for (int input = 0; input < inputs; input++) {
         const auto rankOffset = rank * elements * inputs;
         const auto inputOffset = input * elements;
+        try {
+          GLOO_ENFORCE_EQ(
+            outputs[rankOffset + inputOffset + elem], expected + T(input),
+            kMismatchErrorString, "[", rank, ", ", input, ", ", elem, "]");
+        } catch (::gloo::EnforceNotMet &e) {
+          errors.push_back(formatRank(rank) + e.msg());
+        }
+      }
+    }
+  }
+}
+
+// Many of the benchmarks result in a constant
+// stride between each value in the array. This helper
+// function allows you to specify the base / stride and
+// verifies if the pattern exists.
+// e.g. If you expect input to be [1, 3, 5, 7]
+//      use base = 1 and stride = 2
+template<typename T>
+void constStrideVerify(
+  std::vector<std::vector<T, aligned_allocator<T, kBufferAlignment>>> &inputs,
+  int base, int stride, int rank, std::vector<std::string> &errors) {
+  for (const auto &input : inputs) {
+    for (int i = 0; i < input.size(); i++) {
+      auto offset = i * stride;
+      try {
         GLOO_ENFORCE_EQ(
-          outputs[rankOffset + inputOffset + elem], expected + T(input),
-          kMismatchErrorString, "[", rank, ", ", input, ", ", elem, "]");
+          // Offset changes by a constant stride each iteration
+          T(offset + base), input[i],
+          kMismatchErrorString, i);
+      } catch (::gloo::EnforceNotMet &e) {
+        errors.push_back(formatRank(rank) + e.msg());
       }
     }
   }
@@ -115,12 +150,13 @@ class AllgatherBenchmark : public Benchmark<T> {
 
     // Verify is identical for AllgatherBenchmark
     // and AllgatherRingBenchmark
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       allgatherVerify(
         output_,
         this->context_->size,
         this->inputs_.size(),
-        this->inputs_[0].size()
+        this->inputs_[0].size(),
+        errors
       );
     }
 
@@ -170,15 +206,20 @@ class AllgathervBenchmark : public Benchmark<T> {
       allgatherv(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       const int size = this->context_->size;
       const auto stride = size * this->options_.inputs;
       size_t offset = 0;
       for (auto i = 0; i < size; i++) {
         for (auto j = 0; j < counts_[i]; j++) {
-          GLOO_ENFORCE_EQ(
-            T(j * stride + i), output_[offset + j],
-            kMismatchErrorString, offset + j);
+          try {
+            GLOO_ENFORCE_EQ(
+              T(j * stride + i), output_[offset + j],
+              kMismatchErrorString, offset + j);
+          } catch (::gloo::EnforceNotMet &e) {
+            errors.push_back(
+              formatRank(this->context_->rank) + e.msg());
+          }
         }
         offset += counts_[i];
       }
@@ -206,12 +247,13 @@ class AllgatherRingBenchmark : public Benchmark<T> {
 
   // Verify is identical for AllgatherBenchmark
   // and AllgatherRingBenchmark
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     allgatherVerify(
       outputs_,
       this->context_->size,
       this->inputs_.size(),
-      this->inputs_[0].size()
+      this->inputs_[0].size(),
+      errors
     );
   }
 
@@ -228,7 +270,7 @@ class AllreduceBenchmark : public Benchmark<T> {
     this->algorithm_.reset(new A(this->context_, ptrs, elements));
   }
 
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
 
@@ -239,17 +281,13 @@ class AllreduceBenchmark : public Benchmark<T> {
     if (this->options_.benchmark == "allreduce_local") {
       // Stride is equal to the "size" since we only have one process
       const auto stride = size;
-      for (const auto& input : this->inputs_) {
-        // Expected value at ptr[0] should just be
-        // the rank since the input size is 1
-        const auto expected = this->context_->rank;
-        for (int i = 0; i < input.size(); i++) {
-          auto offset = i * stride;
-          GLOO_ENFORCE_EQ(
-              T(offset + expected), input[i],
-              kMismatchErrorString, i);
-        }
-      }
+      // Expected value at ptr[0] should just be
+      // the rank since the input size is 1
+      const auto expected = this->context_->rank;
+
+      constStrideVerify(
+        this->inputs_, expected, stride,
+        this->context_->rank, errors);
       return;
     }
 
@@ -260,14 +298,9 @@ class AllreduceBenchmark : public Benchmark<T> {
     // "size", and we have "size" of them. Therefore, after
     // allreduce, the stride between expected values is "size^2".
     const auto stride = size * size;
-    for (const auto& input : this->inputs_) {
-      for (int i = 0; i < input.size(); i++) {
-        auto offset = i * stride;
-        GLOO_ENFORCE_EQ(
-            T(offset + expected), input[i],
-            kMismatchErrorString, i);
-      }
-    }
+    constStrideVerify(
+      this->inputs_, expected, stride,
+      this->context_->rank, errors);
   }
 };
 
@@ -309,16 +342,20 @@ class AllToAllBenchmark : public Benchmark<T> {
       alltoall(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       const int rank = this->context_->rank;
       for (const auto& input : this->inputs_) {
         const int size = input.size();
         for (int i = 0; i < size; i++) {
-          GLOO_ENFORCE_EQ(
-            output_[rank * size + i],
-            rank * (kAlltoallOffset + i),
-            kMismatchErrorString, rank * size + i
-          );
+          try {
+            GLOO_ENFORCE_EQ(
+              output_[rank * size + i],
+              rank * (kAlltoallOffset + i),
+              kMismatchErrorString, rank * size + i
+            );
+          } catch (::gloo::EnforceNotMet &e) {
+            errors.push_back(formatRank(rank) + e.msg());
+          }
         }
       }
     }
@@ -388,17 +425,21 @@ class AllToAllvBenchmark : public Benchmark<T> {
       alltoallv(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       const int size = this->context_->size;
       const int rank = this->context_->rank;
       for (const auto& input : this->inputs_) {
         int dataSize = input.size();
         for (int i = 0; i < size * dataSize; i++) {
-          GLOO_ENFORCE_EQ(
-            output_[i],
-            rank * (kAlltoallOffset + i),
-            kMismatchErrorString, i
-          );
+          try {
+            GLOO_ENFORCE_EQ(
+              output_[i],
+              rank * (kAlltoallOffset + i),
+              kMismatchErrorString, i
+            );
+          } catch (::gloo::EnforceNotMet &e) {
+            errors.push_back(formatRank(rank) + e.msg());
+          }
         }
       }
     }
@@ -464,19 +505,13 @@ class BroadcastBenchmark : public Benchmark<T> {
       broadcast(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       // Stride is the total number of
       // pointers across the context
       auto stride = this->context_->size * this->inputs_.size();
-      for (const auto& input : this->inputs_) {
-        for (int i = 0; i < input.size(); i++) {
-          // Should be the same as the values in root (rank 0)
-          auto offset = i * stride;
-          GLOO_ENFORCE_EQ(
-            T(offset + rootRank_), input[i],
-            kMismatchErrorString, i);
-        }
-      }
+      constStrideVerify(
+        this->inputs_, rootRank_, stride,
+        this->context_->rank, errors);
     }
 
   protected:
@@ -496,16 +531,11 @@ class BroadcastOneToAllBenchmark : public Benchmark<T> {
         new BroadcastOneToAll<T>(this->context_, ptrs, elements, rootRank_));
   }
 
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     const auto stride = this->context_->size * this->inputs_.size();
-    for (const auto& input : this->inputs_) {
-      for (int i = 0; i < input.size(); i++) {
-        auto offset = i * stride;
-        GLOO_ENFORCE_EQ(
-            T(offset + rootRank_), input[i],
-            kMismatchErrorString, i);
-      }
-    }
+    constStrideVerify(
+      this->inputs_, rootRank_, stride,
+      this->context_->rank, errors);
   }
 
  protected:
@@ -560,7 +590,7 @@ class ReduceBenchmark : public Benchmark<T> {
       reduce(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       // Size is the total number of pointers across the context
       const auto size = this->context_->size * this->inputs_.size();
       // Expected is set to be the expected value of ptr[0]
@@ -576,9 +606,13 @@ class ReduceBenchmark : public Benchmark<T> {
       if (this->context_->rank == rootRank_) {
         for (int i = 0; i < output_.size(); i++) {
           auto offset = i * stride;
-          GLOO_ENFORCE_EQ(
-            T(offset + expected), output_[i],
-            kMismatchErrorString, i);
+          try {
+            GLOO_ENFORCE_EQ(
+              T(offset + expected), output_[i],
+              kMismatchErrorString, i);
+          } catch (::gloo::EnforceNotMet &e) {
+            errors.push_back(formatRank(rootRank_) + e.msg());
+          }
         }
       }
     }
@@ -609,7 +643,7 @@ class ReduceScatterBenchmark : public Benchmark<T> {
             this->context_, ptrs, elements, recvCounts_));
   }
 
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     // Size is the total number of pointers across the context
     const auto size = this->context_->size * this->inputs_.size();
     // Expected is set to the expected value at ptr[0]
@@ -625,9 +659,14 @@ class ReduceScatterBenchmark : public Benchmark<T> {
       }
       for (int i = 0; i < recvCounts_[this->context_->rank]; ++i) {
         auto offset = (numElemsSoFar + i) * stride;
-        GLOO_ENFORCE_EQ(
-            T(offset + expected), input[i],
-            kMismatchErrorString, i);
+        try {
+          GLOO_ENFORCE_EQ(
+              T(offset + expected), input[i],
+              kMismatchErrorString, i);
+        } catch (::gloo::EnforceNotMet &e) {
+          errors.push_back(
+            formatRank(this->context_->rank) + e.msg());
+        }
       }
     }
   }
@@ -667,15 +706,20 @@ class ScatterBenchmark : public Benchmark<T> {
       scatter(opts_);
     }
 
-    void verify() override {
+    void verify(std::vector<std::string> &errors) override {
       auto stride = this->context_->size * this->inputs_.size();
       for (int i = 0; i < output_.size(); i++) {
         const auto base = (rootRank_ * this->context_->size)
           + this->context_->rank;
         const auto offset = i * stride;
-        GLOO_ENFORCE_EQ(
-          T(base + offset), output_[i],
-          kMismatchErrorString, i);
+        try {
+          GLOO_ENFORCE_EQ(
+            T(base + offset), output_[i],
+            kMismatchErrorString, i);
+        } catch (::gloo::EnforceNotMet &e) {
+          errors.push_back(
+            formatRank(this->context_->rank) + e.msg());
+        }
       }
     }
 
@@ -715,19 +759,13 @@ class SendRecvRoundtripBenchmark : public Benchmark<T> {
     }
   }
 
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     // Stride is the total number of
     // pointers across the context
     auto stride = this->context_->size * this->inputs_.size();
-    for (const auto& input : this->inputs_) {
-      for (int i = 0; i < input.size(); i++) {
-        auto offset = i * stride;
-        // Input should match the values from source rank
-        GLOO_ENFORCE_EQ(
-          T(offset + source_), input[i],
-          kMismatchErrorString, i);
-      }
-    }
+    constStrideVerify(
+      this->inputs_, source_, stride,
+      this->context_->rank, errors);
   }
 
  protected:
@@ -792,21 +830,15 @@ class SendRecvStressBenchmark : public Benchmark<T> {
     }
   }
 
-  void verify() override {
+  void verify(std::vector<std::string> &errors) override {
     // Only verify for rank that actually got sent data
     if (this->context_->rank == dstRank_) {
       // Stride is the total number of
       // pointers across the context
       auto stride = this->context_->size * this->inputs_.size();
-      for (const auto& input : this->inputs_) {
-        for (int i = 0; i < input.size(); i++) {
-          auto offset = i * stride;
-          // Input should match the values from sender
-          GLOO_ENFORCE_EQ(
-            T(offset + srcRank_), input[i],
-            kMismatchErrorString, i);
-        }
-      }
+      constStrideVerify(
+        this->inputs_, srcRank_, stride,
+        this->context_->rank, errors);
     }
   }
 

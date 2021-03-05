@@ -48,6 +48,17 @@ constexpr float kItersMultiplier = 1.2;
 // Maximum number of iterations the benchmark will run when
 // minimum time has been specified
 constexpr int kMaxIterations = 1000000000;
+// Maximum number of errors that can occur before the benchmark
+// considers it to be too large and truncates them
+constexpr int kMaxNumErrors = 100;
+
+// Constants for formatting output
+constexpr int kColWidthS = 11;
+constexpr int kColWidthM = 13;
+constexpr int kColWidthL = 19;
+// Total width depends on number of columns on the table
+constexpr int kTotalWidth = 6 * kColWidthS + kColWidthM + kColWidthL;
+constexpr int kHeaderWidth = kTotalWidth / 2;
 
 Runner::Runner(const options& options) : options_(options) {
 #if GLOO_HAVE_TRANSPORT_TCP
@@ -225,6 +236,8 @@ void Runner::run(BenchmarkFn<T>& fn) {
 
   if (options_.elements > 0) {
     run(fn, options_.elements);
+    checkErrors();
+    printFooter();
     return;
   }
 
@@ -233,8 +246,12 @@ void Runner::run(BenchmarkFn<T>& fn) {
     std::vector<int> js = {i * 1, i * 2, i * 5};
     for (auto& j : js) {
       run(fn, j);
+      // Check for errors after every iteration
+      // checkErrors will exit the program if any errors were found
+      checkErrors();
     }
   }
+  printFooter();
 }
 
 template <typename T>
@@ -262,7 +279,7 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
     // Verify correctness of initial run
     if (options_.verify) {
       benchmark->run();
-      benchmark->verify();
+      benchmark->verify(mismatchErrors_);
       barrier_->run();
     }
 
@@ -365,20 +382,31 @@ void Runner::printHeader() {
   if (options_.contextRank != 0) {
     return;
   }
+  std::string line = std::string(kTotalWidth + 2, '=');
+
+  // ================================= ALGORITHM =================================
+  std::cout << line << std::endl;
+  std::string algo = options_.benchmark;
+  // Add offset to header width to center text
+  int algoOffset = algo.length() / 2;
+  // Print out algorithm name in upper case
+  for (auto &c : algo) {
+    c = std::toupper(c);
+  }
+  std::cout << std::right << std::setw(kHeaderWidth + algoOffset) << algo;
+  std::cout << std::endl << std::endl;
 
   if (transportDevices_.size() == 1) {
-    std::cout << std::left << std::setw(13) << "Device:";
+    std::cout << std::left << std::setw(kColWidthM) << "Device:";
     std::cout << transportDevices_.front()->str() << std::endl;
   } else {
-    std::cout << std::left << std::setw(13) << "Devices:" << std::endl;
+    std::cout << std::left << std::setw(kColWidthM) << "Devices:" << std::endl;
     for (const auto& device : transportDevices_) {
       std::cout << "  - " << device->str() << std::endl;
     }
   }
-  std::cout << std::left << std::setw(13) << "Algorithm:";
-  std::cout << options_.benchmark << std::endl;
 
-  std::cout << std::left << std::setw(13) << "Options:";
+  std::cout << std::left << std::setw(kColWidthM) << "Options:";
   std::cout << "processes=" << options_.contextSize;
   std::cout << ", inputs=" << options_.inputs;
   std::cout << ", threads=" << options_.threads;
@@ -393,6 +421,17 @@ void Runner::printHeader() {
       std::cout << "no";
     }
   }
+  std::cout << std::boolalpha;
+  std::cout << ", verify=" << options_.verify;
+  std::cout << std::endl << std::endl;
+
+  // =============================== BENCHMARK RESULTS ===============================
+  std::cout << line << std::endl;
+  // Section title
+  std::string benchmarkTitle = "BENCHMARK RESULTS";
+  // Add offset to header width to center text
+  int offset = benchmarkTitle.length() / 2;
+  std::cout << std::right << std::setw(kHeaderWidth + offset) << benchmarkTitle;
   std::cout << std::endl << std::endl;
 
   std::string suffix = "(us)";
@@ -400,15 +439,17 @@ void Runner::printHeader() {
     suffix = "(ns)";
   }
   std::string bwSuffix = "(GB/s)";
+  std::string sSuffix = "(B)";
 
   std::cout << std::right;
-  std::cout << std::setw(11) << "elements";
-  std::cout << std::setw(11) << ("min " + suffix);
-  std::cout << std::setw(11) << ("p50 " + suffix);
-  std::cout << std::setw(11) << ("p99 " + suffix);
-  std::cout << std::setw(11) << ("max " + suffix);
-  std::cout << std::setw(20) << ("bandwidth " + bwSuffix);
-  std::cout << std::setw(11) << "samples";
+  std::cout << std::setw(kColWidthS) << ("size " + sSuffix);
+  std::cout << std::setw(kColWidthS) << "elements";
+  std::cout << std::setw(kColWidthS) << ("min " + suffix);
+  std::cout << std::setw(kColWidthS) << ("p50 " + suffix);
+  std::cout << std::setw(kColWidthS) << ("p99 " + suffix);
+  std::cout << std::setw(kColWidthS) << ("max " + suffix);
+  std::cout << std::setw(kColWidthL) << ("bandwidth " + bwSuffix);
+  std::cout << std::setw(kColWidthM) << "iterations";
   std::cout << std::endl;
 }
 
@@ -416,6 +457,8 @@ void Runner::printDistribution(
     size_t elements,
     size_t elementSize,
     const Distribution& latency) {
+
+  // Only output results for one rank
   if (options_.contextRank != 0) {
     return;
   }
@@ -438,15 +481,99 @@ void Runner::printDistribution(
   // Convert to GB/s
   auto totalGigaBytesPerSec = totalBytesPerSec / (1024 * 1024 * 1024);
 
-  std::cout << std::setw(11) << elements;
-  std::cout << std::setw(11) << (latency.min() / div);
-  std::cout << std::setw(11) << (latency.percentile(0.50) / div);
-  std::cout << std::setw(11) << (latency.percentile(0.99) / div);
-  std::cout << std::setw(11) << (latency.max() / div);
+  // Size and element columns display the size and element sent
+  // per iteration and not total size and total elements
+  std::cout << std::setw(kColWidthS) << bytes;
+  std::cout << std::setw(kColWidthS) << elements;
+  std::cout << std::setw(kColWidthS) << (latency.min() / div);
+  std::cout << std::setw(kColWidthS) << (latency.percentile(0.50) / div);
+  std::cout << std::setw(kColWidthS) << (latency.percentile(0.99) / div);
+  std::cout << std::setw(kColWidthS) << (latency.max() / div);
   std::cout << std::fixed << std::setprecision(3);
-  std::cout << std::setw(20) << totalGigaBytesPerSec;
-  std::cout << std::setw(11) << latency.size();
+  std::cout << std::setw(kColWidthL) << totalGigaBytesPerSec;
+  std::cout << std::setw(kColWidthM) << latency.size();
   std::cout << std::endl;
+}
+
+void Runner::printVerifyHeader() {
+  // Only print this for one rank
+  if (options_.contextRank != 0) {
+    return;
+  }
+
+  // Line separator
+  std::string line = std::string(kTotalWidth + 2, '=');
+  std::cout << std::endl << line << std::endl;
+
+  // Section title
+  std::string title = "VERIFY ERRORS";
+  // Add offset to header width to center text
+  int offset = title.length() / 2;
+  std::cout << std::right << std::setw(kHeaderWidth + offset) << title;
+  std::cout << std::endl << std::endl;
+}
+
+void Runner::printFooter() {
+  // Only print this for one rank
+  if (options_.contextRank != 0) {
+    return;
+  }
+
+  std::string line = std::string(kTotalWidth + 2, '=');
+  std::cout << std::endl << line << std::endl;
+}
+
+void Runner::checkErrors() {
+  // Only check if that option has been set
+  if (!options_.verify) {
+    return;
+  }
+  // If there were no mismatches, don't print anything
+  if (mismatchErrors_.empty()) {
+    return;
+  }
+  // If there were mismatches, print them
+  int size = mismatchErrors_.size();
+  // Add barrier to prevent header from printing before benchmark results
+  barrier_->run();
+  printVerifyHeader();
+  if (options_.contextRank == 0) {
+    // Only print this stuff once
+    if (size >= kMaxNumErrors && !options_.showAllErrors) {
+      // If too many errors, inform user we will only be printing a subset
+      std::cout << "Too many errors! Truncating to top 20 from each rank. ";
+      std::cout << std::endl;
+      std::cout << "Use the flag --show-all-errors to see all errors.";
+      std::cout << std::endl << std::endl;
+    }
+  }
+  if (size >= kMaxNumErrors && !options_.showAllErrors) {
+    // Truncate errors if too many and user did not want to see all
+    size = 20;
+  }
+
+  // Prints the errors from each rank in order
+  // Since each rank is run on a different process, we occasionally have higher
+  // ranks beginning to output their errors before lower ones causing overlaps.
+  // This is confusing for the user so use a loop and a barrier at the beginning
+  // of each iteration. This will force the processes to sync each time,
+  // thus the output will be printed in the correct order.
+  for (int i = 0; i < options_.contextSize; ++i) {
+    barrier_->run();
+    if (i != options_.contextRank) {
+      // Skip if it is not current rank's turn
+      continue;
+    }
+    for (int j = 0; j < size; ++j) {
+      std::cout << mismatchErrors_[j] << std::endl;
+    }
+  }
+
+  // Print footer and then exit program
+  barrier_->run();
+  printFooter();
+  // Exit with error
+  exit(1);
 }
 
 template void Runner::run(BenchmarkFn<char>& fn);

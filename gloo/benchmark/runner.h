@@ -126,6 +126,12 @@ class Runner {
       size_t elements,
       size_t elementSize,
       const Distribution& samples);
+  void printVerifyHeader();
+  void printFooter();
+
+  // Checks and prints errors, exits the program with
+  // status 1 if any errors were found
+  void checkErrors();
 
   options options_;
   std::vector<std::shared_ptr<transport::Device>> transportDevices_;
@@ -135,6 +141,8 @@ class Runner {
   long broadcastValue_;
   std::unique_ptr<Algorithm> broadcast_;
   std::unique_ptr<Barrier> barrier_;
+
+  std::vector<std::string> mismatchErrors_;
 };
 
 } // namespace benchmark

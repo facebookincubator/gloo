@@ -63,7 +63,8 @@ static void usage(int status, const char* argv0) {
   X("      --ib-index=INDEX          InfiniBand index to use (default: 0)");
   X("");
   X("Benchmark parameters:");
-  X("      --verify           Verify result first iteration (if applicable)");
+  X("      --no-verify        Do not verify results of first iteration");
+  X("      --show-all-errors  Displays all errors when running with verify");
   X("      --inputs           Number of input buffers");
   X("      --elements         Number of floats to use per input buffer");
   X("      --warmup-iters     Number of warmup iterations to run (default: 5)");
@@ -154,7 +155,8 @@ struct options parseOptions(int argc, char** argv) {
       {"prefix", required_argument, nullptr, 'x'},
       {"shared-path", required_argument, nullptr, 0x1012},
       {"transport", required_argument, nullptr, 't'},
-      {"verify", no_argument, nullptr, 0x1001},
+      {"no-verify", no_argument, nullptr, 0x1001},
+      {"show-all-errors", no_argument, nullptr, 0x1015},
       {"elements", required_argument, nullptr, 0x1002},
       {"warmup-iters", required_argument, nullptr, 0x1014},
       {"iteration-count", required_argument, nullptr, 0x1003},
@@ -213,9 +215,14 @@ struct options parseOptions(int argc, char** argv) {
         result.transport = std::string(optarg, strlen(optarg));
         break;
       }
-      case 0x1001: // --verify
+      case 0x1001: // --no-verify
       {
-        result.verify = true;
+        result.verify = false;
+        break;
+      }
+      case 0x1015: // --show-all-errors
+      {
+        result.showAllErrors = true;
         break;
       }
       case 0x1002: // --elements
