@@ -54,7 +54,6 @@ void MultiProcTest::TearDown() {
 }
 
 void MultiProcTest::spawnAsync(
-    Transport transport,
     int numRanks,
     std::function<void(std::shared_ptr<Context>)> fn) {
   // Start a process for each rank
@@ -64,7 +63,7 @@ void MultiProcTest::spawnAsync(
     if (pid == 0) {
       // Forked process will create a Context and run the provided function,
       // exiting upon completion.
-      const auto result = runWorker(transport, numRanks, i, fn);
+      const auto result = runWorker(numRanks, i, fn);
       exit(result);
     } else {
       // Parent process tracks all forked child processes.
@@ -104,10 +103,9 @@ void MultiProcTest::waitProcess(int rank) {
 }
 
 void MultiProcTest::spawn(
-    Transport transport,
     int size,
     std::function<void(std::shared_ptr<Context>)> fn) {
-  spawnAsync(transport, size, fn);
+  spawnAsync(size, fn);
   wait();
   for (auto i = 0; i < workerResults_.size(); i++) {
     ASSERT_TRUE(WIFEXITED(workerResults_[i]));
@@ -116,13 +114,12 @@ void MultiProcTest::spawn(
 }
 
 int MultiProcTest::runWorker(
-    Transport transport,
     int size,
     int rank,
     std::function<void(std::shared_ptr<Context>)> fn) {
   try {
     MultiProcWorker worker(storePath_, semaphoreName_);
-    worker.run(transport, size, rank, fn);
+    worker.run(size, rank, fn);
   } catch (const ::gloo::IoException&) {
     return kExitWithIoException;
   }

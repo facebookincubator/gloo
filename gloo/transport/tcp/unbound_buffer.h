@@ -58,10 +58,10 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
       size_t offset,
       size_t nbytes) override;
 
+ protected:
   void handleRecvCompletion(int rank);
   void handleSendCompletion(int rank);
 
- protected:
   std::shared_ptr<Context> context_;
 
   std::mutex m_;

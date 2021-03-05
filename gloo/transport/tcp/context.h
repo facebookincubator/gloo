@@ -28,7 +28,7 @@ class Device;
 class Pair;
 class UnboundBuffer;
 
-class Context : public ::gloo::transport::Context,
+class Context final : public ::gloo::transport::Context,
                       public std::enable_shared_from_this<Context> {
  public:
   Context(std::shared_ptr<Device> device, int rank, int size);
@@ -41,7 +41,7 @@ class Context : public ::gloo::transport::Context,
       void* ptr,
       size_t size) override;
 
- protected:
+ private:
   std::shared_ptr<Device> device_;
 
   using pendingRecvTuple = std::tuple<

@@ -28,9 +28,9 @@ class AllgatherTest : public BaseTest,
 
 TEST_P(AllgatherTest, VarNumPointer) {
   const auto transport = std::get<0>(GetParam());
-  const auto contextSize = std::get<1>(GetParam());
-  const auto dataSize = std::get<2>(GetParam());
-  const auto numPtrs = std::get<3>(GetParam());
+  const auto contextSize = std::get<0>(GetParam());
+  const auto dataSize = std::get<1>(GetParam());
+  const auto numPtrs = std::get<2>(GetParam());
 
   spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     Fixture<float> inFixture(context, numPtrs, dataSize);

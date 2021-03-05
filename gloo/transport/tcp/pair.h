@@ -25,7 +25,6 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-#include "gloo/common/error.h"
 #include "gloo/common/memory.h"
 #include "gloo/transport/pair.h"
 #include "gloo/transport/tcp/address.h"
@@ -80,7 +79,6 @@ struct Op {
 };
 
 class Pair : public ::gloo::transport::Pair, public Handler {
- protected:
   enum state {
     INITIALIZING = 1,
     LISTENING = 2,
@@ -170,7 +168,6 @@ class Pair : public ::gloo::transport::Pair, public Handler {
 
   Address self_;
   Address peer_;
-  bool is_client_;
 
   std::mutex m_;
   std::condition_variable cv_;
@@ -221,7 +218,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
 
   friend class Context;
 
- protected:
+ private:
   // Maintain state of a single operation for receiving operations
   // from the remote side of the pair.
   Op rx_;
@@ -245,10 +242,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   //
   // The pair mutex is expected to be held when called.
   //
-  virtual bool write(Op& op);
-
-  void writeComplete(const Op &op, NonOwningPtr<UnboundBuffer> &buf,
-                     const Op::Opcode &opcode) const;
+  bool write(Op& op);
 
   // Helper function for the `read` function below.
   ssize_t prepareRead(
@@ -260,22 +254,13 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   //
   // The pair mutex is expected to be held when called.
   //
-  virtual bool read();
-
-  void readComplete(NonOwningPtr<UnboundBuffer> &buf);
+  bool read();
 
   // Helper function that is called from the `read` function.
   void handleRemotePendingSend(const Op& op);
 
   // Helper function that is called from the `read` function.
   void handleRemotePendingRecv(const Op& op);
-
-  // Handles read and write events after the pair moves to connected state
-  // and until it moves to closed state.
-  //
-  // The pair mutex is expected to be held when called.
-  //
-  virtual void handleReadWrite(int events);
 
   // Finishes connection setup if this side of the pair is on the
   // listening side of connection initiation. This is called from
@@ -305,36 +290,14 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   //
   // The pair mutex is expected to be held when called.
   //
-  virtual void changeState(state nextState) noexcept;
-
-  template<typename pred_t>
-  void waitUntil(pred_t pred, std::unique_lock<std::mutex>& lock,
-                 bool useTimeout) {
-    auto timeoutSet = timeout_ != kNoTimeout;
-    if (useTimeout && timeoutSet) {
-      // Use a longer timeout when waiting for initial connect
-
-      // relTime must be small enough not to overflow when
-      // added to std::chrono::steady_clock::now()
-      auto relTime = std::min(
-        timeout_ * 5,
-        std::chrono::duration_cast<std::chrono::milliseconds>(kLargeTimeDuration));
-      auto done = cv_.wait_for(lock, relTime, pred);
-      if (!done) {
-        signalAndThrowException(GLOO_ERROR_MSG("Connect timeout ", peer_.str()));
-      }
-    } else {
-      cv_.wait(lock, pred);
-    }
-  }
+  void changeState(state nextState) noexcept;
 
   // Helper function to block execution until the pair has advanced to
   // the `CONNECTED` state. Expected to be called from `Pair::connect`.
-  virtual void waitUntilConnected(
-      std::unique_lock<std::mutex>& lock, bool useTimeout);
+  void waitUntilConnected(std::unique_lock<std::mutex>& lock, bool useTimeout);
 
   // Helper function to assert the current state is `CONNECTED`.
-  virtual void verifyConnected();
+  void verifyConnected();
 
   // Throws if an exception if set.
   void throwIfException();

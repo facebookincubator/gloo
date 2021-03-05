@@ -32,10 +32,6 @@
 #include "gloo/transport/tcp/device.h"
 #endif
 
-#if GLOO_HAVE_TRANSPORT_TCP_TLS
-#include "gloo/transport/tcp/tls/device.h"
-#endif
-
 #if GLOO_HAVE_TRANSPORT_IBVERBS
 #include "gloo/transport/ibverbs/device.h"
 #endif
@@ -71,24 +67,6 @@ Runner::Runner(const options& options) : options_(options) {
         transport::tcp::attr attr;
         attr.iface = name;
         transportDevices_.push_back(transport::tcp::CreateDevice(attr));
-      }
-    }
-  }
-#endif
-#if GLOO_HAVE_TRANSPORT_TCP_TLS
-  if (options_.transport == "tls") {
-    if (options_.tcpDevice.empty()) {
-      transport::tcp::attr attr;
-      transportDevices_.push_back(
-          transport::tcp::tls::CreateDevice(attr, options_.pkey, options_.cert,
-                                            options_.caFile, options_.caPath));
-    } else {
-      for (const auto &name : options_.tcpDevice) {
-        transport::tcp::attr attr;
-        attr.iface = name;
-        transportDevices_.push_back(transport::tcp::tls::CreateDevice(
-            attr, options_.pkey, options_.cert, options_.caFile,
-            options_.caPath));
       }
     }
   }

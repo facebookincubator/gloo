@@ -100,7 +100,7 @@ jobs:
           name: Install apt packages
           command: |
             apt-get update
-            apt-get install -y build-essential cmake libibverbs-dev libssl-dev << parameters.apt_get >>
+            apt-get install -y build-essential cmake libibverbs-dev << parameters.apt_get >>
       - run:
           name: Install libuv
           command: |
@@ -139,6 +139,8 @@ jobs:
             cd build
             cmake ../ \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DUSE_IBVERBS=ON \
+              -DUSE_LIBUV=ON \
               -DBUILD_TEST=ON \
               << parameters.cmake_compiler >> \
               << parameters.cmake_args >>
@@ -153,11 +155,11 @@ jobs:
 
             # Exclude multi-process transport tests because
             # they appear to have some crashing problem...
-            # EXCLUDE="Transport/TransportMultiProcTest*:$EXCLUDE"
+            EXCLUDE="Transport/TransportMultiProcTest*:$EXCLUDE"
 
             # Exclude memory leak test for tsan job (false positive).
-            if [[ "$CIRCLE_JOB" =~ tsan ]]; then
-              EXCLUDE="*MemoryTest.ManySlotsNoLeaks*:$EXCLUDE"
+            if [ "$CIRCLE_JOB" == "tsan" ]; then
+              EXCLUDE="MemoryTest.ManySlotsNoLeaks:$EXCLUDE"
             fi
 
             build/gloo/test/gloo_test --gtest_filter="-$EXCLUDE"
@@ -175,52 +177,26 @@ workflows:
           apt_get: "gcc-5 g++-5"
           cmake_compiler: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
       - build:
-          name: gcc5-all-transports
-          docker_image: ubuntu:18.04
-          apt_get: "gcc-5 g++-5"
-          cmake_compiler: -DCMAKE_C_COMPILER=gcc-5 -DCMAKE_CXX_COMPILER=g++-5
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON
-      - build:
           name: gcc7
           docker_image: ubuntu:18.04
           apt_get: "gcc-7 g++-7"
           cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
-      - build:
-          name: gcc7-all-transports
-          docker_image: ubuntu:18.04
-          apt_get: "gcc-7 g++-7"
-          cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON
       - build:
           name: clang6
           docker_image: ubuntu:18.04
           apt_get: "clang-6.0"
           cmake_compiler: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang++-6.0
       - build:
-          name: clang6-all-transports
-          docker_image: ubuntu:18.04
-          apt_get: "clang-6.0"
-          cmake_compiler: -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang++-6.0
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON
-      - build:
           name: cuda9.2
           docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
           cmake_args: -DUSE_CUDA=ON
-      - build:
-          name: cuda9.2-all-transports
-          docker_image: nvidia/cuda:9.2-devel-ubuntu18.04
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON -DUSE_CUDA=ON
       - build:
           name: cuda10.1
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
           cmake_args: -DUSE_CUDA=ON
       - build:
-          name: cuda10.1-all-transports
-          docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON -DUSE_CUDA=ON
-      - build:
-          name: tsan-all-transports
+          name: tsan
           docker_image: ubuntu:18.04
           apt_get: "gcc-7 g++-7"
           cmake_compiler: -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL=ON -DCMAKE_BUILD_TYPE=Debug -DSANITIZE=thread
+          cmake_args: -DCMAKE_BUILD_TYPE=Debug -DSANITIZE=thread

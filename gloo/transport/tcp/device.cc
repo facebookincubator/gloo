@@ -139,8 +139,9 @@ static void lookupAddrForHostname(struct attr& attr) {
   return;
 }
 
-struct attr CreateDeviceAttr(const struct attr& src) {
+std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
   struct attr attr = src;
+
   if (attr.iface.size() > 0) {
     // Initialize attributes using network interface name
     lookupAddrForIface(attr);
@@ -155,11 +156,8 @@ struct attr CreateDeviceAttr(const struct attr& src) {
     }
     lookupAddrForHostname(attr);
   }
-  return attr;
-}
 
-std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
-  auto device = std::make_shared<Device>(CreateDeviceAttr(src));
+  auto device = std::make_shared<Device>(attr);
   return std::shared_ptr<transport::Device>(device);
 }
 

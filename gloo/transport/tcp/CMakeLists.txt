@@ -22,9 +22,5 @@ else()
       )
 endif()
 
-if(GLOO_HAVE_TRANSPORT_TCP_TLS)
-    add_subdirectory(tls)
-endif()
-
 set(GLOO_TRANSPORT_SRCS ${GLOO_TRANSPORT_SRCS} PARENT_SCOPE)
 set(GLOO_TRANSPORT_HDRS ${GLOO_TRANSPORT_HDRS} PARENT_SCOPE)
