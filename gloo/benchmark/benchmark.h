@@ -39,7 +39,13 @@ class Benchmark {
     algorithm_->run();
   }
 
-  virtual void verify() {}
+  virtual void verify() {}  // Leaving this for cuda_main for now
+  virtual void verify(std::vector<std::string> &errors) {
+    // To temporarily silence clang warning
+    // TO-DO: implement missing verify functions so we can
+    //        change this to a pure virtual function (T85537432)
+    errors.clear();
+  }
 
   const options& getOptions() const {
     return options_;

@@ -44,7 +44,8 @@ struct options {
 
   // Suite configuration
   std::string benchmark;
-  bool verify = false;
+  bool verify = true;
+  bool showAllErrors = false;
   int elements = -1;
   long iterationCount = -1;
   long minIterationTimeNanos = 2 * 1000 * 1000 * 1000;
