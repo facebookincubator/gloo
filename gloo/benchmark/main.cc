@@ -40,13 +40,6 @@
 using namespace gloo;
 using namespace gloo::benchmark;
 
-// NOTE:
-// Before running the benchmark, ensure that previously
-// generated rendezvous files have been deleted.
-// Rendezvous files are saved in the path specified
-// by the --shared-path option and have names
-// consisting of only numbers.
-
 namespace {
 
 // constant offset used for alltoall when populating input data

@@ -38,8 +38,6 @@ static void usage(int status, const char* argv0) {
   X("  -p, --redis-port=PORT  Port number of Redis server");
   X("  -x, --prefix=PREFIX    Rendezvous prefix (unique for this run)");
   X("      --shared-path=PATH File system rendezvous with this shared path");
-  X("                         Note: delete previously generated rendezvous");
-  X("                               files in this path before running benchmark");
   X("");
   X("Transport:");
   X("  -t, --transport=TRANSPORT Transport to use (tcp, ibverbs, ...)");

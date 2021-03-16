@@ -136,6 +136,7 @@ class Runner {
   options options_;
   std::vector<std::shared_ptr<transport::Device>> transportDevices_;
   std::shared_ptr<rendezvous::ContextFactory> contextFactory_;
+  std::vector<std::string> keyFilePaths_;
   std::vector<std::unique_ptr<RunnerThread>> threads_;
 
   long broadcastValue_;

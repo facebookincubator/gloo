@@ -10,6 +10,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <cstdio>
 
 #include "gloo/barrier_all_to_one.h"
 #include "gloo/broadcast_one_to_all.h"
@@ -149,6 +150,16 @@ Runner::Runner(const options& options) : options_(options) {
 }
 
 Runner::~Runner() {
+  // Automatically delete rendezvous files after
+  // benchmark is done running (if applicable)
+  for (auto path : keyFilePaths_) {
+    if (remove(path.c_str()) != 0) {
+      std::cout << "Failed to delete rendezvous file at " << path;
+      std::cout << " please delete manually before running the benchmark again.";
+      std::cout << std::endl;
+    }
+  }
+
   // Reset algorithms and context factory such that all
   // shared_ptr's to contexts are destructed.
   // This is necessary so that all MPI common worlds are
@@ -210,6 +221,9 @@ void Runner::rendezvousFileSystem() {
   auto backingContext = std::make_shared<rendezvous::Context>(
     options_.contextRank, options_.contextSize);
   backingContext->connectFullMesh(prefixStore, transportDevices_.front());
+  // After connectFullMesh is called, the rendezvous files will have been
+  // generated so we need to fetch them from the FileStore
+  keyFilePaths_ = fileStore.getAllKeyFilePaths();
   contextFactory_ = std::make_shared<rendezvous::ContextFactory>(
     backingContext);
 }
@@ -322,7 +336,7 @@ void Runner::run(BenchmarkFn<T>& fn, size_t n) {
       break;
     }
     // Stop if this run already used the maximum number of iterations
-    if (iterations == kMaxIterations) {
+    if (iterations >= kMaxIterations) {
       break;
     }
     // Otherwise, increase the number of iterations again
