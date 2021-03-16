@@ -65,6 +65,9 @@ void FileStore::set(const std::string& key, const std::vector<char>& data) {
   auto tmp = tmpPath(key);
   auto path = objectPath(key);
 
+  // Save file path
+  keyFilePaths_.emplace_back(path);
+
   {
     // Fail if the key already exists. This implementation is not race free.
     // A race free solution would need to atomically create the file 'path'
@@ -147,6 +150,10 @@ void FileStore::wait(
     /* sleep override */
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
+}
+
+std::vector<std::string> FileStore::getAllKeyFilePaths() {
+  return keyFilePaths_;
 }
 
 } // namespace rendezvous
