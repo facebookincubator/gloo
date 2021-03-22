@@ -13,5 +13,9 @@ else()
       )
 endif()
 
+if(USE_TCP_OPENSSL_LOAD)
+    add_subdirectory(openssl)
+endif()
+
 set(GLOO_TRANSPORT_SRCS ${GLOO_TRANSPORT_SRCS} PARENT_SCOPE)
 set(GLOO_TRANSPORT_HDRS ${GLOO_TRANSPORT_HDRS} PARENT_SCOPE)
