@@ -40,13 +40,13 @@ Pair::~Pair() {
 int Pair::handshake() {
   GLOO_ENFORCE(state_ == CONNECTED);
   GLOO_ENFORCE(!is_ssl_connected_);
-  int r = SSL_do_handshake(ssl_);
+  int r = _glootls::SSL_do_handshake(ssl_);
   if (r == 1) {
     is_ssl_connected_ = true;
     cv_.notify_all();
     return 0;
   }
-  int err = SSL_get_error(ssl_, r);
+  int err = _glootls::SSL_get_error(ssl_, r);
   int events = 0;
   if (err == SSL_ERROR_WANT_WRITE) {
     events = POLLOUT | POLLERR;
@@ -81,9 +81,9 @@ bool Pair::write(Op &op) {
       if (iov[i].iov_len == 0) {
         break;
       }
-      ssize_t rv = SSL_write(ssl_, iov[i].iov_base, iov[i].iov_len);
+      ssize_t rv = _glootls::SSL_write(ssl_, iov[i].iov_base, iov[i].iov_len);
       if (rv <= 0) {
-        int err = SSL_get_error(ssl_, rv);
+        int err = _glootls::SSL_get_error(ssl_, rv);
 
         GLOO_ENFORCE(err != SSL_ERROR_NONE);
         GLOO_ENFORCE(err != SSL_ERROR_WANT_READ);
@@ -143,9 +143,9 @@ bool Pair::read() {
 
     ssize_t rv = 0;
     for (;;) {
-      rv = SSL_read(ssl_, iov.iov_base, iov.iov_len);
+      rv = _glootls::SSL_read(ssl_, iov.iov_base, iov.iov_len);
       if (rv <= 0) {
-        int err = SSL_get_error(ssl_, rv);
+        int err = _glootls::SSL_get_error(ssl_, rv);
 
         GLOO_ENFORCE(err != SSL_ERROR_NONE);
         GLOO_ENFORCE(err != SSL_ERROR_WANT_WRITE);
@@ -197,10 +197,10 @@ void Pair::handleReadWrite(int events) {
   if (!is_ssl_connected_ && !is_client_) {
     if (ssl_ == nullptr) {
       GLOO_ENFORCE(ssl_ctx_ != nullptr);
-      ssl_ = SSL_new(ssl_ctx_);
+      ssl_ = _glootls::SSL_new(ssl_ctx_);
       GLOO_ENFORCE(ssl_ != nullptr, getSSLErrorMessage());
-      GLOO_ENFORCE(SSL_set_fd(ssl_, fd_) == 1, getSSLErrorMessage());
-      SSL_set_accept_state(ssl_);
+      GLOO_ENFORCE(_glootls::SSL_set_fd(ssl_, fd_) == 1, getSSLErrorMessage());
+      _glootls::SSL_set_accept_state(ssl_);
     }
     int es;
     if ((es = handshake())) {
@@ -214,11 +214,11 @@ void Pair::handleReadWrite(int events) {
 void Pair::changeState(Pair::state nextState) noexcept {
   if (nextState == CLOSED && is_ssl_connected_) {
     if (!fatal_error_occurred_) {
-      if (SSL_shutdown(ssl_) == 0) {
-        SSL_shutdown(ssl_);
+      if (_glootls::SSL_shutdown(ssl_) == 0) {
+        _glootls::SSL_shutdown(ssl_);
       }
     }
-    SSL_free(ssl_);
+    _glootls::SSL_free(ssl_);
     ssl_ = nullptr;
     is_ssl_connected_ = false;
   }
@@ -242,10 +242,10 @@ void Pair::waitUntilConnected(std::unique_lock<std::mutex> &lock,
     if (is_client_) {
       GLOO_ENFORCE(ssl_ == nullptr);
       GLOO_ENFORCE(ssl_ctx_ != nullptr);
-      ssl_ = SSL_new(ssl_ctx_);
+      ssl_ = _glootls::SSL_new(ssl_ctx_);
       GLOO_ENFORCE(ssl_ != nullptr, getSSLErrorMessage());
-      GLOO_ENFORCE(SSL_set_fd(ssl_, fd_) == 1, getSSLErrorMessage());
-      SSL_set_connect_state(ssl_);
+      GLOO_ENFORCE(_glootls::SSL_set_fd(ssl_, fd_) == 1, getSSLErrorMessage());
+      _glootls::SSL_set_connect_state(ssl_);
       int events;
       const int maxAttempts = 100;
       for (int j = 0; j < maxAttempts && (events = handshake()); j++) {
