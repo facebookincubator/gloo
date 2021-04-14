@@ -39,7 +39,7 @@ option(USE_TCP_OPENSSL_LINK "Build TCP-TLS transport with dynamically linked Ope
 option(USE_TCP_OPENSSL_LOAD "Build TCP-TLS transport with OpenSSL dynamically loaded during runtime (Linux only)" ${USE_TCP_OPENSSL_LOAD_DEFAULT})
 if(${USE_TCP_OPENSSL_LINK} AND ${USE_TCP_OPENSSL_LOAD})
   message(FATAL_ERROR "USE_TCP_OPENSSL_LINK and USE_TCP_OPENSSL_LOAD are mutually exclusive")
-else()
+endif()
 
 if(MSVC)
   message(STATUS "MSVC detected")
