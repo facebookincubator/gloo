@@ -1,9 +1,10 @@
 #include "dynamic_library.h"
 
-#include <stdexcept>
 #include <dlfcn.h>
+#include <stdexcept>
 
-DynamicLibrary::DynamicLibrary(const char *name, const char *alt_name) : lib_name(name) {
+DynamicLibrary::DynamicLibrary(const char *name, const char *alt_name)
+    : lib_name(name) {
   handle = dlopen(name, RTLD_LOCAL | RTLD_NOW);
   if (!handle) {
     if (alt_name == nullptr) {
@@ -18,9 +19,10 @@ DynamicLibrary::DynamicLibrary(const char *name, const char *alt_name) : lib_nam
 }
 
 void *DynamicLibrary::sym(const char *name) {
-  void* res = dlsym(handle, name);
+  void *res = dlsym(handle, name);
   if (res == nullptr) {
-    throw std::runtime_error("Can't find " + std::string(name) + " in " + lib_name + ":" + dlerror());
+    throw std::runtime_error("Can't find " + std::string(name) + " in " +
+                             lib_name + ":" + dlerror());
   }
   return res;
 }

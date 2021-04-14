@@ -21,7 +21,8 @@ void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
 
 void SSL_CTX_set_security_level(SSL_CTX *ctx, int level);
 
-int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, const char *CApath);
+int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
+                                  const char *CApath);
 
 int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file);
 
@@ -51,4 +52,4 @@ int SSL_shutdown(SSL *s);
 
 void SSL_free(SSL *ssl);
 
-}
+} // namespace _glootls
