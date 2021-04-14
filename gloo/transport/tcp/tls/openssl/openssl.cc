@@ -1,18 +1,26 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#ifdef USE_TCP_OPENSSL_LOAD
 #include "dynamic_library.h"
-
 namespace {
-DynamicLibrary libssl("libssl.so", "libssl.so.1.1");
+DynamicLibrary& get_libssl() {
+  static DynamicLibrary libssl("libssl.so", "libssl.so.1.1");
+  return libssl;
+}
 } // namespace
 
-
 #define CALL_SYM(NAME, ...) \
-static auto fn = reinterpret_cast<decltype(&NAME)>(libssl.sym(__func__)); \
+static auto fn = reinterpret_cast<decltype(&NAME)>(get_libssl().sym(__func__)); \
 return fn(__VA_ARGS__)
+#elif USE_TCP_OPENSSL_LINK
+#define CALL_SYM(NAME, ...) \
+return ::NAME(__VA_ARGS__)
+#endif
 
-void ERR_print_errors_cb(int (*cb) (const char *, size_t, void *), void *u) {
+namespace _glootls {
+
+void ERR_print_errors_cb(int (*cb)(const char *, size_t, void *), void *u) {
   CALL_SYM(ERR_print_errors_cb, cb, u);
 }
 
@@ -107,5 +115,7 @@ int SSL_shutdown(SSL *s) {
 void SSL_free(SSL *ssl) {
   CALL_SYM(SSL_free, ssl);
 }
+
+} // namespace _glootls
 
 #undef CALL_SYM

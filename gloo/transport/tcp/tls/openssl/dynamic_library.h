@@ -1,3 +1,5 @@
+#include <string>
+
 struct DynamicLibrary {
   DynamicLibrary(const DynamicLibrary&) = delete;
 
@@ -10,7 +12,6 @@ struct DynamicLibrary {
   ~DynamicLibrary();
 
 private:
-  const char* lib_name;
+  const std::string lib_name;
   void* handle = nullptr;
-  const char* error = nullptr;
 };

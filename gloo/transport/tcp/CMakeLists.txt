@@ -1,5 +1,5 @@
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    message(WARNING "Gloo doesn't support OSX (uses epoll)")
+if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    message(WARNING "Gloo TCP transport is supported only on Linux(uses epoll API)")
 else()
     list(APPEND GLOO_TRANSPORT_SRCS
       "${CMAKE_CURRENT_SOURCE_DIR}/address.cc"

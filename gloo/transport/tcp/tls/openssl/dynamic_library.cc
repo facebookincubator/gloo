@@ -7,20 +7,17 @@ DynamicLibrary::DynamicLibrary(const char *name, const char *alt_name) : lib_nam
   handle = dlopen(name, RTLD_LOCAL | RTLD_NOW);
   if (!handle) {
     if (alt_name == nullptr) {
-      error = dlerror();
+      throw std::runtime_error(dlerror());
     } else {
       handle = dlopen(alt_name, RTLD_LOCAL | RTLD_NOW);
       if (!handle) {
-        error = dlerror();
+        throw std::runtime_error(dlerror());
       }
     }
   }
 }
 
 void *DynamicLibrary::sym(const char *name) {
-  if (handle == nullptr) {
-    throw std::runtime_error(error);
-  }
   void* res = dlsym(handle, name);
   if (res == nullptr) {
     throw std::runtime_error("Can't find " + std::string(name) + " in " + lib_name + ":" + dlerror());
