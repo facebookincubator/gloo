@@ -9,9 +9,7 @@
 #pragma once
 
 #include "gloo/transport/tcp/pair.h"
-
-#include <openssl/err.h>
-#include <openssl/ssl.h>
+#include "gloo/transport/tcp/tls/openssl.h"
 
 namespace gloo {
 namespace transport {

@@ -29,13 +29,13 @@ public:
   std::shared_ptr<::gloo::transport::Context> createContext(int rank,
                                                             int size) override;
 
-  const std::string& getPKeyFile() const;
+  const std::string &getPKeyFile() const;
 
-  const std::string& getCertFile() const;
+  const std::string &getCertFile() const;
 
-  const std::string& getCAFile() const;
+  const std::string &getCAFile() const;
 
-  const std::string& getCAPath() const;
+  const std::string &getCAPath() const;
 
 protected:
   const std::string pkey_file_;

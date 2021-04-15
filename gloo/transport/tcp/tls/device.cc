@@ -37,13 +37,13 @@ std::shared_ptr<transport::Context> Device::createContext(int rank, int size) {
       std::dynamic_pointer_cast<Device>(shared_from_this()), rank, size));
 }
 
-const std::string& Device::getPKeyFile() const { return pkey_file_; }
+const std::string &Device::getPKeyFile() const { return pkey_file_; }
 
-const std::string& Device::getCertFile() const { return cert_file_; }
+const std::string &Device::getCertFile() const { return cert_file_; }
 
-const std::string& Device::getCAFile() const { return ca_file_; }
+const std::string &Device::getCAFile() const { return ca_file_; }
 
-const std::string& Device::getCAPath() const { return ca_path_; }
+const std::string &Device::getCAPath() const { return ca_path_; }
 
 } // namespace tls
 } // namespace tcp
