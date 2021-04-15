@@ -10,7 +10,7 @@
 
 #include "gloo/common/logging.h"
 #include "gloo/transport/tcp/tls/device.h"
-#include "gloo/transport/tcp/tls/openssl/openssl.h"
+#include "gloo/transport/tcp/tls/openssl.h"
 #include "gloo/transport/tcp/tls/pair.h"
 
 namespace {
