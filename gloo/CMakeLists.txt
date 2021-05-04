@@ -154,9 +154,11 @@ if(USE_LIBUV)
 endif()
 if(USE_TCP_OPENSSL_LINK)
   target_compile_definitions(gloo PRIVATE USE_TCP_OPENSSL_LINK)
-  target_link_libraries(gloo PRIVATE ssl crypto)
+  target_link_libraries(gloo PRIVATE OpenSSL::Crypto)
 elseif(USE_TCP_OPENSSL_LOAD)
   target_compile_definitions(gloo PRIVATE USE_TCP_OPENSSL_LOAD)
+  # Explicitly include the OPENSSL_INCLUDE_DIR, just in case it's not already in our path
+  target_include_directories(gloo PRIVATE ${OPENSSL_INCLUDE_DIR})
   target_link_libraries(gloo PRIVATE dl)
 endif()
 
