@@ -1,3 +1,5 @@
+find_package(OpenSSL REQUIRED)
+
 set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgatherv_test.cc"
