@@ -11,6 +11,7 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/gatherv_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/memory_test.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/reduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/tls_tcp_test.cc"
@@ -28,12 +29,6 @@ endif()
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
 target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
-if(GLOO_HAVE_TRANSPORT_TCP_TLS)
-  list(APPEND GLOO_TEST_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
-    )
-  target_link_libraries(gloo_test OpenSSL:SSL)
-endif()
 
 if(MSVC AND USE_LIBUV)
   add_custom_command(TARGET gloo_test POST_BUILD
@@ -49,14 +44,9 @@ if(USE_CUDA)
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_allreduce_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_base_test.cu"
     "${CMAKE_CURRENT_SOURCE_DIR}/cuda_broadcast_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
-  if(GLOO_HAVE_TRANSPORT_TCP_TLS)
-    list(APPEND GLOO_TEST_CUDA_SRCS
-      "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
-      )
-    target_link_libraries(gloo_test_cuda OpenSSL:SSL)
-  endif()
 
     cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
     target_link_libraries(gloo_test_cuda gloo_cuda gtest)
@@ -69,17 +59,10 @@ if(USE_ROCM)
     "${HIPIFY_OUTPUT_DIR}/test/hip_base_test.hip"
     "${HIPIFY_OUTPUT_DIR}/test/hip_broadcast_test.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/base_test.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cc"
     )
-  if(GLOO_HAVE_TRANSPORT_TCP_TLS)
-    list(APPEND GLOO_TEST_HIP_SRCS
-      "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
-      )
-    target_link_libraries(gloo_test_hip OpenSSL:SSL)
-  endif()
 
   gloo_hip_add_executable(gloo_test_hip ${GLOO_TEST_HIP_SRCS})
   target_link_libraries(gloo_test_hip gloo_hip gtest)
 endif()
-
-
