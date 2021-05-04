@@ -28,7 +28,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 add_executable(gloo_test ${GLOO_TEST_SRCS})
-target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES})
+target_link_libraries(gloo_test gloo gtest ${GLOO_TEST_LIBRARIES} OpenSSL::SSL)
 
 if(MSVC AND USE_LIBUV)
   add_custom_command(TARGET gloo_test POST_BUILD
@@ -49,7 +49,7 @@ if(USE_CUDA)
     )
 
     cuda_add_executable(gloo_test_cuda ${GLOO_TEST_CUDA_SRCS})
-    target_link_libraries(gloo_test_cuda gloo_cuda gtest)
+    target_link_libraries(gloo_test_cuda gloo_cuda gtest OpenSSL::SSL)
   endif()
 endif()
 
@@ -64,5 +64,5 @@ if(USE_ROCM)
     )
 
   gloo_hip_add_executable(gloo_test_hip ${GLOO_TEST_HIP_SRCS})
-  target_link_libraries(gloo_test_hip gloo_hip gtest)
+  target_link_libraries(gloo_test_hip gloo_hip gtest OpenSSL::SSL)
 endif()
