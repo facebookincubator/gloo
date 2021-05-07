@@ -9,6 +9,7 @@
 #include "gloo/transport/tcp/address.h"
 
 #include <arpa/inet.h>
+#include <mutex>
 #include <string.h>
 
 #include "gloo/common/logging.h"
@@ -26,12 +27,30 @@ Address::Address(const struct sockaddr* addr, size_t addrlen) {
   memcpy(&impl_.ss, addr, addrlen);
 }
 
+Address& Address::operator=(Address&& other) {
+  std::lock_guard<std::mutex> lock(m_);
+  impl_.ss = std::move(other.impl_.ss);
+  impl_.seq = other.impl_.seq;
+  return *this;
+}
+
+Address& Address::operator=(const Address& other) {
+  std::lock_guard<std::mutex> lock(m_);
+  impl_.ss = other.impl_.ss;
+  impl_.seq = other.impl_.seq;
+  return *this;
+}
+
 Address::Address(const std::vector<char>& bytes) {
   GLOO_ENFORCE_EQ(sizeof(impl_), bytes.size());
   memcpy(&impl_, bytes.data(), sizeof(impl_));
 }
 
+Address::Address(const Address& other)
+    : Address(other.impl_.ss, other.impl_.seq) {}
+
 std::vector<char> Address::bytes() const {
+  std::lock_guard<std::mutex> lock(m_);
   std::vector<char> bytes(sizeof(impl_));
   memcpy(bytes.data(), &impl_, sizeof(impl_));
   return bytes;
