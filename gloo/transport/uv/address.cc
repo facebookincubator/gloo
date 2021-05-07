@@ -28,10 +28,28 @@ Address::Address(const std::vector<char>& bytes) {
   memcpy(&impl_, bytes.data(), sizeof(impl_));
 }
 
+Address::Address(const Address& other)
+    : Address(other.impl_.ss, other.impl_.seq) {}
+
 std::vector<char> Address::bytes() const {
+  std::lock_guard<std::mutex> lock(m_);
   std::vector<char> bytes(sizeof(impl_));
   memcpy(bytes.data(), &impl_, sizeof(impl_));
   return bytes;
+}
+
+Address& Address::operator=(Address&& other) {
+  std::lock_guard<std::mutex> lock(m_);
+  impl_.ss = std::move(other.impl_.ss);
+  impl_.seq = other.impl_.seq;
+  return *this;
+}
+
+Address& Address::operator=(const Address& other) {
+  std::lock_guard<std::mutex> lock(m_);
+  impl_.ss = other.impl_.ss;
+  impl_.seq = other.impl_.seq;
+  return *this;
 }
 
 std::string Address::str() const {

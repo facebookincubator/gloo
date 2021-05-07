@@ -10,6 +10,7 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
+#include <mutex>
 
 #include "gloo/transport/address.h"
 
@@ -30,6 +31,11 @@ class Address : public ::gloo::transport::Address {
   explicit Address(const struct sockaddr* addr, size_t addrlen);
 
   explicit Address(const std::vector<char>&);
+
+  Address(const Address& other);
+
+  Address& operator=(Address&& other);
+  Address& operator=(const Address& other);
 
   virtual std::vector<char> bytes() const override;
 
@@ -65,6 +71,7 @@ class Address : public ::gloo::transport::Address {
   static_assert(sizeof(Impl) <= kMaxByteSize, "!");
 
   Impl impl_;
+  mutable std::mutex m_;
 };
 
 } // namespace tcp
