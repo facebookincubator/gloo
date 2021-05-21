@@ -90,7 +90,7 @@ class AllreduceHalvingDoubling : public Algorithm {
         rankInBinaryBlock_(0),
         nextSmallerBlockSize_(0),
         nextLargerBlockSize_(0) {
-    if (this->contextSize_ == 1) {
+    if (count_ == 0 || this->contextSize_ == 1) {
         return;
     }
 
@@ -222,6 +222,9 @@ class AllreduceHalvingDoubling : public Algorithm {
   }
 
   void run() {
+    if (count_ == 0) {
+      return;
+    }
     size_t bufferOffset = 0;
     size_t numItems =
         stepsWithinBlock_ > 0 ? chunkSize_ << (steps_ - 1) : count_;
