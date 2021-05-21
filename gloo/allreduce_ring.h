@@ -67,6 +67,10 @@ class AllreduceRing : public Algorithm {
   }
 
   void run() {
+    if (count_ == 0) {
+      return;
+    }
+
     // Reduce specified pointers into ptrs_[0]
     for (int i = 1; i < ptrs_.size(); i++) {
       fn_->call(ptrs_[0], ptrs_[i], count_);

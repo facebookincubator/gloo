@@ -44,7 +44,7 @@ class AllreduceRingChunked : public Algorithm {
       inbox_[i] = static_cast<T*>(malloc(bytes_));
     }
 
-    if (this->contextSize_ == 1) {
+    if (count_ == 0 || this->contextSize_ == 1) {
       return;
     }
 
@@ -81,6 +81,10 @@ class AllreduceRingChunked : public Algorithm {
   }
 
   void run() {
+    if (count_ == 0) {
+      return;
+    }
+
     // Reduce specified pointers into ptrs_[0]
     for (int i = 1; i < ptrs_.size(); i++) {
       fn_->call(ptrs_[0], ptrs_[i], count_);

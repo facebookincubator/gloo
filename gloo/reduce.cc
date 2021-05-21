@@ -19,13 +19,15 @@
 namespace gloo {
 
 void reduce(ReduceOptions& opts) {
+  if (opts.elements == 0) {
+    return;
+  }
   const auto& context = opts.context;
   transport::UnboundBuffer* in = opts.in.get();
   transport::UnboundBuffer* out = opts.out.get();
   const auto slot = Slot::build(kReduceSlotPrefix, opts.tag);
 
   // Sanity checks
-  GLOO_ENFORCE(opts.elements > 0);
   GLOO_ENFORCE(opts.elementSize > 0);
   GLOO_ENFORCE(opts.root >= 0 && opts.root < context->size);
   GLOO_ENFORCE(opts.reduce != nullptr);
