@@ -40,7 +40,7 @@ find_library(RCCL_LIBRARY
   ${RCCL_ROOT_DIR}/lib)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(RCCL DEFAULT_MSG RCCL_INCLUDE_DIR RCCL_LIBRARY)
+find_package_handle_standard_args(rccl DEFAULT_MSG RCCL_INCLUDE_DIR RCCL_LIBRARY)
 
 if (RCCL_FOUND)
   set(RCCL_HEADER_FILE "${RCCL_INCLUDE_DIR}/rccl.h")
