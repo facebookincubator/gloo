@@ -1,46 +1,55 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import, division, print_function
-import os
-import sys
-import subprocess
+
 import argparse
+import os
+import subprocess
+import sys
 from functools import reduce
 from itertools import chain
 
 from pyHIPIFY import hipify_python
 
-parser = argparse.ArgumentParser(description='Top-level script for HIPifying, filling in most common parameters')
+parser = argparse.ArgumentParser(
+    description="Top-level script for HIPifying, filling in most common parameters"
+)
 parser.add_argument(
-    '--project-directory',
+    "--project-directory",
     type=str,
-    default=os.path.normpath(os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-    )),
+    default=os.path.normpath(
+        os.path.join(
+            os.path.realpath(__file__),
+            os.pardir,
+            os.pardir,
+            os.pardir,
+        )
+    ),
     help="The root of the project. (default: %(default)s)",
-    required=False)
+    required=False,
+)
 
 parser.add_argument(
-    '--output-directory',
+    "--output-directory",
     type=str,
-    default='',
+    default="",
     help="The Directory to Store the Hipified Project",
-    required=False)
+    required=False,
+)
 
 parser.add_argument(
-    '--list-files-only',
-    action='store_true',
-    help="Only print the list of hipify files.")
+    "--list-files-only",
+    action="store_true",
+    help="Only print the list of hipify files.",
+)
 
 parser.add_argument(
-    '--root-dir',
+    "--root-dir",
     type=str,
     default="gloo",
     help="The root directory of gloo project",
-    required=False)
+    required=False,
+)
 
 
 args = parser.parse_args()
@@ -60,8 +69,7 @@ includes = [
     os.path.join(args.root_dir, "*nccl*"),
 ]
 
-ignores = [
-]
+ignores = []
 
 hipify_python.hipify(
     project_directory=proj_dir,
@@ -69,4 +77,5 @@ hipify_python.hipify(
     includes=includes,
     ignores=ignores,
     list_files_only=args.list_files_only,
-    show_progress=False)
+    show_progress=False,
+)
