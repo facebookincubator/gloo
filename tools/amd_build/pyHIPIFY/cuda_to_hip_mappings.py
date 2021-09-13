@@ -7773,7 +7773,6 @@ GLOO_SPECIFIC_MAPPINGS = collections.OrderedDict(
         ("curandGenerateUniform", ("hiprandGenerateUniform", API_GLOO)),
         ("curand_generator", ("hiprand_generator", API_GLOO)),
         ("CaffeCudaGetDevice", ("CaffeHipGetDevice", API_GLOO)),
-        ("USE_CUDA", ("USE_ROCM", API_GLOO)),
         ("CUDA", ("HIP", API_GLOO)),
         ("Cuda", ("Hip", API_GLOO)),
         ("cuda_", ("hip_", API_GLOO)),
