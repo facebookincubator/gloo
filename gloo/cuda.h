@@ -20,7 +20,7 @@
 #include "gloo/common/logging.h"
 
 // Check that configuration header was properly generated
-#if !GLOO_USE_CUDA || !GLOO_USE_ROCM
+#if !(GLOO_USE_CUDA || GLOO_USE_ROCM)
 #error "Expected GLOO_USE_CUDA or GLOO_USE_ROCM to be defined"
 #endif
 
