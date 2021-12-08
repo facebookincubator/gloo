@@ -153,6 +153,7 @@ int pciDistance(const std::string& a, const std::string& b) {
 const std::string& interfaceToBusID(const std::string& name) {
   static std::once_flag once;
   static std::map<std::string, std::string> map;
+  static std::string default_busid;
 
   std::call_once(once, [](){
       for (const auto& device : pciDevices(kPCIClassNetwork)) {
@@ -164,7 +165,11 @@ const std::string& interfaceToBusID(const std::string& name) {
       }
     });
 
-  return map[name];
+  auto it = map.find(name);
+  if (it != map.end()) {
+    return it->second;
+  }
+  return default_busid;
 }
 
 const std::string& infinibandToBusID(const std::string& name) {
