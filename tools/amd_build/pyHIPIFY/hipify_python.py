@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ The Python Hipify script.
 ##
 # Copyright (c) 2015-2016 Advanced Micro Devices, Inc. All rights reserved.
@@ -27,11 +27,8 @@
 from __future__ import absolute_import, division, print_function
 
 import fnmatch
-import json
 import os
 import re
-import shutil
-import sys
 
 from pyHIPIFY.cuda_to_hip_mappings import CUDA_TO_HIP_MAPPINGS
 
