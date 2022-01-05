@@ -1,13 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
-import subprocess
-import sys
-from functools import reduce
-from itertools import chain
 
 from pyHIPIFY import hipify_python
 
