@@ -94,8 +94,8 @@ std::vector<char> Context::extractAddress(
   int adjRank = (rank > i ? rank - 1 : rank);
   // Adjust for the fact that nodes do not store address for themselves
   int addrSize = allAddrs.size() / (size - 1);
-  return std::vector<char>(allAddrs.begin() + adjRank * addrSize,
-                           allAddrs.begin() + (adjRank + 1) * addrSize);
+  return std::vector<char>(allAddrs.begin() + adjRank * (std::size_t)addrSize,
+                           allAddrs.begin() + (adjRank + 1) * (std::size_t)addrSize);
 }
 
 Context::LazyTally::LazyTally(std::vector<Tally>& vec, slot_t slot)
