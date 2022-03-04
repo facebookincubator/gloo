@@ -1,6 +1,6 @@
 # Gloo
 
-[![CircleCI](https://circleci.com/gh/facebookincubator/gloo/tree/master.svg?style=svg)](https://circleci.com/gh/facebookincubator/gloo/tree/master)
+[![Support Ukraine](https://img.shields.io/badge/Support-Ukraine-FFD500?style=flat&labelColor=005BBB)](https://opensource.fb.com/support-ukraine) [![CircleCI](https://circleci.com/gh/facebookincubator/gloo/tree/master.svg?style=svg)](https://circleci.com/gh/facebookincubator/gloo/tree/master)
 
 Gloo is a collective communications library. It comes with a number of
 collective algorithms useful for machine learning applications. These
