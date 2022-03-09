@@ -47,7 +47,7 @@ class Device : public ::gloo::transport::Device,
       int rank, int size) override;
 
   void registerDescriptor(int fd, int events, Handler* h);
-  void unregisterDescriptor(int fd);
+  void unregisterDescriptor(int fd, Handler* h);
 
  protected:
   const struct attr attr_;

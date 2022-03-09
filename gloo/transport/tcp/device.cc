@@ -251,8 +251,8 @@ void Device::registerDescriptor(int fd, int events, Handler* h) {
   loop_->registerDescriptor(fd, events, h);
 }
 
-void Device::unregisterDescriptor(int fd) {
-  loop_->unregisterDescriptor(fd);
+void Device::unregisterDescriptor(int fd, Handler* h) {
+  loop_->unregisterDescriptor(fd, h);
 }
 
 } // namespace tcp

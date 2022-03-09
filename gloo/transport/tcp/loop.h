@@ -40,7 +40,7 @@ class Loop final : public std::enable_shared_from_this<Loop> {
 
   void registerDescriptor(int fd, int events, Handler* h);
 
-  void unregisterDescriptor(int fd);
+  void unregisterDescriptor(int fd, Handler *h);
 
   void run();
 

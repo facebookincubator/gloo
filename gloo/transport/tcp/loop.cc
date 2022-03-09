@@ -16,6 +16,26 @@
 #include <gloo/common/error.h>
 #include <gloo/common/logging.h>
 
+#if defined(__SANITIZE_THREAD__)
+#define TSAN_ENABLED
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define TSAN_ENABLED
+#endif
+#endif
+
+#ifdef TSAN_ENABLED
+#define TSAN_ANNOTATE_HAPPENS_BEFORE(addr) \
+    AnnotateHappensBefore(__FILE__, __LINE__, (void*)(addr))
+#define TSAN_ANNOTATE_HAPPENS_AFTER(addr) \
+    AnnotateHappensAfter(__FILE__, __LINE__, (void*)(addr))
+extern "C" void AnnotateHappensBefore(const char* f, int l, void* addr);
+extern "C" void AnnotateHappensAfter(const char* f, int l, void* addr);
+#else
+#define TSAN_ANNOTATE_HAPPENS_BEFORE(addr)
+#define TSAN_ANNOTATE_HAPPENS_AFTER(addr)
+#endif
+
 namespace gloo {
 namespace transport {
 namespace tcp {
@@ -48,7 +68,7 @@ void Loop::registerDescriptor(int fd, int events, Handler* h) {
   GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
 }
 
-void Loop::unregisterDescriptor(int fd) {
+void Loop::unregisterDescriptor(int fd, Handler* h) {
   auto rv = epoll_ctl(fd_, EPOLL_CTL_DEL, fd, nullptr);
   GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
 
@@ -57,6 +77,7 @@ void Loop::unregisterDescriptor(int fd) {
   if (std::this_thread::get_id() != loop_->get_id()) {
     std::unique_lock<std::mutex> lock(m_);
     cv_.wait(lock);
+    TSAN_ANNOTATE_HAPPENS_AFTER(h);
   }
 }
 
@@ -82,6 +103,7 @@ void Loop::run() {
     for (int i = 0; i < nfds; i++) {
       Handler* h = reinterpret_cast<Handler*>(events[i].data.ptr);
       h->handleEvents(events[i].events);
+      TSAN_ANNOTATE_HAPPENS_BEFORE(h);
     }
   }
 }
