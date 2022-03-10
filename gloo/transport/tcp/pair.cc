@@ -132,7 +132,7 @@ void Pair::setSync(bool sync, bool busyPoll) {
 
   if (!sync_) {
     // If async, unregister from loop and switch socket to blocking mode
-    device_->unregisterDescriptor(fd_);
+    device_->unregisterDescriptor(fd_, this);
     setSocketBlocking(fd_, true);
 
     // If the pair was still flushing writes, finish them.
@@ -245,7 +245,7 @@ void Pair::connect(const Address& peer) {
 
   // self_ > peer_; we are connecting side.
   // First destroy listening socket.
-  device_->unregisterDescriptor(fd_);
+  device_->unregisterDescriptor(fd_, this);
   ::close(fd_);
 
   // Create new socket to connect to peer.
@@ -770,7 +770,7 @@ void Pair::handleListening() {
 
   // Close the listening file descriptor whether we've successfully connected
   // or run into an error and will throw an exception.
-  device_->unregisterDescriptor(fd_);
+  device_->unregisterDescriptor(fd_, this);
   ::close(fd_);
   fd_ = FD_INVALID;
 
@@ -882,7 +882,7 @@ void Pair::changeState(state nextState) noexcept {
       case LISTENING:
         // The pair may be in the LISTENING state when it is destructed.
         if (fd_ != FD_INVALID) {
-          device_->unregisterDescriptor(fd_);
+          device_->unregisterDescriptor(fd_, this);
           ::close(fd_);
           fd_ = FD_INVALID;
         }
@@ -890,14 +890,14 @@ void Pair::changeState(state nextState) noexcept {
       case CONNECTING:
         // The pair may be in the CONNECTING state when it is destructed.
         if (fd_ != FD_INVALID) {
-          device_->unregisterDescriptor(fd_);
+          device_->unregisterDescriptor(fd_, this);
           ::close(fd_);
           fd_ = FD_INVALID;
         }
         break;
       case CONNECTED:
         if (!sync_) {
-          device_->unregisterDescriptor(fd_);
+          device_->unregisterDescriptor(fd_, this);
         }
         ::close(fd_);
         fd_ = FD_INVALID;
