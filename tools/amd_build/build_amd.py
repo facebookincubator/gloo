@@ -4,8 +4,17 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
+import sys
+sys.path.append(os.path.realpath(os.path.join(
+    __file__,
+    os.path.pardir,
+    os.path.pardir,
+    os.path.pardir,
+    'third_party',
+    'hipify_torch')))
 
-from pyHIPIFY import hipify_python
+from hipify import hipify_python  # type: ignore[import]
+
 
 parser = argparse.ArgumentParser(
     description="Top-level script for HIPifying, filling in most common parameters"
@@ -64,7 +73,7 @@ includes = [
     os.path.join(args.root_dir, "*cuda*"),
     os.path.join(args.root_dir, "*nccl*"),
 ]
-
+includes = [os.path.join(proj_dir, include) for include in includes]
 ignores = []
 
 hipify_python.hipify(
@@ -72,6 +81,5 @@ hipify_python.hipify(
     output_directory=out_dir,
     includes=includes,
     ignores=ignores,
-    list_files_only=args.list_files_only,
-    show_progress=False,
+    show_progress=True,
 )
