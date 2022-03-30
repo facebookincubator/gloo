@@ -118,8 +118,12 @@ class UnboundBuffer {
       size_t offset = 0,
       size_t nbytes = kUnspecifiedByteCount) = 0;
 
+  // Tests if a reception is possibly complete. Only valid if called after
+  // `recv` and before `waitRecv`
   virtual bool testRecv();
 
+  // Tests if a sending is possibly complete. Only valid if called after
+  // `send` and before `waitSend`
   virtual bool testSend();
 };
 
