@@ -117,6 +117,10 @@ class UnboundBuffer {
       uint64_t slot,
       size_t offset = 0,
       size_t nbytes = kUnspecifiedByteCount) = 0;
+
+  virtual bool testRecv();
+
+  virtual bool testSend();
 };
 
 } // namespace transport
