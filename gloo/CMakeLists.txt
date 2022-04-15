@@ -66,12 +66,10 @@ if(USE_ROCM)
   file(GLOB GLOO_HIP_SRCS
     "${HIPIFY_OUTPUT_DIR}/hip*.cc"
     "${HIPIFY_OUTPUT_DIR}/hip*.hip"
-    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.hip"
     )
 
   file(GLOB GLOO_HIP_HDRS
     "${HIPIFY_OUTPUT_DIR}/hip*.h"
-    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.h"
     )
 endif()
 
