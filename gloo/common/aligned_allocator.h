@@ -48,9 +48,7 @@ class aligned_allocator {
     return &r;
   }
 
-  inline pointer allocate(
-      size_type sz,
-      typename std::allocator<void>::const_pointer = 0) {
+  inline pointer allocate(size_type sz) {
     pointer p;
     if (posix_memalign(
             reinterpret_cast<void**>(&p), ALIGNMENT, sizeof(T) * sz)) {
