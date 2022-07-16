@@ -6,6 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#include <array>
+
 #include "gloo/transport/tcp/device.h"
 
 #include <ifaddrs.h>
