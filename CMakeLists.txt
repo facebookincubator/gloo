@@ -40,6 +40,8 @@ option(USE_TCP_OPENSSL_LOAD "Build TCP-TLS transport with OpenSSL dynamically lo
 if(${USE_TCP_OPENSSL_LINK} AND ${USE_TCP_OPENSSL_LOAD})
   message(FATAL_ERROR "USE_TCP_OPENSSL_LINK and USE_TCP_OPENSSL_LOAD are mutually exclusive")
 endif()
+option(USE_CUDA "Build with CUDA support" OFF)
+option(GLOO_USE_CUDA_TOOLKIT "Build CUDA with FindCUDATookit.cmake and enable_language(CUDA)" OFF)
 
 if(MSVC)
   message(STATUS "MSVC detected")
