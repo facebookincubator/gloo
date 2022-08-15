@@ -92,6 +92,9 @@ jobs:
       cmake_args:
         type: string
         default: ""
+      build_openssl:
+        type: boolean
+        default: false
     docker:
       - image: << parameters.docker_image >>
     steps:
@@ -101,6 +104,19 @@ jobs:
           command: |
             apt-get update
             apt-get install -y build-essential cmake libibverbs-dev libssl-dev << parameters.apt_get >>
+      - when:
+          condition: << parameters.build_openssl >>
+          steps:
+            - run:
+                name: Install openssl
+                command: |
+                  apt-get install -y wget perl
+                  wget -q https://www.openssl.org/source/openssl-1.1.1b.tar.gz
+                  tar -xzf openssl-1.1.1b.tar.gz
+                  cd openssl-1.1.1b
+                  ./config --prefix=/opt/openssl --openssldir=/opt/openssl/ssl
+                  make -j 2
+                  make install
       - run:
           name: Install libuv
           command: |
@@ -237,11 +253,12 @@ workflows:
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
           cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL_LINK=ON -DUSE_CUDA=ON
       - build:
-          name: cuda11.7
+          name: cuda11.7-all-transports
           apt_get: "gcc-9 g++-9"
           docker_image: nvidia/cuda:11.7.1-devel-ubuntu22.04
           cmake_compiler: -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_CUDA_HOST_COMPILER=g++-9
-          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_CUDA=ON -DGLOO_USE_CUDA_TOOLKIT=ON
+          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL_LINK=ON -DUSE_CUDA=ON -DGLOO_USE_CUDA_TOOLKIT=ON -DOPENSSL_ROOT_DIR=/opt/openssl/
+          build_openssl: true
       - build:
           name: tsan-all-transports
           docker_image: ubuntu:18.04
