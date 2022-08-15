@@ -1,8 +1,6 @@
 # Known NVIDIA GPU achitectures Gloo can be compiled for.
 # This list will be used for CUDA_ARCH_NAME = All option
-set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
-set(gloo_known_gpu_archs7 "30 35 50 52")
-set(gloo_known_gpu_archs8 "30 35 50 52 60 61")
+set(gloo_known_gpu_archs "")
 
 ################################################################################
 # Function for selecting GPU arch flags for nvcc based on CUDA_ARCH_NAME
@@ -145,17 +143,24 @@ endif()
 
 set(HAVE_CUDA TRUE)
 message(STATUS "CUDA detected: " ${GLOO_CUDA_VERSION})
-if (${GLOO_CUDA_VERSION} LESS 8.0)
-  set(gloo_known_gpu_archs ${gloo_known_gpu_archs7})
-  list(APPEND GLOO_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
-  list(APPEND GLOO_NVCC_FLAGS "-D__STRICT_ANSI__")
-elseif (${GLOO_CUDA_VERSION} LESS 9.0)
-  set(gloo_known_gpu_archs ${gloo_known_gpu_archs8})
+if (${GLOO_CUDA_VERSION} LESS 9.0)
   list(APPEND GLOO_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
   list(APPEND GLOO_NVCC_FLAGS "-D__STRICT_ANSI__")
 else()
-  # CUDA 8 may complain that sm_20 is no longer supported. Suppress the warning for now.
+  # nvcc may complain that sm_xx is no longer supported. Suppress the warning for now.
   list(APPEND GLOO_NVCC_FLAGS "-Wno-deprecated-gpu-targets")
+endif()
+
+if(GLOO_CUDA_VERSION VERSION_LESS 8.0)
+  set(gloo_known_gpu_archs "30 35 50 52")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 9.0)
+  set(gloo_known_gpu_archs "30 35 50 52 60 61")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 10.0)
+  set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 11.0)
+  set(gloo_known_gpu_archs "35 50 52 60 61 70 75")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 12.0)
+  set(gloo_known_gpu_archs "35 50 52 60 61 70 75 80 86")
 endif()
 
 list(APPEND gloo_cuda_DEPENDENCY_LIBS ${GLOO_CUDA_LIBRARIES})
