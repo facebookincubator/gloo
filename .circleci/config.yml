@@ -237,6 +237,12 @@ workflows:
           docker_image: nvidia/cuda:10.1-devel-ubuntu18.04
           cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL_LINK=ON -DUSE_CUDA=ON
       - build:
+          name: cuda11.7
+          apt_get: "gcc-9 g++-9"
+          docker_image: nvidia/cuda:11.7.1-devel-ubuntu22.04
+          cmake_compiler: -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_CUDA_HOST_COMPILER=g++-9
+          cmake_args: -DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_CUDA=ON -DGLOO_USE_CUDA_TOOLKIT=ON
+      - build:
           name: tsan-all-transports
           docker_image: ubuntu:18.04
           apt_get: "gcc-7 g++-7"
