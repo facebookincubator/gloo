@@ -23,12 +23,11 @@ std::vector<nccl::NCCLElement<T> > toDeviceElements(
   std::vector<nccl::NCCLElement<T> > elements;
   elements.reserve(ptrs.size());
   for (auto i = 0; i < ptrs.size(); i++) {
-    elements.push_back(
-        nccl::NCCLElement<T>(
+    elements.emplace_back(
             ptrs[i].range(offset, count),
             streams[i],
             ptrs[i].range(offset, count),
-            streams[i]));
+            streams[i]);
   }
   return elements;
 }
