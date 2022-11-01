@@ -193,8 +193,8 @@ static int getInterfaceSpeedGLinkSettings(int sock, struct ifreq* ifr) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
   constexpr auto link_mode_data_nwords = 3 * 127;
   struct {
-    struct ethtool_link_settings req;
     __u32 link_mode_data[link_mode_data_nwords];
+    struct ethtool_link_settings req;
   } ecmd;
   int rv;
 
