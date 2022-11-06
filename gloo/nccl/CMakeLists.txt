@@ -15,11 +15,11 @@ endif()
 
 if(USE_ROCM)
     set(GLOO_NCCL_SRCS
-      "${CMAKE_CURRENT_SOURCE_DIR}/nccl.hip"
+      "${HIPIFY_OUTPUT_DIR}/nccl/nccl.hip"
       )
 
     set(GLOO_NCCL_HDRS
-      "${CMAKE_CURRENT_SOURCE_DIR}/nccl.h"
+      "${HIPIFY_OUTPUT_DIR}/nccl/nccl.h"
       )
 
     list(APPEND GLOO_HIP_SRCS ${GLOO_NCCL_SRCS})
