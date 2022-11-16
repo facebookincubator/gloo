@@ -28,6 +28,7 @@ set(USE_RCCL_DEFAULT OFF)
 set(USE_LIBUV_DEFAULT OFF)
 set(USE_TCP_OPENSSL_LINK_DEFAULT OFF)
 set(USE_TCP_OPENSSL_LOAD_DEFAULT OFF)
+set(CMAKE_CXX_STANDARD 14)
 
 # Options
 option(USE_REDIS "Support using Redis for rendezvous" ${USE_REDIS_DEFAULT})
@@ -117,7 +118,7 @@ include_directories(${PROJECT_BINARY_DIR})
 # Compiler flags
 
 if(NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -fPIC")
 endif()
 
 # Recurse into main project directory
