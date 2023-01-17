@@ -22,7 +22,11 @@ const std::chrono::milliseconds kNoTimeout = std::chrono::milliseconds::zero();
 
 // A base class for all gloo runtime errors
 struct Exception : public std::runtime_error {
-  Exception() = default;
+  /*
+    default constructor of 'Exception' is implicitly deleted because
+    base class 'std::runtime_error' has no default constructor
+    */
+  // Exception() = default;
   explicit Exception(const std::string& msg) : std::runtime_error(msg) {}
 };
 
@@ -32,7 +36,12 @@ struct Exception : public std::runtime_error {
 
 // Thrown for invalid operations on gloo APIs
 struct InvalidOperationException : public ::gloo::Exception {
-  InvalidOperationException() = default;
+  /*
+    note: default constructor of 'InvalidOperationException' is implicitly
+    deleted
+    because base class '::gloo::Exception' has a deleted default constructor
+    */
+  // InvalidOperationException() = default;
   explicit InvalidOperationException(const std::string& msg)
       : ::gloo::Exception(msg) {}
 };
@@ -43,7 +52,11 @@ struct InvalidOperationException : public ::gloo::Exception {
 
 // Thrown for unrecoverable IO errors
 struct IoException : public ::gloo::Exception {
-  IoException() = default;
+  /*
+  default constructor of 'IoException' is implicitly deleted because
+  base class '::gloo::Exception' has a deleted default constructor
+  */
+  // IoException() = default;
   explicit IoException(const std::string& msg) : ::gloo::Exception(msg) {}
 };
 
