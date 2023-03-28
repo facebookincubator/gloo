@@ -155,13 +155,13 @@ if(USE_ROCM)
     list(APPEND HIP_CXX_FLAGS -Wno-duplicate-decl-specifier)
     list(APPEND HIP_CXX_FLAGS -DUSE_MIOPEN)
 
-    set(HIP_HCC_FLAGS ${HIP_CXX_FLAGS})
+    set(HIP_CLANG_FLAGS ${HIP_CXX_FLAGS})
     # Ask hcc to generate device code during compilation so we can use
     # host linker to link.
-    list(APPEND HIP_HCC_FLAGS -fno-gpu-rdc)
-    list(APPEND HIP_HCC_FLAGS -Wno-defaulted-function-deleted)
+    list(APPEND HIP_CLANG_FLAGS -fno-gpu-rdc)
+    list(APPEND HIP_CLANG_FLAGS -Wno-defaulted-function-deleted)
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-      list(APPEND HIP_HCC_FLAGS --amdgpu-target=${gloo_rocm_arch})
+      list(APPEND HIP_CLANG_FLAGS --amdgpu-target=${gloo_rocm_arch})
     endforeach()
 
     set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
