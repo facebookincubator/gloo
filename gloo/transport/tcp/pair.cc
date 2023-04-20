@@ -178,7 +178,7 @@ void Pair::listen() {
 
   // listen(2) on socket
   fd_ = fd;
-  rv = ::listen(fd_, 1);
+  rv = ::listen(fd_, 1024);
   if (rv == -1) {
     ::close(fd_);
     fd_ = FD_INVALID;
