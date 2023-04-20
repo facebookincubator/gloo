@@ -55,6 +55,10 @@ class AllgatherRing : public Algorithm {
   virtual ~AllgatherRing() {}
 
   void run() {
+    // Short circuit if there is only a single process or the output is empty.
+    if (this->contextSize_ == 1 || count_ == 0) {
+      return;
+    }
     const int rank = this->contextRank_;
     const int numRounds = this->contextSize_ - 1;
 
