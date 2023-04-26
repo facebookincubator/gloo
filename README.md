@@ -54,6 +54,13 @@ Ubuntu, this version ships with version 17.10 and up. If you run an
 older version, you'll have to install Google Test yourself, and set
 the `GTEST_ROOT` CMake variable.
 
+You can install Google Test using conda with:
+``` shell
+conda install -c anaconda gmock gtest
+```
+Be carefull that you might need to fish for a package that works with your glibc
+
+
 To build the tests, run:
 
 ``` shell
