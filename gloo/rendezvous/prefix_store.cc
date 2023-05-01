@@ -43,5 +43,45 @@ void PrefixStore::wait(
   store_.wait(joinedKeys, timeout);
 }
 
+bool PrefixStore::has_v2_support() {
+  return store_.has_v2_support();
+}
+
+std::vector<std::vector<char>> PrefixStore::multi_get(const std::vector<std::string>& keys) {
+  if (!store_.has_v2_support()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("underlying store doesn't support multi_get");
+  }
+  std::vector<std::string> prefixed_keys;
+  for(auto& key : keys) {
+    prefixed_keys.push_back(joinKey(key));
+  }
+  return store_.multi_get(prefixed_keys);
+}
+
+void PrefixStore::multi_set(const std::vector<std::string>& keys, const std::vector<std::vector<char>>& values) {
+  if (!store_.has_v2_support()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("underlying store doesn't support multi_set");
+  }
+  std::vector<std::string> prefixed_keys;
+  for(auto& key : keys) {
+    prefixed_keys.push_back(joinKey(key));
+  }
+  return store_.multi_set(prefixed_keys, values);
+}
+
+void PrefixStore::append(const std::string& key, const std::vector<char>& data) {
+  if (!store_.has_v2_support()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("underlying store doesn't support append");
+  }
+  store_.append(joinKey(key), data);
+}
+
+int64_t PrefixStore::add(const std::string& key, int64_t value) {
+  if (!store_.has_v2_support()) {
+    GLOO_THROW_INVALID_OPERATION_EXCEPTION("underlying store doesn't support append");
+  }
+  return store_.add(joinKey(key), value);
+  }
+
 } // namespace rendezvous
 } // namespace gloo
