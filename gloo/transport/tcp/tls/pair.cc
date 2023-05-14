@@ -194,7 +194,7 @@ bool Pair::read() {
 }
 
 void Pair::handleReadWrite(int events) {
-  if (!is_ssl_connected_ && !is_client_) {
+  if (!is_ssl_connected_ && !device_->isInitiator(self_, peer_)) {
     if (ssl_ == nullptr) {
       GLOO_ENFORCE(ssl_ctx_ != nullptr);
       ssl_ = _glootls::SSL_new(ssl_ctx_);
@@ -239,7 +239,7 @@ void Pair::waitUntilConnected(std::unique_lock<std::mutex> &lock,
   ::gloo::transport::tcp::Pair::waitUntilConnected(lock, useTimeout);
 
   if (!is_ssl_connected_) {
-    if (is_client_) {
+    if (device_->isInitiator(self_, peer_)) {
       GLOO_ENFORCE(ssl_ == nullptr);
       GLOO_ENFORCE(ssl_ctx_ != nullptr);
       ssl_ = _glootls::SSL_new(ssl_ctx_);
