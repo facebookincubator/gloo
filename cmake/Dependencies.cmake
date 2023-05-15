@@ -157,7 +157,7 @@ if(USE_ROCM)
     list(APPEND HIP_CLANG_FLAGS -fno-gpu-rdc)
     list(APPEND HIP_CLANG_FLAGS -Wno-defaulted-function-deleted)
     foreach(gloo_rocm_arch ${GLOO_ROCM_ARCH})
-      list(APPEND HIP_CLANG_FLAGS --amdgpu-target=${gloo_rocm_arch})
+      list(APPEND HIP_CLANG_FLAGS --offload-arch=${gloo_rocm_arch})
     endforeach()
 
     set(GLOO_HIP_INCLUDE ${hip_INCLUDE_DIRS} $<BUILD_INTERFACE:${HIPIFY_OUTPUT_ROOT_DIR}> $<INSTALL_INTERFACE:include> ${GLOO_HIP_INCLUDE})
