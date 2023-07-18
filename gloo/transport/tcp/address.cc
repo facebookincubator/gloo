@@ -9,6 +9,7 @@
 #include "gloo/transport/tcp/address.h"
 
 #include <arpa/inet.h>
+#include <memory>
 #include <mutex>
 #include <string.h>
 

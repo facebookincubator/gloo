@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "gloo/common/store.h"
 #include "gloo/transport/pair.h"
 #include "gloo/transport/unbound_buffer.h"
 
@@ -47,6 +48,8 @@ class Context {
   virtual std::unique_ptr<Pair>& getPair(int rank);
 
   virtual std::unique_ptr<Pair>& createPair(int rank) = 0;
+
+  virtual void createAndConnectAllPairs(IStore& store);
 
   // Creates unbound buffer to be used with the ranks in this context.
   // It is not bound to a specific rank, but still bound to this
@@ -89,6 +92,8 @@ class Context {
   // Default timeout for new pairs (e.g. during initialization) and
   // any kind of send/recv operation.
   std::chrono::milliseconds timeout_;
+
+  std::vector<char> extractAddress(const std::vector<char>& allAddrs, int i) const;
 
  protected:
   // Keep track of pending send and recv notifications or operations

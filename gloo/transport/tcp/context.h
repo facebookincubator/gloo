@@ -16,6 +16,7 @@
 #include <unordered_set>
 
 #include "gloo/common/memory.h"
+#include "gloo/common/store.h"
 #include "gloo/transport/context.h"
 
 namespace gloo {
@@ -34,6 +35,8 @@ class Context : public ::gloo::transport::Context,
   Context(std::shared_ptr<Device> device, int rank, int size);
 
   virtual ~Context();
+
+  virtual void createAndConnectAllPairs(IStore& store) override;
 
   std::unique_ptr<transport::Pair>& createPair(int rank) override;
 
@@ -88,6 +91,23 @@ class Context : public ::gloo::transport::Context,
   friend class UnboundBuffer;
 
   friend class Pair;
+};
+
+struct Rank {
+  std::string hostname;
+  std::vector<char> addressBytes;
+  std::vector<ssize_t> pairIdentifiers;
+
+  explicit Rank(
+      const std::string& hostname,
+      const std::vector<char>& addrBytes,
+      const std::vector<ssize_t>& pairIdentifiers)
+      : hostname(hostname),
+        addressBytes(addrBytes),
+        pairIdentifiers(pairIdentifiers) {}
+  explicit Rank(const std::vector<char>& bytes);
+
+  std::vector<char> bytes() const;
 };
 
 } // namespace tcp

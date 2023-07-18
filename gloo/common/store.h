@@ -8,23 +8,23 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <vector>
 
 namespace gloo {
-namespace transport {
 
-class Address {
+class IStore {
  public:
-  // Upper bound for an address' byte representation.
-  static constexpr auto kMaxByteSize = 192;
+  virtual ~IStore() = default;
 
-  virtual ~Address() = 0;
+  virtual void set(const std::string& key, const std::vector<char>& data) = 0;
 
-  virtual std::string str() const = 0;
+  virtual std::vector<char> get(const std::string& key) = 0;
 
-  virtual std::vector<char> bytes() const = 0;
+  virtual void wait(
+    const std::vector<std::string>& keys,
+    const std::chrono::milliseconds& timeout) = 0;
 };
 
-} // namespace transport
 } // namespace gloo

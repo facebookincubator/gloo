@@ -8,6 +8,8 @@
 
 #include "gloo/rendezvous/context.h"
 
+#include <memory>
+
 #include "gloo/common/logging.h"
 #include "gloo/transport/address.h"
 
@@ -30,85 +32,13 @@ Context::Context(int rank, int size, int base)
 Context::~Context() {
 }
 
-std::vector<char> Context::extractAddress(
-    std::vector<char>& allAddrs, int i) {
-  // Extract address from the list of all addresses
-  int adjRank = (rank > i ? rank - 1 : rank);
-  // Adjust for the fact that nodes do not store address for themselves
-  int addrSize = allAddrs.size() / (size - 1);
-  return std::vector<char>(allAddrs.begin() + adjRank * addrSize,
-                           allAddrs.begin() + (adjRank + 1) * addrSize);
-}
-
 void Context::connectFullMesh(
     rendezvous::Store& store,
     std::shared_ptr<transport::Device>& dev) {
-  std::vector<char> allBytes;
-  int localRank = 0;
-
-  // Get Hostname using syscall
-  char hostname[HOSTNAME_MAX_SIZE]; // NOLINT
-  int rv = gethostname(hostname, HOSTNAME_MAX_SIZE);
-  if (rv != 0) {
-    throw std::system_error(errno, std::system_category());
-  }
-
-  auto localHostName = std::string(hostname);
-  // Add global rank <> hostname pair to the Store. This store is then passed
-  // to Gloo when connectFullMesh is called, where Gloo uses the global rank <>
-  // hostname mapping to compute local ranks.
-  std::string localKey("rank_" + std::to_string(rank));
-  const std::vector<char> value(localHostName.begin(), localHostName.end());
-  store.set(localKey, value);
-
-  for (int i = 0; i < size; i++) {
-    if (i == rank) {
-      break;
-    }
-
-    std::string key("rank_" + std::to_string(i));
-    auto val = store.get(key);
-    auto hostName = std::string((const char*)val.data(), val.size());
-
-    if (hostName == localHostName) {
-      localRank++;
-    }
-  }
-
-  // Create pairs
   auto transportContext = dev->createContext(rank, size);
   transportContext->setTimeout(getTimeout());
-  for (int i = 0; i < size; i++) {
-    if (i == rank) {
-      continue;
-    }
 
-    auto& pair = transportContext->createPair(i);
-    pair->setLocalRank(localRank);
-    auto addrBytes = pair->address().bytes();
-    allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
-  }
-
-  std::ostringstream storeKey;
-  storeKey << rank;
-  store.set(storeKey.str(), allBytes);
-
-  // Connect every pair
-  for (int i = 0; i < size; i++) {
-    if (i == rank) {
-      continue;
-    }
-
-    // Wait for address of other side of this pair to become available
-    std::ostringstream key;
-    key << i;
-    store.wait({key.str()}, getTimeout());
-
-    // Connect to other side of this pair
-    auto allAddrs = store.get(key.str());
-    auto addr = extractAddress(allAddrs, i);
-    transportContext->getPair(i)->connect(addr);
-  }
+  transportContext->createAndConnectAllPairs(store);
 
   device_ = dev;
   transportContext_ = std::move(transportContext);

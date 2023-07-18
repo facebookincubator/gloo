@@ -14,6 +14,7 @@
 
 #include "gloo/common/logging.h"
 #include "gloo/common/error.h"
+#include "gloo/common/store.h"
 
 //can be used by upstream users to know whether this is available or not.
 #define GLOO_STORE_HAS_STORE_V2 1
@@ -21,7 +22,7 @@
 namespace gloo {
 namespace rendezvous {
 
-class Store {
+class Store: public IStore {
  public:
   static constexpr std::chrono::milliseconds kDefaultTimeout =
       std::chrono::seconds(30);
