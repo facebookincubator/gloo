@@ -13,13 +13,6 @@
 #include "gloo/common/logging.h"
 #include "gloo/transport/address.h"
 
-#ifdef _WIN32
-#include <winsock2.h>
-#include <gloo/common/win.h>
-#else
-#include <unistd.h>
-#endif
-
 namespace gloo {
 namespace rendezvous {
 
