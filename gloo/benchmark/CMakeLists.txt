@@ -18,8 +18,8 @@ if(USE_CUDA)
     "${CMAKE_CURRENT_SOURCE_DIR}/runner.cc"
     )
 
-  cuda_add_executable(benchmark_cuda ${GLOO_BENCHMARK_CUDA_SRCS})
-  target_link_libraries(benchmark_cuda gloo_cuda)
+  add_executable(benchmark_cuda ${GLOO_BENCHMARK_CUDA_SRCS})
+  target_link_libraries(benchmark_cuda gloo_cuda ${GLOO_CUDA_LIBRARIES})
 
   if(GLOO_INSTALL)
     install(TARGETS benchmark_cuda DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

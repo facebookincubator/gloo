@@ -8,6 +8,7 @@
 
 #include <gloo/transport/tcp/loop.h>
 
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -16,14 +17,93 @@
 #include <gloo/common/error.h>
 #include <gloo/common/logging.h>
 
+#if defined(__SANITIZE_THREAD__)
+#define TSAN_ENABLED
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define TSAN_ENABLED
+#endif
+#endif
+
+#ifdef TSAN_ENABLED
+#define TSAN_ANNOTATE_HAPPENS_BEFORE(addr) \
+    AnnotateHappensBefore(__FILE__, __LINE__, (void*)(addr))
+#define TSAN_ANNOTATE_HAPPENS_AFTER(addr) \
+    AnnotateHappensAfter(__FILE__, __LINE__, (void*)(addr))
+extern "C" void AnnotateHappensBefore(const char* f, int l, void* addr);
+extern "C" void AnnotateHappensAfter(const char* f, int l, void* addr);
+#else
+#define TSAN_ANNOTATE_HAPPENS_BEFORE(addr)
+#define TSAN_ANNOTATE_HAPPENS_AFTER(addr)
+#endif
+
 namespace gloo {
 namespace transport {
 namespace tcp {
+
+Deferrables::Deferrables() {
+  std::array<int, 2> fds;
+  auto rv = pipe2(fds.data(), O_NONBLOCK);
+  GLOO_ENFORCE_NE(rv, -1, "pipe: ", strerror(errno));
+  rfd_ = fds[0];
+  wfd_ = fds[1];
+}
+
+Deferrables::~Deferrables() {
+  close(rfd_);
+  close(wfd_);
+}
+
+void Deferrables::defer(function_t fn) {
+  std::lock_guard<std::mutex> guard(mutex_);
+  functions_.push_back(std::move(fn));
+
+  // Write byte to pipe to make epoll(2) wake up.
+  if (!triggered_) {
+    for (;;) {
+      char byte = 0;
+      auto rv = write(wfd_, &byte, sizeof(byte));
+      if (rv == -1 && errno == EINTR) {
+        continue;
+      }
+      GLOO_ENFORCE_NE(rv, -1, "write: ", strerror(errno));
+      break;
+    }
+    triggered_ = true;
+  }
+}
+
+void Deferrables::handleEvents(int /* unused */) {
+  decltype(functions_) localFunctions;
+
+  {
+    std::lock_guard<std::mutex> guard(mutex_);
+    std::swap(localFunctions, functions_);
+
+    // Read byte from pipe to drain it.
+    for (;;) {
+      char byte = 0;
+      auto rv = read(rfd_, &byte, sizeof(byte));
+      if (rv == -1 && errno == EINTR) {
+        continue;
+      }
+      GLOO_ENFORCE_NE(rv, -1, "read: ", strerror(errno));
+      break;
+    }
+    triggered_ = false;
+  }
+
+  // Execute deferred functions.
+  for (auto fn : localFunctions) {
+    fn();
+  }
+}
 
 Loop::Loop() {
   fd_ = epoll_create(1);
   GLOO_ENFORCE_NE(fd_, -1, "epoll_create: ", strerror(errno));
   loop_.reset(new std::thread(&Loop::run, this));
+  registerDescriptor(deferrables_.rfd_, EPOLLIN, &deferrables_);
 }
 
 Loop::~Loop() {
@@ -48,7 +128,7 @@ void Loop::registerDescriptor(int fd, int events, Handler* h) {
   GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
 }
 
-void Loop::unregisterDescriptor(int fd) {
+void Loop::unregisterDescriptor(int fd, Handler* h) {
   auto rv = epoll_ctl(fd_, EPOLL_CTL_DEL, fd, nullptr);
   GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
 
@@ -57,7 +137,12 @@ void Loop::unregisterDescriptor(int fd) {
   if (std::this_thread::get_id() != loop_->get_id()) {
     std::unique_lock<std::mutex> lock(m_);
     cv_.wait(lock);
+    TSAN_ANNOTATE_HAPPENS_AFTER(h);
   }
+}
+
+void Loop::defer(std::function<void()> fn) {
+  deferrables_.defer(std::move(fn));
 }
 
 void Loop::run() {
@@ -82,6 +167,7 @@ void Loop::run() {
     for (int i = 0; i < nfds; i++) {
       Handler* h = reinterpret_cast<Handler*>(events[i].data.ptr);
       h->handleEvents(events[i].events);
+      TSAN_ANNOTATE_HAPPENS_BEFORE(h);
     }
   }
 }

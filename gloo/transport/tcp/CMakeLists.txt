@@ -6,8 +6,11 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/error.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/listener.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/loop.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/socket.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.cc"
       )
     list(APPEND GLOO_TRANSPORT_HDRS
@@ -16,8 +19,12 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/buffer.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/context.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/error.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/helpers.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/listener.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/loop.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/socket.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/unbound_buffer.h"
       )
 endif()

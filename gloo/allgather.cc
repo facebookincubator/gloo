@@ -53,8 +53,8 @@ void allgather(AllgatherOptions& opts) {
         in->size);
   }
 
-  // Short circuit if there is only a single process.
-  if (context->size == 1) {
+  // Short circuit if there is only a single process or the output is empty.
+  if (context->size == 1 || outBytes == 0) {
     return;
   }
 

@@ -100,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(kTransportsForClassAlgorithms),
         ::testing::Range(2, 10),
-        ::testing::Values(4, 100, 1000, 10000),
+        ::testing::Values(0, 4, 100, 1000, 10000),
         ::testing::Range(1, 4)));
 
 using NewParam = std::tuple<Transport, int, int, bool>;
@@ -157,7 +157,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
         ::testing::Values(1, 2, 4, 7),
-        ::testing::Values(4, 100, 1000, 10000),
+        ::testing::Values(0, 4, 100, 1000, 10000),
         ::testing::Values(false, true)));
 
 TEST_F(AllgatherNewTest, TestTimeout) {

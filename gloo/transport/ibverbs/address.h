@@ -31,6 +31,8 @@ class Address : public ::gloo::transport::Address {
   virtual std::string str() const override;
 
  protected:
+  explicit Address(const Address&) = default;
+
   struct {
     uint32_t lid;
     uint32_t qpn;

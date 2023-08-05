@@ -9,9 +9,11 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "gloo/common/error.h"
+#include "gloo/common/store.h"
 #include "gloo/context.h"
 #include "gloo/rendezvous/store.h"
 #include "gloo/transport/address.h"
@@ -32,8 +34,6 @@ class Context : public ::gloo::Context {
       std::shared_ptr<transport::Device>& dev);
 
  protected:
-  std::vector<char> extractAddress(std::vector<char>& allAddrs, int i);
-
   friend class ContextFactory;
 };
 

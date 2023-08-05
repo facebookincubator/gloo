@@ -86,7 +86,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
         ::testing::Values(1, 2, 4, 7),
-        ::testing::Values(1, 10, 100, 1000),
+        ::testing::Values(0, 1, 10, 100, 1000),
         ::testing::Values(false, true)));
 
 TEST_F(AllgathervTest, TestTimeout) {

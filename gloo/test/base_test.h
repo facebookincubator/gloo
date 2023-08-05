@@ -12,6 +12,7 @@
 
 #include <exception>
 #include <functional>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -89,13 +90,15 @@ class BaseTest : public ::testing::Test {
  protected:
   void spawnThreads(int size, std::function<void(int)> fn) {
     std::vector<std::thread> threads;
-    std::vector<std::exception_ptr> errors;
+    std::mutex mutex;
+    std::vector<std::string> errors;
     for (int rank = 0; rank < size; rank++) {
       threads.push_back(std::thread([&, rank]() {
         try {
           fn(rank);
-        } catch (const std::exception&) {
-          errors.push_back(std::current_exception());
+        } catch (const std::exception& e) {
+          std::lock_guard<std::mutex> lock(mutex);
+          errors.push_back(e.what());
         }
       }));
     }
@@ -107,7 +110,7 @@ class BaseTest : public ::testing::Test {
 
     // Re-throw first exception if there is one
     if (errors.size() > 0) {
-      std::rethrow_exception(errors[0]);
+      throw std::runtime_error(errors[0]);
     }
   }
 

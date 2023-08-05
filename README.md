@@ -1,6 +1,6 @@
 # Gloo
 
-[![CircleCI](https://circleci.com/gh/facebookincubator/gloo/tree/master.svg?style=svg)](https://circleci.com/gh/facebookincubator/gloo/tree/master)
+[![Support Ukraine](https://img.shields.io/badge/Support-Ukraine-FFD500?style=flat&labelColor=005BBB)](https://opensource.fb.com/support-ukraine) [![CircleCI](https://circleci.com/gh/facebookincubator/gloo/tree/master.svg?style=svg)](https://circleci.com/gh/facebookincubator/gloo/tree/master)
 
 Gloo is a collective communications library. It comes with a number of
 collective algorithms useful for machine learning applications. These
@@ -53,6 +53,13 @@ Building the tests requires Google Test version 1.8 or higher. On
 Ubuntu, this version ships with version 17.10 and up. If you run an
 older version, you'll have to install Google Test yourself, and set
 the `GTEST_ROOT` CMake variable.
+
+You can install Google Test using conda with:
+``` shell
+conda install -c anaconda gmock gtest
+```
+Be carefull that you might need to fish for a package that works with your glibc
+
 
 To build the tests, run:
 

@@ -148,7 +148,7 @@ class CudaDeviceStreams {
     const int numDevices = getDeviceCount();
     streams_.reserve(numDevices);
     for (auto i = 0; i < numDevices; i++) {
-      streams_.push_back(CudaStream(i));
+      streams_.emplace_back(i);
     }
   }
   cudaStream_t operator[](const int i) {

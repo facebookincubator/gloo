@@ -9,6 +9,7 @@
 #pragma once
 
 #include <algorithm>
+#include <random>
 #include <cmath>
 
 #include "gloo/common/common.h"
@@ -51,8 +52,10 @@ class CudaLocalNativeReduce : public LocalOp<T> {
 
     // Shuffle order in an attempt to evenly spread work across devices when
     // dealing with multiple instances of this operation.
-    std::random_shuffle(indices_.begin(), indices_.end());
-
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::shuffle(indices_.begin(), indices_.end(), mt);
+    
     // Initialize
     CudaDeviceGuard guard;
     for (auto i = 0; i < steps_; i++) {

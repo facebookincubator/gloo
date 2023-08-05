@@ -66,12 +66,10 @@ if(USE_ROCM)
   file(GLOB GLOO_HIP_SRCS
     "${HIPIFY_OUTPUT_DIR}/hip*.cc"
     "${HIPIFY_OUTPUT_DIR}/hip*.hip"
-    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.hip"
     )
 
   file(GLOB GLOO_HIP_HDRS
     "${HIPIFY_OUTPUT_DIR}/hip*.h"
-    "${HIPIFY_OUTPUT_DIR}/nccl/nccl.h"
     )
 endif()
 
@@ -142,7 +140,12 @@ configure_file(config.h.in config.h)
 
 add_library(gloo ${GLOO_STATIC_OR_SHARED} ${GLOO_SRCS})
 if(USE_CUDA)
-  cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
+  if(GLOO_USE_CUDA_TOOLKIT)
+    enable_language(CUDA)
+    add_library(gloo_cuda ${GLOO_STATIC_OR_SHARED} ${GLOO_CUDA_SRCS})
+  else()
+    cuda_add_library(gloo_cuda ${GLOO_CUDA_SRCS} ${GLOO_STATIC_OR_SHARED})
+  endif()
   target_link_libraries(gloo_cuda gloo ${gloo_cuda_DEPENDENCY_LIBS})
 endif()
 if(USE_ROCM)

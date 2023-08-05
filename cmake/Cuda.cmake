@@ -1,8 +1,6 @@
 # Known NVIDIA GPU achitectures Gloo can be compiled for.
 # This list will be used for CUDA_ARCH_NAME = All option
-set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
-set(gloo_known_gpu_archs7 "30 35 50 52")
-set(gloo_known_gpu_archs8 "30 35 50 52 60 61")
+set(gloo_known_gpu_archs "")
 
 ################################################################################
 # Function for selecting GPU arch flags for nvcc based on CUDA_ARCH_NAME
@@ -104,78 +102,88 @@ function(gloo_list_append_if_unique list)
 endfunction()
 
 ################################################################################
-# Short command for cuda compilation
-# Usage:
-#   gloo_cuda_compile(<objlist_variable> <cuda_files>)
-macro(gloo_cuda_compile objlist_variable)
-  foreach(var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_DEBUG)
-    set(${var}_backup_in_cuda_compile_ "${${var}}")
-  endforeach()
-
-  if(APPLE)
-    list(APPEND CUDA_NVCC_FLAGS -Xcompiler -Wno-unused-function)
-  endif()
-
-  cuda_compile(cuda_objcs ${ARGN})
-
-  foreach(var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_DEBUG)
-    set(${var} "${${var}_backup_in_cuda_compile_}")
-    unset(${var}_backup_in_cuda_compile_)
-  endforeach()
-
-  set(${objlist_variable} ${cuda_objcs})
-endmacro()
-
-################################################################################
 ###  Non macro section
 ################################################################################
 
-find_package(CUDA 7.0)
-if(NOT CUDA_FOUND)
-  return()
+if(GLOO_USE_CUDA_TOOLKIT)
+  find_package(CUDAToolkit 7.0 REQUIRED)
+  set(GLOO_CUDA_VERSION ${CUDAToolkit_VERSION})
+
+  # Convert -O2 -Xcompiler="-O2 -Wall" to "-O2;-Xcompiler=-O2,-Wall"
+  separate_arguments(GLOO_NVCC_FLAGS UNIX_COMMAND "${CMAKE_CUDA_FLAGS}")
+  string(REPLACE " " "," GLOO_NVCC_FLAGS "${GLOO_NVCC_FLAGS}")
+
+  if(CUDA_USE_STATIC_CUDA_RUNTIME)
+    set(GLOO_CUDA_LIBRARIES CUDA::cudart_static)
+  else()
+    set(GLOO_CUDA_LIBRARIES CUDA::cudart)
+  endif()
+else()
+  find_package(CUDA 7.0)
+  if(NOT CUDA_FOUND)
+    return()
+  endif()
+  set(GLOO_CUDA_VERSION ${CUDA_VERSION})
+  set(GLOO_NVCC_FLAGS "${CUDA_NVCC_FLAGS}")
+
+  include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
+  set(GLOO_CUDA_LIBRARIES ${CUDA_CUDART_LIBRARY})
+
+  # If the project including us doesn't set any -std=xxx directly, we set it to C++11 here.
+  set(CUDA_PROPAGATE_HOST_FLAGS OFF)
+  if((NOT "${GLOO_NVCC_FLAGS}" MATCHES "-std=c\\+\\+") AND (NOT "${GLOO_NVCC_FLAGS}" MATCHES "-std=gnu\\+\\+"))
+    if(NOT MSVC)
+      gloo_list_append_if_unique(GLOO_NVCC_FLAGS "-std=c++11")
+    endif()
+  endif()
+
+  mark_as_advanced(CUDA_BUILD_CUBIN CUDA_BUILD_EMULATION CUDA_VERBOSE_BUILD)
+  mark_as_advanced(CUDA_SDK_ROOT_DIR CUDA_SEPARABLE_COMPILATION)
 endif()
 
 set(HAVE_CUDA TRUE)
-message(STATUS "CUDA detected: " ${CUDA_VERSION})
-if (${CUDA_VERSION} LESS 8.0)
-  set(gloo_known_gpu_archs ${gloo_known_gpu_archs7})
-  list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
-  list(APPEND CUDA_NVCC_FLAGS "-D__STRICT_ANSI__")
-elseif (${CUDA_VERSION} LESS 9.0)
-  set(gloo_known_gpu_archs ${gloo_known_gpu_archs8})
-  list(APPEND CUDA_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
-  list(APPEND CUDA_NVCC_FLAGS "-D__STRICT_ANSI__")
+message(STATUS "CUDA detected: " ${GLOO_CUDA_VERSION})
+if (${GLOO_CUDA_VERSION} LESS 9.0)
+  list(APPEND GLOO_NVCC_FLAGS "-D_MWAITXINTRIN_H_INCLUDED")
+  list(APPEND GLOO_NVCC_FLAGS "-D__STRICT_ANSI__")
 else()
-  # CUDA 8 may complain that sm_20 is no longer supported. Suppress the warning for now.
-  list(APPEND CUDA_NVCC_FLAGS "-Wno-deprecated-gpu-targets")
+  # nvcc may complain that sm_xx is no longer supported. Suppress the warning for now.
+  list(APPEND GLOO_NVCC_FLAGS "-Wno-deprecated-gpu-targets")
 endif()
 
-include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-list(APPEND gloo_DEPENDENCY_LIBS ${CUDA_CUDART_LIBRARY})
+if(GLOO_CUDA_VERSION VERSION_LESS 8.0)
+  set(gloo_known_gpu_archs "30 35 50 52")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 9.0)
+  set(gloo_known_gpu_archs "30 35 50 52 60 61")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 10.0)
+  set(gloo_known_gpu_archs "30 35 50 52 60 61 70")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 11.0)
+  set(gloo_known_gpu_archs "35 50 52 60 61 70 75")
+elseif(GLOO_CUDA_VERSION VERSION_LESS 12.0)
+  set(gloo_known_gpu_archs "35 50 52 60 61 70 75 80 86")
+endif()
+
+list(APPEND gloo_cuda_DEPENDENCY_LIBS ${GLOO_CUDA_LIBRARIES})
 
 # Setting nvcc arch flags (or inherit if already set)
-if (NOT ";${CUDA_NVCC_FLAGS};" MATCHES ";-gencode;")
+if (NOT ";${GLOO_NVCC_FLAGS};" MATCHES ";-gencode;")
   gloo_select_nvcc_arch_flags(NVCC_FLAGS_EXTRA)
-  list(APPEND CUDA_NVCC_FLAGS ${NVCC_FLAGS_EXTRA})
+  list(APPEND GLOO_NVCC_FLAGS ${NVCC_FLAGS_EXTRA})
   message(STATUS "Added CUDA NVCC flags for: ${NVCC_FLAGS_EXTRA_readable}")
 endif()
 
 # Disable some nvcc diagnostic that apears in boost, glog, glags, opencv, etc.
 foreach(diag cc_clobber_ignored integer_sign_change useless_using_declaration set_but_not_used)
-  gloo_list_append_if_unique(CUDA_NVCC_FLAGS -Xcudafe --diag_suppress=${diag})
+  gloo_list_append_if_unique(GLOO_NVCC_FLAGS -Xcudafe --diag_suppress=${diag})
 endforeach()
 
-# If the project including us doesn't set any -std=xxx directly, we set it to C++11 here.
-set(CUDA_PROPAGATE_HOST_FLAGS OFF)
-if((NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=c\\+\\+") AND (NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=gnu\\+\\+"))
-  if(NOT MSVC)
-    gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-std=c++11")
-  endif()
-endif()
-
 if(NOT MSVC)
-  gloo_list_append_if_unique(CUDA_NVCC_FLAGS "-Xcompiler" "-fPIC")
+  gloo_list_append_if_unique(GLOO_NVCC_FLAGS "-Xcompiler" "-fPIC")
 endif()
 
-mark_as_advanced(CUDA_BUILD_CUBIN CUDA_BUILD_EMULATION CUDA_VERBOSE_BUILD)
-mark_as_advanced(CUDA_SDK_ROOT_DIR CUDA_SEPARABLE_COMPILATION)
+if(GLOO_USE_CUDA_TOOLKIT)
+  # Convert list to space-separated string
+  string(REPLACE ";" " " CMAKE_CUDA_FLAGS "${GLOO_NVCC_FLAGS}")
+else()
+  set(CUDA_NVCC_FLAGS "${GLOO_NVCC_FLAGS}")
+endif()

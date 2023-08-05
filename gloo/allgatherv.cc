@@ -111,8 +111,8 @@ void allgatherv(AllgathervOptions& opts) {
     }
   }
 
-  // Short circuit if there is only a single process.
-  if (context->size == 1) {
+  // Short circuit if there is only a single process or the output is empty.
+  if (context->size == 1 || offset == 0) {
     return;
   }
 
