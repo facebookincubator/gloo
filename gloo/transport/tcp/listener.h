@@ -32,7 +32,7 @@ class Listener final : public Handler {
   using connect_callback_t =
       std::function<void(std::shared_ptr<Socket> socket, Error error)>;
 
-  static constexpr int kBacklog = 2048;
+  static constexpr int kBacklog = -1;  // allow somaxconn
 
   Listener(std::shared_ptr<Loop> loop, const attr& attr);
 
