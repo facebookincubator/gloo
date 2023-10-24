@@ -165,7 +165,7 @@ if(USE_ROCM)
     # This is needed for library added by hip_add_library (same for hip_add_executable)
     hip_include_directories(${GLOO_HIP_INCLUDE})
 
-    set(gloo_hip_DEPENDENCY_LIBS ${GLOO_HIP_HCC_LIBRARIES})
+    set(gloo_hip_DEPENDENCY_LIBS ${GLOO_HIP_LIBRARIES})
 
   else()
     message(WARNING "Not compiling with HIP support. Suppress this warning with -DUSE_ROCM=OFF.")
