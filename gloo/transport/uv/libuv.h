@@ -547,7 +547,7 @@ class ConnectRequest final : public Request<ConnectRequest, uv_connect_t> {
   const struct sockaddr* addr_;
 };
 
-}; // namespace detail
+} // namespace detail
 
 class TCP final : public Handle<TCP, uv_tcp_t> {
   static constexpr unsigned int kDefaultListenBacklog = 128;
