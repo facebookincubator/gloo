@@ -135,7 +135,7 @@ class BaseTest : public ::testing::Test {
 
       try {
         fn(context);
-      } catch (std::exception& e) {
+      } catch (std::exception& ) {
         // Unblock barrier and rethrow
         barrier.wait();
         throw;
