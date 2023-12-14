@@ -66,22 +66,22 @@ enum Transport {
 };
 
 // Transports that instantiated algorithms can be tested against.
-const std::vector<Transport> kTransportsForClassAlgorithms{
-    Transport::TCP,
+const std::vector<Transport> kTransportsForClassAlgorithms {
+  Transport::TCP,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
-    Transport::TCP_TLS,
+      Transport::TCP_TLS,
 #endif
 };
 
 // Transports that function algorithms can be tested against.
 // This is the new style of calling collectives and must be
 // preferred over the instantiated style.
-const std::vector<Transport> kTransportsForFunctionAlgorithms{
-    Transport::TCP,
+const std::vector<Transport> kTransportsForFunctionAlgorithms {
+  Transport::TCP,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
-    Transport::TCP_TLS,
+      Transport::TCP_TLS,
 #endif
-    Transport::UV,
+      Transport::UV,
 };
 
 std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport);
@@ -117,25 +117,28 @@ class BaseTest : public ::testing::Test {
   void spawn(
       Transport transport,
       int size,
-      std::function<std::shared_ptr<::gloo::transport::Device>(Transport)> device_creator,
+      std::function<std::shared_ptr<::gloo::transport::Device>(Transport)>
+          device_creator,
       std::function<void(std::shared_ptr<Context>)> fn,
       int base = 2) {
     Barrier barrier(size);
     ::gloo::rendezvous::HashStore store;
 
-    auto device = device_creator(transport);
-    if (!device) {
-      return;
-    }
-
     spawnThreads(size, [&](int rank) {
       auto context =
           std::make_shared<::gloo::rendezvous::Context>(rank, size, base);
+
+      // Create device per thread to avoid collisions then they are using the
+      // socket address.
+      auto device = device_creator(transport);
+      if (!device) {
+        return;
+      }
       context->connectFullMesh(store, device);
 
       try {
         fn(context);
-      } catch (std::exception& ) {
+      } catch (std::exception&) {
         // Unblock barrier and rethrow
         barrier.wait();
         throw;
@@ -157,11 +160,17 @@ class BaseTest : public ::testing::Test {
     });
   }
 
-  void spawn(Transport transport, int size,
-             std::function<void(std::shared_ptr<Context>)> fn, int base = 2) {
+  void spawn(
+      Transport transport,
+      int size,
+      std::function<void(std::shared_ptr<Context>)> fn,
+      int base = 2) {
     spawn(
-        transport, size,
-        [](Transport transport) { return createDevice(transport); }, fn, base);
+        transport,
+        size,
+        [](Transport transport) { return createDevice(transport); },
+        fn,
+        base);
   }
 };
 
@@ -287,10 +296,8 @@ class Fixture<float16> {
     }
   }
 
-  void checkBroadcastResult(
-      Fixture<float16>& fixture,
-      int root,
-      int rootPointer) {
+  void
+  checkBroadcastResult(Fixture<float16>& fixture, int root, int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices
@@ -400,10 +407,8 @@ class Fixture<float> {
     }
   }
 
-  void checkBroadcastResult(
-      Fixture<float>& fixture,
-      int root,
-      int rootPointer) {
+  void
+  checkBroadcastResult(Fixture<float>& fixture, int root, int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices
