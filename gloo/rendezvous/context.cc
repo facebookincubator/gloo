@@ -16,8 +16,6 @@
 namespace gloo {
 namespace rendezvous {
 
-constexpr int64_t HOSTNAME_MAX_SIZE = 256;
-
 Context::Context(int rank, int size, int base)
     : ::gloo::Context(rank, size, base) {
 }
