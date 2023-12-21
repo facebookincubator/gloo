@@ -535,7 +535,7 @@ void Pair::signalIoFailure(const std::string& msg) {
   }
   // Finally, throw the exception on this thread.
   throw ex;
-};
+}
 
 void Pair::checkErrorState() {
   // If we previously encountered an error, rethrow here.
