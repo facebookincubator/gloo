@@ -31,13 +31,13 @@ class GathervOptions {
   template <typename T>
   void setOutput(
       std::unique_ptr<transport::UnboundBuffer> buf,
-      std::vector<size_t> elementsPerRank) {
-    setOutput(std::move(buf), std::move(elementsPerRank), sizeof(T));
+      std::vector<size_t> elementsPerRank_2) {
+    setOutput(std::move(buf), std::move(elementsPerRank_2), sizeof(T));
   }
 
   template <typename T>
-  void setOutput(T* ptr, std::vector<size_t> elementsPerRank) {
-    setOutput(static_cast<void*>(ptr), std::move(elementsPerRank), sizeof(T));
+  void setOutput(T* ptr, std::vector<size_t> elementsPerRank_2) {
+    setOutput(static_cast<void*>(ptr), std::move(elementsPerRank_2), sizeof(T));
   }
 
   void setRoot(int root) {
