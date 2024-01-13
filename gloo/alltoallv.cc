@@ -30,12 +30,12 @@ static void splitOffsetsAndLengths(
   }
 }
 
-void AlltoallvOptions::setElementSize(size_t elementSize) {
+void AlltoallvOptions::setElementSize(size_t elementSize_2) {
   if (this->elementSize == 0) {
-    this->elementSize = elementSize;
+    this->elementSize = elementSize_2;
   } else {
     GLOO_ENFORCE_EQ(
-        elementSize,
+        elementSize_2,
         this->elementSize,
         "Element size does not match existing value. ",
         "Please double check that the input and output types match.");
