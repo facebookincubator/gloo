@@ -26,12 +26,12 @@ class BarrierOptions {
  public:
   explicit BarrierOptions(const std::shared_ptr<Context>& context);
 
-  void setTag(uint32_t tag) {
-    this->tag = tag;
+  void setTag(uint32_t tag_2) {
+    this->tag = tag_2;
   }
 
-  void setTimeout(std::chrono::milliseconds timeout) {
-    this->timeout = timeout;
+  void setTimeout(std::chrono::milliseconds timeout_2) {
+    this->timeout = timeout_2;
   }
 
  protected:
