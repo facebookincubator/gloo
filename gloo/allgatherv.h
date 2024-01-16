@@ -24,20 +24,20 @@ class AllgathervOptions {
   }
 
   template <typename T>
-  void setInput(T* ptr, size_t elements) {
-    setInput(static_cast<void*>(ptr), elements, sizeof(T));
+  void setInput(T* ptr, size_t elements_2) {
+    setInput(static_cast<void*>(ptr), elements_2, sizeof(T));
   }
 
   template <typename T>
   void setOutput(
       std::unique_ptr<transport::UnboundBuffer> buf,
-      std::vector<size_t> elements) {
-    setOutput(std::move(buf), std::move(elements), sizeof(T));
+      std::vector<size_t> elements_2) {
+    setOutput(std::move(buf), std::move(elements_2), sizeof(T));
   }
 
   template <typename T>
-  void setOutput(T* ptr, std::vector<size_t> elements) {
-    setOutput(static_cast<void*>(ptr), std::move(elements), sizeof(T));
+  void setOutput(T* ptr, std::vector<size_t> elements_2) {
+    setOutput(static_cast<void*>(ptr), std::move(elements_2), sizeof(T));
   }
 
   void setTag(uint32_t tag) {
