@@ -17,8 +17,6 @@
 namespace gloo {
 namespace rendezvous {
 
-static const std::chrono::seconds kWaitTimeout = std::chrono::seconds(60);
-
 RedisStore::RedisStore(const std::string& host, int port) {
   struct timeval timeout = {.tv_sec = 2};
   redis_ = redisConnectWithTimeout(host.c_str(), port, timeout);
