@@ -81,7 +81,6 @@ TEST_P(ReduceScatterTest, SinglePointer) {
   const auto contextSize = std::get<1>(GetParam());
   const auto dataSize = std::get<2>(GetParam());
   const auto fn = std::get<3>(GetParam());
-  const auto base = std::get<4>(GetParam());
 
   spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
     const auto contextRank = context->rank;
