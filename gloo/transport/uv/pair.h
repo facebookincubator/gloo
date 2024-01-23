@@ -150,6 +150,8 @@ class Pair : public ::gloo::transport::Pair {
 
   void close() override;
 
+  bool isConnected() override;
+
  private:
   std::mutex mutex_;
   std::condition_variable cv_;
