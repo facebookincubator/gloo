@@ -46,7 +46,7 @@ ContextFactory::ContextFactory(std::shared_ptr<::gloo::Context> backingContext)
       GLOO_ENFORCE(
         backingContext_->getPair(i) != nullptr,
         "Missing pair in backing context");
-    } catch(std::out_of_range& e) {
+    } catch(std::out_of_range&) {
       GLOO_THROW("Backing context not fully connected");
     }
   }
