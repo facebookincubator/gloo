@@ -36,6 +36,8 @@ class Pair {
   virtual std::unique_ptr<Buffer>
   createRecvBuffer(int slot, void* ptr, size_t size) = 0;
 
+  virtual bool isConnected() = 0;
+
   // Send from the specified buffer to remote side of pair.
   virtual void send(
       UnboundBuffer* buf,

@@ -95,6 +95,11 @@ const Address& Pair::address() const {
   return self_;
 }
 
+bool Pair::isConnected() {
+  std::lock_guard<std::mutex> lock(m_);
+  return state_ == CONNECTED;
+}
+
 void Pair::connect(const std::vector<char>& bytes) {
   const auto peer = Address(bytes);
 

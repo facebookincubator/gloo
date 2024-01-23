@@ -9,6 +9,7 @@
 #include "gloo/transport/tcp/context.h"
 
 #include <cstring>
+#include <iostream>
 
 #include "gloo/common/error.h"
 #include "gloo/common/logging.h"
@@ -117,6 +118,8 @@ void Context::createAndConnectAllPairs(IStore &store) {
     const auto& pair = getPair(i);
     pair->setLocalRank(localRank);
   }
+
+  printConnectivityInfo();
 }
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
@@ -130,6 +133,49 @@ std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
     size_t size) {
   auto buf = new tcp::UnboundBuffer(shared_from_this(), ptr, size);
   return std::unique_ptr<transport::UnboundBuffer>(buf);
+}
+
+std::vector<int> Context::getConnectedPeerRanks() const {
+  std::vector<int> result;
+  GLOO_ENFORCE(size == pairs_.size());
+  for (int i = 0; i < size; i++) {
+    if (pairs_.at(i)->isConnected() && i != rank) {
+      result.push_back(i);
+    }
+  }
+  return result;
+}
+
+std::vector<int> Context::getUnConnectedPeerRanks() const {
+  std::vector<int> result;
+  GLOO_ENFORCE(size == pairs_.size());
+  for (int i = 0; i < size; i++) {
+    if (!pairs_.at(i)->isConnected() && i != rank) {
+      result.push_back(i);
+    }
+  }
+  return result;
+}
+
+void Context::printConnectivityInfo() const {
+  int numConnectedPeers = getConnectedPeerRanks().size();
+  std::cout << "[Gloo] Rank "  << rank << " is connected to "
+            << numConnectedPeers << " peer ranks. "
+            << "Expected number of connected peer ranks is : " << size - 1
+            << std::endl;
+
+  if (numConnectedPeers != size - 1) {
+    std::vector<int> unConnectedPeers = getUnConnectedPeerRanks();
+    std::cout << "[Gloo] Rank " << rank << " is NOT connected to: [";
+    for (int i = 0; i < unConnectedPeers.size(); i++) {
+      if (i != unConnectedPeers.size() - 1) {
+        std::cout << unConnectedPeers[i] << ", ";
+      } else {
+        std::cout << unConnectedPeers[i];
+      }
+    }
+    std::cout << "]" << std::endl;
+  }
 }
 
 void Context::recvFromAny(
