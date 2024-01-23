@@ -16,12 +16,12 @@
 
 namespace gloo {
 
-void AllgathervOptions::setElementSize(size_t elementSize) {
+void AllgathervOptions::setElementSize(size_t elementSize_2) {
   if (this->elementSize == 0) {
-    this->elementSize = elementSize;
+    this->elementSize = elementSize_2;
   } else {
     GLOO_ENFORCE_EQ(
-        elementSize,
+        elementSize_2,
         this->elementSize,
         "Element size does not match existing value. ",
         "Please double check that the input and output types match.");
@@ -30,29 +30,29 @@ void AllgathervOptions::setElementSize(size_t elementSize) {
 
 void AllgathervOptions::setInput(
     std::unique_ptr<transport::UnboundBuffer> buf,
-    size_t elementSize) {
-  setElementSize(elementSize);
+    size_t elementSize_2) {
+  setElementSize(elementSize_2);
   this->in = std::move(buf);
 }
 
 void AllgathervOptions::setInput(
     void* ptr,
-    size_t elements,
-    size_t elementSize) {
-  setElementSize(elementSize);
-  this->in = context->createUnboundBuffer(ptr, elements * elementSize);
+    size_t elements_2,
+    size_t elementSize_2) {
+  setElementSize(elementSize_2);
+  this->in = context->createUnboundBuffer(ptr, elements_2 * elementSize_2);
 }
 
 void AllgathervOptions::setOutput(
     std::unique_ptr<transport::UnboundBuffer> buf,
-    std::vector<size_t> elements,
-    size_t elementSize) {
+    std::vector<size_t> elements_2,
+    size_t elementSize_2) {
   const auto totalElements =
-      std::accumulate(elements.begin(), elements.end(), size_t(0));
-  setElementSize(elementSize);
-  GLOO_ENFORCE_EQ(elements.size(), context->size);
-  this->elements = std::move(elements);
-  GLOO_ENFORCE_EQ(totalElements * elementSize, buf->size);
+      std::accumulate(elements_2.begin(), elements_2.end(), size_t(0));
+  setElementSize(elementSize_2);
+  GLOO_ENFORCE_EQ(elements_2.size(), context->size);
+  this->elements = std::move(elements_2);
+  GLOO_ENFORCE_EQ(totalElements * elementSize_2, buf->size);
   this->out = std::move(buf);
 }
 
