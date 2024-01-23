@@ -86,6 +86,20 @@ class Context : public ::gloo::transport::Context,
   // out. All pairs should be signaled and closed in that event.
   void signalException(const std::string& msg);
 
+  // Returns a sorted list of connected peer ranks, excluding self.
+  // Normally all peer ranks should be connected at the end of
+  // createAndConnectAllPairs
+  // peer rank concept is introduced at the transport/tcp/pair level, so
+  // this method is defined at the same level instead of the parent contexts
+  std::vector<int> getConnectedPeerRanks() const;
+
+  // Returns a sorted list of unconnected and peer ranks, excluding self.
+  // Normally empty at the end of createAndConnectAllPairs
+  std::vector<int> getUnConnectedPeerRanks() const;
+
+  // a helper function to print out rank to rank connectivity information
+  void printConnectivityInfo() const;
+
   friend class ContextMutator;
 
   friend class UnboundBuffer;
