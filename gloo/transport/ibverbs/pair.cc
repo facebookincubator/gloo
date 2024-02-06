@@ -346,6 +346,12 @@ void Pair::recv(
       "Unbound buffers not supported yet for ibverbs transport");
 }
 
+// place holder for future use
+bool Pair::isConnected() {
+   GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+      "isConnected not supported yet for ibverbs transport");
+}
+
 // handleCompletionEvent is called by the device thread when it
 // received an event for this pair's completion queue on its
 // completion channel.
@@ -535,7 +541,7 @@ void Pair::signalIoFailure(const std::string& msg) {
   }
   // Finally, throw the exception on this thread.
   throw ex;
-};
+}
 
 void Pair::checkErrorState() {
   // If we previously encountered an error, rethrow here.

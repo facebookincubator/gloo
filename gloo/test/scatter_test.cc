@@ -56,14 +56,6 @@ TEST_P(ScatterTest, Default) {
   });
 }
 
-std::vector<size_t> genMemorySizes() {
-  std::vector<size_t> v;
-  v.push_back(1);
-  v.push_back(10);
-  v.push_back(100);
-  return v;
-}
-
 INSTANTIATE_TEST_CASE_P(
     ScatterDefault,
     ScatterTest,

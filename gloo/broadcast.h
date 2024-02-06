@@ -26,10 +26,10 @@ class BroadcastOptions {
   }
 
   template <typename T>
-  void setInput(T* ptr, size_t elements) {
-    this->elements = elements;
+  void setInput(T* ptr, size_t elements_2) {
+    this->elements = elements_2;
     this->elementSize = sizeof(T);
-    this->in = context->createUnboundBuffer(ptr, elements * sizeof(T));
+    this->in = context->createUnboundBuffer(ptr, elements_2 * sizeof(T));
   }
 
   template <typename T>
@@ -40,22 +40,22 @@ class BroadcastOptions {
   }
 
   template <typename T>
-  void setOutput(T* ptr, size_t elements) {
-    this->elements = elements;
+  void setOutput(T* ptr, size_t elements_2) {
+    this->elements = elements_2;
     this->elementSize = sizeof(T);
-    this->out = context->createUnboundBuffer(ptr, elements * sizeof(T));
+    this->out = context->createUnboundBuffer(ptr, elements_2 * sizeof(T));
   }
 
-  void setRoot(int root) {
-    this->root = root;
+  void setRoot(int root_2) {
+    this->root = root_2;
   }
 
-  void setTag(uint32_t tag) {
-    this->tag = tag;
+  void setTag(uint32_t tag_2) {
+    this->tag = tag_2;
   }
 
-  void setTimeout(std::chrono::milliseconds timeout) {
-    this->timeout = timeout;
+  void setTimeout(std::chrono::milliseconds timeout_2) {
+    this->timeout = timeout_2;
   }
 
  protected:

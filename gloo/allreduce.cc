@@ -102,7 +102,6 @@ void allreduce(const detail::AllreduceOptionsImpl& opts) {
   const auto& context = opts.context;
   const std::vector<std::unique_ptr<transport::UnboundBuffer>>& in = opts.in;
   const std::vector<std::unique_ptr<transport::UnboundBuffer>>& out = opts.out;
-  const auto slot = Slot::build(kAllreduceSlotPrefix, opts.tag);
 
   // Sanity checks
   GLOO_ENFORCE_GT(out.size(), 0);

@@ -16,12 +16,12 @@
 
 namespace gloo {
 
-void GathervOptions::setElementSize(size_t elementSize) {
+void GathervOptions::setElementSize(size_t elementSize_2) {
   if (this->elementSize == 0) {
-    this->elementSize = elementSize;
+    this->elementSize = elementSize_2;
   } else {
     GLOO_ENFORCE_EQ(
-        elementSize,
+        elementSize_2,
         this->elementSize,
         "Element size does not match existing value. ",
         "Please double check that the input and output types match.");
@@ -30,30 +30,30 @@ void GathervOptions::setElementSize(size_t elementSize) {
 
 void GathervOptions::setInput(
     std::unique_ptr<transport::UnboundBuffer> buf,
-    size_t elementSize) {
-  this->setElementSize(elementSize);
+    size_t elementSize_2) {
+  this->setElementSize(elementSize_2);
   this->in = std::move(buf);
 }
 
 void GathervOptions::setInput(
     void* ptr,
     size_t elements,
-    size_t elementSize) {
-  this->setElementSize(elementSize);
-  this->in = context->createUnboundBuffer(ptr, elements * elementSize);
+    size_t elementSize_2) {
+  this->setElementSize(elementSize_2);
+  this->in = context->createUnboundBuffer(ptr, elements * elementSize_2);
 }
 
 void GathervOptions::setOutput(
     std::unique_ptr<transport::UnboundBuffer> buf,
-    std::vector<size_t> elementsPerRank,
-    size_t elementSize) {
+    std::vector<size_t> elementsPerRank_2,
+    size_t elementSize_2) {
   const auto totalElements =
       std::accumulate(
-          elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
-  GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
-  this->elementsPerRank = std::move(elementsPerRank);
-  GLOO_ENFORCE_EQ(totalElements * elementSize, buf->size);
+          elementsPerRank_2.begin(), elementsPerRank_2.end(), size_t(0));
+  this->setElementSize(elementSize_2);
+  GLOO_ENFORCE_EQ(elementsPerRank_2.size(), context->size);
+  this->elementsPerRank = std::move(elementsPerRank_2);
+  GLOO_ENFORCE_EQ(totalElements * elementSize_2, buf->size);
   this->out = std::move(buf);
 }
 

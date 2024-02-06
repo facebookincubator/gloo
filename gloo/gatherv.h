@@ -31,25 +31,25 @@ class GathervOptions {
   template <typename T>
   void setOutput(
       std::unique_ptr<transport::UnboundBuffer> buf,
-      std::vector<size_t> elementsPerRank) {
-    setOutput(std::move(buf), std::move(elementsPerRank), sizeof(T));
+      std::vector<size_t> elementsPerRank_2) {
+    setOutput(std::move(buf), std::move(elementsPerRank_2), sizeof(T));
   }
 
   template <typename T>
-  void setOutput(T* ptr, std::vector<size_t> elementsPerRank) {
-    setOutput(static_cast<void*>(ptr), std::move(elementsPerRank), sizeof(T));
+  void setOutput(T* ptr, std::vector<size_t> elementsPerRank_2) {
+    setOutput(static_cast<void*>(ptr), std::move(elementsPerRank_2), sizeof(T));
   }
 
-  void setRoot(int root) {
-    this->root = root;
+  void setRoot(int root_2) {
+    this->root = root_2;
   }
 
-  void setTag(uint32_t tag) {
-    this->tag = tag;
+  void setTag(uint32_t tag_2) {
+    this->tag = tag_2;
   }
 
-  void setTimeout(std::chrono::milliseconds timeout) {
-    this->timeout = timeout;
+  void setTimeout(std::chrono::milliseconds timeout_2) {
+    this->timeout = timeout_2;
   }
 
  protected:

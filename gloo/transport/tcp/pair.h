@@ -146,6 +146,8 @@ class Pair : public ::gloo::transport::Pair, public Handler {
 
   void close() override;
 
+  bool isConnected() override;
+
  protected:
   // Refer to parent context using raw pointer. This could be a
   // weak_ptr, seeing as the context class is a shared_ptr, but:

@@ -72,7 +72,7 @@ TYPED_TEST(MathTest, Sum) {
       }
     }
   }
-};
+}
 
 TYPED_TEST(MathTest, Product) {
   std::array<TypeParam, num> a, b, c;
@@ -94,7 +94,7 @@ TYPED_TEST(MathTest, Product) {
       }
     }
   }
-};
+}
 
 TYPED_TEST(MathTest, Min) {
   std::array<TypeParam, num> a, b, c;
@@ -116,7 +116,7 @@ TYPED_TEST(MathTest, Min) {
       }
     }
   }
-};
+}
 
 TYPED_TEST(MathTest, Max) {
   std::array<TypeParam, num> a, b, c;
@@ -138,7 +138,7 @@ TYPED_TEST(MathTest, Max) {
       }
     }
   }
-};
+}
 
 template <typename TypeParam>
 void perf(void (*fn)(void* c, const void* a, const void* b, size_t n)) {

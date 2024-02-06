@@ -127,14 +127,14 @@ class Context {
       }
 
       // Push rank to the end of the list.
-      void push(rank_t rank) {
-        ranks_.push_back(rank);
+      void push(rank_t rank_2) {
+        ranks_.push_back(rank_2);
       }
 
       // Shift rank from the beginning of the list.
       // Returns if the rank could be found and was removed.
-      bool shift(rank_t rank) {
-        auto it = std::find(ranks_.begin(), ranks_.end(), rank);
+      bool shift(rank_t rank_2) {
+        auto it = std::find(ranks_.begin(), ranks_.end(), rank_2);
         if (it != ranks_.end()) {
           ranks_.erase(it);
           return true;
@@ -163,20 +163,20 @@ class Context {
       return recv_.list();
     }
 
-    void pushSend(rank_t rank) {
-      send_.push(rank);
+    void pushSend(rank_t rank_2) {
+      send_.push(rank_2);
     }
 
-    void pushRecv(rank_t rank) {
-      recv_.push(rank);
+    void pushRecv(rank_t rank_2) {
+      recv_.push(rank_2);
     }
 
-    bool shiftSend(rank_t rank) {
-      return send_.shift(rank);
+    bool shiftSend(rank_t rank_2) {
+      return send_.shift(rank_2);
     }
 
-    bool shiftRecv(rank_t rank) {
-      return recv_.shift(rank);
+    bool shiftRecv(rank_t rank_2) {
+      return recv_.shift(rank_2);
     }
 
    private:

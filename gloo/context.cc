@@ -42,8 +42,8 @@ std::unique_ptr<transport::Pair>& Context::getPair(int i) {
 }
 
 std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
-    void* ptr, size_t size) {
-  return transportContext_->createUnboundBuffer(ptr, size);
+    void* ptr, size_t size_2) {
+  return transportContext_->createUnboundBuffer(ptr, size_2);
 }
 
 int Context::nextSlot(int numToSkip) {

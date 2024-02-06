@@ -52,6 +52,11 @@ const Address& Pair::address() const {
   return addr_;
 }
 
+bool Pair::isConnected() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return state_ == CONNECTED;
+}
+
 void Pair::connect(const std::vector<char>& bytes) {
   const auto peer = Address(bytes);
 

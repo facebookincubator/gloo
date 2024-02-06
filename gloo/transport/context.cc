@@ -19,8 +19,8 @@ Context::Context(int rank, int size) : rank(rank), size(size) {
 // Have to provide implementation for pure virtual destructor.
 Context::~Context() {}
 
-std::unique_ptr<transport::Pair>& Context::getPair(int rank) {
-  return pairs_.at(rank);
+std::unique_ptr<transport::Pair>& Context::getPair(int rank_2) {
+  return pairs_.at(rank_2);
 }
 
 void Context::createAndConnectAllPairs(IStore& store) {

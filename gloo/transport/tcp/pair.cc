@@ -43,7 +43,6 @@ namespace {
 // It is hard coded because making buffers larger than this would not
 // have much impact. Also see socket(7).
 constexpr size_t kMaxSendBufferSize = 32 * 1024 * 1024;
-constexpr size_t kMaxRecvBufferSize = 32 * 1024 * 1024;
 
 } // namespace
 
@@ -94,6 +93,11 @@ void Pair::close() {
 
 const Address& Pair::address() const {
   return self_;
+}
+
+bool Pair::isConnected() {
+  std::lock_guard<std::mutex> lock(m_);
+  return state_ == CONNECTED;
 }
 
 void Pair::connect(const std::vector<char>& bytes) {

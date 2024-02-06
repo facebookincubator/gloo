@@ -30,12 +30,12 @@ static void splitOffsetsAndLengths(
   }
 }
 
-void AlltoallvOptions::setElementSize(size_t elementSize) {
+void AlltoallvOptions::setElementSize(size_t elementSize_2) {
   if (this->elementSize == 0) {
-    this->elementSize = elementSize;
+    this->elementSize = elementSize_2;
   } else {
     GLOO_ENFORCE_EQ(
-        elementSize,
+        elementSize_2,
         this->elementSize,
         "Element size does not match existing value. ",
         "Please double check that the input and output types match.");
@@ -45,75 +45,75 @@ void AlltoallvOptions::setElementSize(size_t elementSize) {
 void AlltoallvOptions::setInput(
     std::unique_ptr<transport::UnboundBuffer> buf,
     std::vector<int64_t> elementsPerRank,
-    size_t elementSize) {
+    size_t elementSize_2) {
   const auto totalElements = std::accumulate(
       elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
+  this->setElementSize(elementSize_2);
   GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
   this->inOffsetPerRank.reserve(elementsPerRank.size());
   this->inLengthPerRank.reserve(elementsPerRank.size());
   splitOffsetsAndLengths(
       elementsPerRank,
-      elementSize,
+      elementSize_2,
       this->inOffsetPerRank,
       this->inLengthPerRank);
-  GLOO_ENFORCE_EQ(totalElements * elementSize, buf->size);
+  GLOO_ENFORCE_EQ(totalElements * elementSize_2, buf->size);
   this->in = std::move(buf);
 }
 
 void AlltoallvOptions::setInput(
     void* ptr,
     std::vector<int64_t> elementsPerRank,
-    size_t elementSize) {
+    size_t elementSize_2) {
   const auto totalElements = std::accumulate(
       elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
+  this->setElementSize(elementSize_2);
   GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
   this->inOffsetPerRank.reserve(elementsPerRank.size());
   this->inLengthPerRank.reserve(elementsPerRank.size());
   splitOffsetsAndLengths(
       elementsPerRank,
-      elementSize,
+      elementSize_2,
       this->inOffsetPerRank,
       this->inLengthPerRank);
-  this->in = context->createUnboundBuffer(ptr, totalElements * elementSize);
+  this->in = context->createUnboundBuffer(ptr, totalElements * elementSize_2);
 }
 
 void AlltoallvOptions::setOutput(
     std::unique_ptr<transport::UnboundBuffer> buf,
     std::vector<int64_t> elementsPerRank,
-    size_t elementSize) {
+    size_t elementSize_2) {
   const auto totalElements = std::accumulate(
       elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
+  this->setElementSize(elementSize_2);
   GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
   this->outOffsetPerRank.reserve(elementsPerRank.size());
   this->outLengthPerRank.reserve(elementsPerRank.size());
   splitOffsetsAndLengths(
       elementsPerRank,
-      elementSize,
+      elementSize_2,
       this->outOffsetPerRank,
       this->outLengthPerRank);
-  GLOO_ENFORCE_EQ(totalElements * elementSize, buf->size);
+  GLOO_ENFORCE_EQ(totalElements * elementSize_2, buf->size);
   this->out = std::move(buf);
 }
 
 void AlltoallvOptions::setOutput(
     void* ptr,
     std::vector<int64_t> elementsPerRank,
-    size_t elementSize) {
+    size_t elementSize_2) {
   const auto totalElements = std::accumulate(
       elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
+  this->setElementSize(elementSize_2);
   GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
   this->outOffsetPerRank.reserve(elementsPerRank.size());
   this->outLengthPerRank.reserve(elementsPerRank.size());
   splitOffsetsAndLengths(
       elementsPerRank,
-      elementSize,
+      elementSize_2,
       this->outOffsetPerRank,
       this->outLengthPerRank);
-  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize);
+  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize_2);
 }
 
 void alltoallv(AlltoallvOptions& opts) {

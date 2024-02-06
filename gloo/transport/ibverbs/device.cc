@@ -25,8 +25,6 @@ namespace gloo {
 namespace transport {
 namespace ibverbs {
 
-static const std::chrono::seconds kTimeoutDefault = std::chrono::seconds(30);
-
 // Scope guard for ibverbs device list.
 class IbvDevices {
  public:

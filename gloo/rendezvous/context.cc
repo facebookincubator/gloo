@@ -16,8 +16,6 @@
 namespace gloo {
 namespace rendezvous {
 
-constexpr int64_t HOSTNAME_MAX_SIZE = 256;
-
 Context::Context(int rank, int size, int base)
     : ::gloo::Context(rank, size, base) {
 }
@@ -48,7 +46,7 @@ ContextFactory::ContextFactory(std::shared_ptr<::gloo::Context> backingContext)
       GLOO_ENFORCE(
         backingContext_->getPair(i) != nullptr,
         "Missing pair in backing context");
-    } catch(std::out_of_range& e) {
+    } catch(std::out_of_range&) {
       GLOO_THROW("Backing context not fully connected");
     }
   }
