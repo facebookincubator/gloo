@@ -1080,11 +1080,11 @@ void Pair::signalException(std::exception_ptr ex) {
   changeState(CLOSED);
 }
 
-void Pair::signalAndThrowException(const std::string& msg) {
+[[noreturn]] void Pair::signalAndThrowException(const std::string& msg) {
   signalAndThrowException(std::make_exception_ptr(::gloo::IoException(msg)));
 }
 
-void Pair::signalAndThrowException(std::exception_ptr ex) {
+[[noreturn]] void Pair::signalAndThrowException(std::exception_ptr ex) {
   signalException(ex);
   std::rethrow_exception(ex);
 }

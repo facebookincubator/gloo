@@ -325,8 +325,8 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   void signalException(std::exception_ptr);
 
   // Like signalException, but throws exception as well.
-  void signalAndThrowException(const std::string& msg);
-  void signalAndThrowException(std::exception_ptr ex);
+  [[noreturn]] void signalAndThrowException(const std::string& msg);
+  [[noreturn]] void signalAndThrowException(std::exception_ptr ex);
 
   // Cache exception such that it can be rethrown if any function on
   // this instance is called again when it is in an error state.
