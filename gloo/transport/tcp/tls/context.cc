@@ -56,8 +56,8 @@ SSL_CTX *Context::create_ssl_ctx(const char *pkey, const char *cert,
     //    SSL_load_error_strings();
     //    SSL_library_init();
     _glootls::OPENSSL_init_ssl(
-        OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-    _glootls::OPENSSL_init_ssl(0, NULL);
+        OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
+    _glootls::OPENSSL_init_ssl(0, nullptr);
   });
   SSL_CTX *ssl_ctx = _glootls::SSL_CTX_new(_glootls::TLS_method());
   GLOO_ENFORCE(ssl_ctx != nullptr, getSSLErrorMessage());
