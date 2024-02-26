@@ -27,7 +27,7 @@ class Store: public IStore {
   static constexpr std::chrono::milliseconds kDefaultTimeout =
       std::chrono::seconds(30);
 
-  virtual ~Store();
+  virtual ~Store() = default;
 
   virtual void set(const std::string& key, const std::vector<char>& data) = 0;
 
