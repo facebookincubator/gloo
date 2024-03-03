@@ -59,7 +59,7 @@ def matched_files_iter(root_path, includes=("*",), ignores=(), extensions=()):
     # needs to work even if you're in a Git or Hg checkout, so easier to
     # just blacklist the biggest time sinks that won't matter in the
     # end.
-    for (abs_dirpath, dirs, filenames) in os.walk(root_path, topdown=True):
+    for abs_dirpath, dirs, filenames in os.walk(root_path, topdown=True):
         rel_dirpath = os.path.relpath(abs_dirpath, root_path)
         if rel_dirpath == ".":
             # Blah blah blah O(n) blah blah
