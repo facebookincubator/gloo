@@ -115,7 +115,7 @@ void Context::connectFullMesh(std::shared_ptr<transport::Device>& dev) {
 
   // Prepare input and output
   std::vector<char> in(size * maxLength);
-  std::vector<char> out(size * size * maxLength);
+  std::vector<char> out((std::size_t)size * size * maxLength);
   for (int i = 0; i < size; i++) {
     if (i == rank) {
       continue;
