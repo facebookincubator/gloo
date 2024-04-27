@@ -251,13 +251,13 @@ class CudaAllreduceBcube : public Algorithm {
   void init(
       typename std::enable_if<
           std::is_same<U, CudaHostWorkspace<T>>::value,
-          typename U::Pointer>::type* = 0);
+          typename U::Pointer>::type* = nullptr);
 
   template <typename U = W>
   void init(
       typename std::enable_if<
           std::is_same<U, CudaDeviceWorkspace<T>>::value,
-          typename U::Pointer>::type* = 0);
+          typename U::Pointer>::type* = nullptr);
 };
 
 namespace cuda {
