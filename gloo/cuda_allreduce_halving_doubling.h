@@ -42,17 +42,17 @@ class CudaAllreduceHalvingDoubling : public Algorithm {
   template <typename U = W>
   void init(
       typename std::enable_if<std::is_same<U, CudaHostWorkspace<T> >::value,
-                              typename U::Pointer>::type* = 0);
+                              typename U::Pointer>::type* = nullptr);
 
   template <typename U = W>
   void init(
       typename std::enable_if<std::is_same<U, CudaDeviceWorkspace<T> >::value,
-                              typename U::Pointer>::type* = 0);
+                              typename U::Pointer>::type* = nullptr);
 
   template <typename U = W>
   void initReductionsAndBroadcasts(
       typename std::enable_if<std::is_same<U, CudaHostWorkspace<T> >::value,
-                              typename U::Pointer>::type* = 0);
+                              typename U::Pointer>::type* = nullptr);
 
   template <typename U = W>
   void initReductionsAndBroadcasts(
