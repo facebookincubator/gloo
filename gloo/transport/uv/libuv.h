@@ -346,7 +346,7 @@ class Handle : public Resource<T, U>, public BaseHandle {
   }
 
   template <typename F, typename... Args>
-  typename std::result_of<F(Args...)>::type invoke(F&& f, Args&&... args) {
+  typename std::invoke_result<F, Args...>::type invoke(F&& f, Args&&... args) {
     return std::forward<F>(f)(std::forward<Args>(args)...);
   }
 
@@ -383,8 +383,8 @@ class Request : public Resource<T, U>, public BaseRequest {
   // assumption that it is unleaked when the callback gets called.
   template <typename F, typename... Args>
   typename std::enable_if<
-      !std::is_void<typename std::result_of<F(Args...)>::type>::value,
-      typename std::result_of<F(Args...)>::type>::type
+      !std::is_void<typename std::invoke_result<F, Args...>::type>::value,
+      typename std::invoke_result<F, Args...>::type>::type
   invoke(F&& f, Args&&... args) {
     auto err = std::forward<F>(f)(std::forward<Args>(args)...);
     if (err) {
