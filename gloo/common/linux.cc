@@ -190,53 +190,64 @@ const std::string& infinibandToBusID(const std::string& name) {
 }
 
 static int getInterfaceSpeedGLinkSettings(int sock, struct ifreq* ifr) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
-  constexpr auto link_mode_data_nwords = 3 * 127;
-  struct {
-    __u32 link_mode_data[link_mode_data_nwords];
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+    constexpr auto link_mode_data_nwords = 3 * 127;
     struct ethtool_link_settings req;
-  } ecmd;
-  int rv;
+    __u32 *link_mode_data = (__u32 *)malloc(sizeof(__u32) * link_mode_data_nwords);
+    if (link_mode_data == nullptr) {
+        return SPEED_UNKNOWN;
+    }
 
-  ifr->ifr_data = (__caddr_t)&ecmd;
-  memset(&ecmd, 0, sizeof(ecmd));
-  ecmd.req.cmd = ETHTOOL_GLINKSETTINGS;
+    int rv;
+    memset(&req, 0, sizeof(req));
+    memset(link_mode_data, 0, sizeof(__u32) * link_mode_data_nwords);
 
-  rv = ioctl(sock, SIOCETHTOOL, ifr);
-  if (rv < 0 || ecmd.req.link_mode_masks_nwords >= 0) {
-    return SPEED_UNKNOWN;
-  }
+    struct {
+        struct ethtool_link_settings *req;
+        __u32 *link_mode_data;
+    } ecmd = { &req, link_mode_data };
 
-  ecmd.req.cmd = ETHTOOL_GLINKSETTINGS;
-  ecmd.req.link_mode_masks_nwords = -ecmd.req.link_mode_masks_nwords;
-  rv = ioctl(sock, SIOCETHTOOL, ifr);
-  if (rv < 0) {
-    return SPEED_UNKNOWN;
-  }
+    ifr->ifr_data = (char*)&ecmd;
+    ecmd.req->cmd = ETHTOOL_GLINKSETTINGS;
 
-  return ecmd.req.speed;
+    rv = ioctl(sock, SIOCETHTOOL, ifr);
+    if (rv < 0 || ecmd.req->link_mode_masks_nwords >= 0) {
+        free(link_mode_data);
+        return SPEED_UNKNOWN;
+    }
+
+    ecmd.req->cmd = ETHTOOL_GLINKSETTINGS;
+    ecmd.req->link_mode_masks_nwords = -ecmd.req->link_mode_masks_nwords;
+    rv = ioctl(sock, SIOCETHTOOL, ifr);
+    if (rv < 0) {
+        free(link_mode_data);
+        return SPEED_UNKNOWN;
+    }
+
+    int speed = ecmd.req->speed;
+    free(link_mode_data);
+    return speed;
 #else
-  (void)sock;
-  (void)ifr;
-  return SPEED_UNKNOWN;
+    return SPEED_UNKNOWN;
 #endif
 }
 
 static int getInterfaceSpeedGSet(int sock, struct ifreq* ifr) {
-  struct ethtool_cmd edata;
-  int rv;
+    struct ethtool_cmd edata;
+    int rv;
 
-  ifr->ifr_data = (__caddr_t)&edata;
-  memset(&edata, 0, sizeof(edata));
-  edata.cmd = ETHTOOL_GSET;
+    ifr->ifr_data = (char*)&edata;
+    memset(&edata, 0, sizeof(edata));
+    edata.cmd = ETHTOOL_GSET;
 
-  rv = ioctl(sock, SIOCETHTOOL, ifr);
-  if (rv < 0) {
-    return SPEED_UNKNOWN;
-  }
+    rv = ioctl(sock, SIOCETHTOOL, ifr);
+    if (rv < 0) {
+        return SPEED_UNKNOWN;
+    }
 
-  return ethtool_cmd_speed(&edata);
+    return ethtool_cmd_speed(&edata);
 }
+
 
 int getInterfaceSpeedByName(const std::string& ifname) {
   int sock;
