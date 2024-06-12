@@ -52,7 +52,7 @@ class MultiProcTest : public ::testing::Test {
   // A single function that encapsulates spawnAsync to run the specified number
   // of child processes, waiting for their completion, and asserting correct
   // exit statuses.
-  void spawn(Transport transport, int size, std::function<void(std::shared_ptr<Context>)> fn);
+  void spawnProcesses(Transport transport, int size, std::function<void(std::shared_ptr<Context>)> fn);
 
  private:
   // Creates a MultiProcWorker to run the specified lambda.
