@@ -13,6 +13,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <array>
 
 
 #include "gloo/common/linux.h"
