@@ -59,15 +59,15 @@ void GathervOptions::setOutput(
 
 void GathervOptions::setOutput(
     void* ptr,
-    std::vector<size_t> elementsPerRank,
-    size_t elementSize) {
+    std::vector<size_t> elementsPerRank_2,
+    size_t elementSize_2) {
   const auto totalElements =
       std::accumulate(
-          elementsPerRank.begin(), elementsPerRank.end(), size_t(0));
-  this->setElementSize(elementSize);
-  GLOO_ENFORCE_EQ(elementsPerRank.size(), context->size);
-  this->elementsPerRank = std::move(elementsPerRank);
-  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize);
+          elementsPerRank_2.begin(), elementsPerRank_2.end(), size_t(0));
+  this->setElementSize(elementSize_2);
+  GLOO_ENFORCE_EQ(elementsPerRank_2.size(), context->size);
+  this->elementsPerRank = std::move(elementsPerRank_2);
+  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize_2);
 }
 
 void gatherv(GathervOptions& opts) {
