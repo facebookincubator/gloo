@@ -61,6 +61,9 @@ class UnboundBuffer : public ::gloo::transport::UnboundBuffer {
   void handleRecvCompletion(int rank);
   void handleSendCompletion(int rank);
 
+  bool testRecv() override;
+  bool testSend() override;
+
  protected:
   std::shared_ptr<Context> context_;
 
