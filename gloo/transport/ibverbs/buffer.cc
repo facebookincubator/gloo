@@ -168,8 +168,6 @@ void Buffer::waitSend() {
 }
 
 void Buffer::send(size_t offset, size_t length, size_t roffset) {
-  int rv;
-
   // Can't assert on roffset, since we don't know the size of
   // the remote buffer. Refactor of initialization code needed
   // to support this.

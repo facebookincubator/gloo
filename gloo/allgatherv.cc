@@ -58,14 +58,14 @@ void AllgathervOptions::setOutput(
 
 void AllgathervOptions::setOutput(
     void* ptr,
-    std::vector<size_t> elements,
-    size_t elementSize) {
+    std::vector<size_t> elements_2,
+    size_t elementSize_2) {
   const auto totalElements =
-      std::accumulate(elements.begin(), elements.end(), size_t(0));
-  setElementSize(elementSize);
-  GLOO_ENFORCE_EQ(elements.size(), context->size);
-  this->elements = std::move(elements);
-  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize);
+      std::accumulate(elements_2.begin(), elements_2.end(), size_t(0));
+  setElementSize(elementSize_2);
+  GLOO_ENFORCE_EQ(elements_2.size(), context->size);
+  this->elements = std::move(elements_2);
+  this->out = context->createUnboundBuffer(ptr, totalElements * elementSize_2);
 }
 
 void allgatherv(AllgathervOptions& opts) {

@@ -8,16 +8,17 @@
 
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 #include "gloo/mpi/context.h"
 #include "gloo/transport/tcp/device.h"
 #include "gloo/allreduce_ring.h"
 
 int main(int argc, char** argv) {
-  int rv;
-
-  rv = MPI_Init(&argc, &argv);
-  assert(rv == MPI_SUCCESS);
+  auto rv = MPI_Init(&argc, &argv);
+  if(rv != MPI_SUCCESS) {
+    throw std::runtime_error("Failed to initialize MPI");
+  }
 
   // We'll use the TCP transport in this example
   auto dev = gloo::transport::tcp::CreateDevice("localhost");
@@ -36,6 +37,9 @@ int main(int argc, char** argv) {
   }
 
   rv = MPI_Finalize();
-  assert(rv == MPI_SUCCESS);
+  if(rv != MPI_SUCCESS) {
+    throw std::runtime_error("Failed to Finalize MPI");
+  }
+
   return 0;
 }
