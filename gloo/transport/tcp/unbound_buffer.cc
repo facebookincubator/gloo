@@ -28,9 +28,15 @@ UnboundBuffer::UnboundBuffer(
       recvRank_(-1),
       sendCompletions_(0),
       sendRank_(-1),
-      shareableNonOwningPtr_(this) {}
+      shareableNonOwningPtr_(this) {
+  gloo::_register_cv(&recvCv_);
+  gloo::_register_cv(&sendCv_);
+}
 
-UnboundBuffer::~UnboundBuffer() {}
+UnboundBuffer::~UnboundBuffer() {
+  gloo::_deregister_cv(&recvCv_);
+  gloo::_deregister_cv(&sendCv_);
+}
 
 void UnboundBuffer::handleRecvCompletion(int rank) {
   std::lock_guard<std::mutex> lock(m_);
@@ -60,6 +66,9 @@ bool UnboundBuffer::waitRecv(int* rank, std::chrono::milliseconds timeout) {
   if (recvCompletions_ == 0) {
     auto done = recvCv_.wait_for(lock, timeout, [&] {
       throwIfException();
+      if(gloo::_is_aborted()) {
+       abortWaitRecv_ = true;
+      }
       return abortWaitRecv_ || recvCompletions_ > 0;
     });
     if (!done) {
@@ -111,9 +120,12 @@ bool UnboundBuffer::waitSend(int* rank, std::chrono::milliseconds timeout) {
 
   if (sendCompletions_ == 0) {
     auto done = sendCv_.wait_for(lock, timeout, [&] {
-        throwIfException();
-        return abortWaitSend_ || sendCompletions_ > 0;
-      });
+      throwIfException();
+      if(gloo::_is_aborted()) {
+        abortWaitSend_ = true;
+      }
+      return abortWaitSend_ || sendCompletions_ > 0;
+    });
     if (!done) {
       // Below, we let all pairs in the transport context know about this
       // application side timeout. This in turn will call into all pending
