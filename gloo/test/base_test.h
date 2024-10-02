@@ -66,22 +66,22 @@ enum Transport {
 };
 
 // Transports that instantiated algorithms can be tested against.
-const std::vector<Transport> kTransportsForClassAlgorithms {
-  Transport::TCP,
+const std::vector<Transport> kTransportsForClassAlgorithms{
+    Transport::TCP,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
-      Transport::TCP_TLS,
+    Transport::TCP_TLS,
 #endif
 };
 
 // Transports that function algorithms can be tested against.
 // This is the new style of calling collectives and must be
 // preferred over the instantiated style.
-const std::vector<Transport> kTransportsForFunctionAlgorithms {
-  Transport::TCP,
+const std::vector<Transport> kTransportsForFunctionAlgorithms{
+    Transport::TCP,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
-      Transport::TCP_TLS,
+    Transport::TCP_TLS,
 #endif
-      Transport::UV,
+    Transport::UV,
 };
 
 std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport);

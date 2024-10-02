@@ -36,7 +36,7 @@ class Pair : public ::gloo::transport::Pair {
   static constexpr auto kRecvCompletionQueueCapacity = kMaxBuffers;
   static constexpr auto kSendCompletionQueueCapacity = kMaxBuffers;
   static constexpr auto kCompletionQueueCapacity =
-    kRecvCompletionQueueCapacity + kSendCompletionQueueCapacity;
+      kRecvCompletionQueueCapacity + kSendCompletionQueueCapacity;
 
   // The ibv_req_notify(3) function takes an argument called
   // 'solicited_only' which makes it only trigger a notification for
@@ -135,7 +135,7 @@ class Pair : public ::gloo::transport::Pair {
   // mappedRecvRegions_. These regions are referenced round-robin for
   // every posted receive work request.
   //
-  std::map<int, std::unique_ptr<MemoryRegion> > mappedSendRegions_;
+  std::map<int, std::unique_ptr<MemoryRegion>> mappedSendRegions_;
   std::array<std::unique_ptr<MemoryRegion>, kMaxBuffers> mappedRecvRegions_;
 
   // Keep track of number of request work requests posted and completed.

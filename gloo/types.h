@@ -98,7 +98,7 @@ struct alignas(2) float16 {
 
   float16() : x(0) {}
 
-  float16(const float16 &) = default;
+  float16(const float16&) = default;
 
   explicit float16(int val) {
     float16 res = cpu_float2half_rn(static_cast<float>(val));

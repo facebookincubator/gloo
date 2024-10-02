@@ -93,7 +93,8 @@ class Context {
   // any kind of send/recv operation.
   std::chrono::milliseconds timeout_;
 
-  std::vector<char> extractAddress(const std::vector<char>& allAddrs, int i) const;
+  std::vector<char> extractAddress(const std::vector<char>& allAddrs, int i)
+      const;
 
  protected:
   // Keep track of pending send and recv notifications or operations

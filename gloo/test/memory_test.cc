@@ -38,7 +38,7 @@ size_t readResidentSetSize() {
 }
 #endif
 
-const std::vector<Transport> kTransportsForMemoryTest {
+const std::vector<Transport> kTransportsForMemoryTest{
     Transport::TCP,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
     Transport::TCP_TLS,

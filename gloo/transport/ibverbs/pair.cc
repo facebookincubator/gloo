@@ -39,11 +39,7 @@ Pair::Pair(
     // Pairs use asynchronous completion handling by default so
     // we call ibv_req_notify_cq(3) to request the first notification.
     cq_ = ibv_create_cq(
-      dev_->context_,
-      kCompletionQueueCapacity,
-      this,
-      dev_->comp_channel_,
-      0);
+        dev_->context_, kCompletionQueueCapacity, this, dev_->comp_channel_, 0);
     GLOO_ENFORCE(cq_);
 
     // Arm notification mechanism for completion queue.
@@ -258,17 +254,15 @@ const struct ibv_mr* Pair::getMemoryRegion(int slot) {
       if (timeout_ != kNoTimeout &&
           (std::chrono::steady_clock::now() - start) >= timeout_) {
         lock.unlock();
-        signalIoFailure(
-            GLOO_ERROR_MSG(
-                "Timeout waiting for memory region from ",
-                peer_.str()));
+        signalIoFailure(GLOO_ERROR_MSG(
+            "Timeout waiting for memory region from ", peer_.str()));
         GLOO_ENFORCE(false, "Unexpected code path");
       }
       it = peerMemoryRegions_.find(slot);
     }
     return &it->second;
   } else {
-    auto pred = [&]{
+    auto pred = [&] {
       return peerMemoryRegions_.find(slot) != peerMemoryRegions_.end();
     };
     if (timeout_ == kNoTimeout) {
@@ -277,10 +271,8 @@ const struct ibv_mr* Pair::getMemoryRegion(int slot) {
     } else {
       auto done = cv_.wait_for(lock, timeout_, pred);
       if (!done) {
-        signalIoFailure(
-            GLOO_ERROR_MSG(
-                "Timeout waiting for memory region from ",
-                peer_.str()));
+        signalIoFailure(GLOO_ERROR_MSG(
+            "Timeout waiting for memory region from ", peer_.str()));
         GLOO_ENFORCE(false, "Unexpected code path");
       }
     }
@@ -348,7 +340,7 @@ void Pair::recv(
 
 // place holder for future use
 bool Pair::isConnected() {
-   GLOO_THROW_INVALID_OPERATION_EXCEPTION(
+  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
       "isConnected not supported yet for ibverbs transport");
 }
 
@@ -415,12 +407,12 @@ void Pair::handleCompletion(struct ibv_wc* wc) {
     // It is set in the Pair::send function.
     auto slot = wc->imm_data;
     GLOO_ENFORCE_EQ(
-      wc->status,
-      IBV_WC_SUCCESS,
-      "Recv for slot ",
-      slot,
-      ": ",
-      ibv_wc_status_str(wc->status));
+        wc->status,
+        IBV_WC_SUCCESS,
+        "Recv for slot ",
+        slot,
+        ": ",
+        ibv_wc_status_str(wc->status));
 
     GLOO_ENFORCE(recvCompletionHandlers_[slot] != nullptr);
     recvCompletionHandlers_[slot]->handleCompletion(wc);
@@ -434,12 +426,12 @@ void Pair::handleCompletion(struct ibv_wc* wc) {
     // work requests are not pass to the respective work completion.
     auto slot = wc->wr_id;
     GLOO_ENFORCE_EQ(
-      wc->status,
-      IBV_WC_SUCCESS,
-      "Send for slot ",
-      slot,
-      ": ",
-      ibv_wc_status_str(wc->status));
+        wc->status,
+        IBV_WC_SUCCESS,
+        "Send for slot ",
+        slot,
+        ": ",
+        ibv_wc_status_str(wc->status));
 
     GLOO_ENFORCE(sendCompletionHandlers_[slot] != nullptr);
     sendCompletionHandlers_[slot]->handleCompletion(wc);
@@ -459,12 +451,12 @@ void Pair::handleCompletion(struct ibv_wc* wc) {
     // It is set in the Pair::sendMemoryRegion function.
     auto slot = wc->imm_data;
     GLOO_ENFORCE_EQ(
-      wc->status,
-      IBV_WC_SUCCESS,
-      "Memory region recv for slot ",
-      slot,
-      ": ",
-      ibv_wc_status_str(wc->status));
+        wc->status,
+        IBV_WC_SUCCESS,
+        "Memory region recv for slot ",
+        slot,
+        ": ",
+        ibv_wc_status_str(wc->status));
 
     // Move ibv_mr from memory region 'inbox' to final slot.
     const auto& mr = mappedRecvRegions_[recvPosted_ % kMaxBuffers];
@@ -479,12 +471,12 @@ void Pair::handleCompletion(struct ibv_wc* wc) {
     // Memory region send completed.
     auto slot = wc->wr_id;
     GLOO_ENFORCE_EQ(
-      wc->status,
-      IBV_WC_SUCCESS,
-      "Memory region send for slot ",
-      slot,
-      ": ",
-      ibv_wc_status_str(wc->status));
+        wc->status,
+        IBV_WC_SUCCESS,
+        "Memory region send for slot ",
+        slot,
+        ": ",
+        ibv_wc_status_str(wc->status));
 
     GLOO_ENFORCE_GT(mappedSendRegions_.size(), 0);
     GLOO_ENFORCE_EQ(mappedSendRegions_.count(slot), 1);

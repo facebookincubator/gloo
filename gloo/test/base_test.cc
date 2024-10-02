@@ -12,7 +12,7 @@
 namespace gloo {
 namespace test {
 
-const char *kDefaultDevice = "localhost";
+const char* kDefaultDevice = "localhost";
 
 std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
 #if GLOO_HAVE_TRANSPORT_TCP

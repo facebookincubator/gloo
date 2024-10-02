@@ -9,8 +9,8 @@
 #include "gloo/transport/tcp/buffer.h"
 
 #include <string.h>
-#include <sys/types.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -56,7 +56,7 @@ void Buffer::waitRecv() {
     // The device thread will signal completion. If the completion
     // hasn't arrived yet, wait until it does or read times out.
     auto timeout = pair_->getTimeout();
-    auto pred = [&]{
+    auto pred = [&] {
       throwIfException();
       return recvCompletions_ > 0;
     };
@@ -95,7 +95,7 @@ void Buffer::waitSend() {
     // The device thread will signal completion. If the completion
     // hasn't arrived yet, wait until it does or write times out.
     auto timeout = pair_->getTimeout();
-    auto pred = [&]{
+    auto pred = [&] {
       throwIfException();
       return sendCompletions_ > 0;
     };

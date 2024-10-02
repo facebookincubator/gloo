@@ -8,16 +8,15 @@
 
 #include "gloo/transport/tcp/device.h"
 
-#include <array>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <array>
 
-
+#include "gloo/common/error.h"
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
-#include "gloo/common/error.h"
 #include "gloo/transport/tcp/context.h"
 #include "gloo/transport/tcp/helpers.h"
 #include "gloo/transport/tcp/pair.h"
@@ -30,7 +29,7 @@ static void lookupAddrForIface(struct attr& attr) {
   struct ifaddrs* ifap;
   auto rv = getifaddrs(&ifap);
   GLOO_ENFORCE_NE(rv, -1, strerror(errno));
-  struct ifaddrs *ifa;
+  struct ifaddrs* ifa;
   for (ifa = ifap; ifa != nullptr; ifa = ifa->ifa_next) {
     // Skip entry if ifa_addr is NULL (see getifaddrs(3))
     if (ifa->ifa_addr == nullptr) {
@@ -80,10 +79,7 @@ static void lookupAddrForIface(struct attr& attr) {
     attr.ai_protocol = 0;
     break;
   }
-  GLOO_ENFORCE(
-    ifa != nullptr,
-    "Unable to find address for: ",
-    attr.iface);
+  GLOO_ENFORCE(ifa != nullptr, "Unable to find address for: ", attr.iface);
   freeifaddrs(ifap);
   return;
 }
@@ -125,19 +121,16 @@ static void lookupAddrForHostname(struct attr& attr) {
 
   // If the final call to bind(2) failed, raise error saying so.
   GLOO_ENFORCE(
-    bind_rv == 0,
-    "Unable to find address for ",
-    attr.hostname,
-    "; bind(2) for ",
-    bind_addr,
-    " failed with: ",
-    strerror(bind_errno));
+      bind_rv == 0,
+      "Unable to find address for ",
+      attr.hostname,
+      "; bind(2) for ",
+      bind_addr,
+      " failed with: ",
+      strerror(bind_errno));
 
   // Verify that we were able to find an address in the first place.
-  GLOO_ENFORCE(
-    rp != nullptr,
-    "Unable to find address for: ",
-    attr.hostname);
+  GLOO_ENFORCE(rp != nullptr, "Unable to find address for: ", attr.hostname);
   freeaddrinfo(result);
   return;
 }
@@ -183,7 +176,7 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
   auto rv = getifaddrs(&ifap);
   GLOO_ENFORCE_NE(rv, -1, strerror(errno));
   auto addrIsLocalhost = isLocalhostAddr((struct sockaddr*)&attr.ai_addr);
-  struct ifaddrs *ifa;
+  struct ifaddrs* ifa;
   for (ifa = ifap; ifa != nullptr; ifa = ifa->ifa_next) {
     // Skip entry if ifa_addr is NULL (see getifaddrs(3))
     if (ifa->ifa_addr == nullptr) {
@@ -208,9 +201,9 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
     }
   }
   GLOO_ENFORCE(
-    ifa != nullptr,
-    "Unable to find interface for: ",
-    Address(attr.ai_addr).str());
+      ifa != nullptr,
+      "Unable to find interface for: ",
+      Address(attr.ai_addr).str());
   freeifaddrs(ifap);
   return iface;
 }
@@ -221,11 +214,9 @@ Device::Device(const struct attr& attr)
       listener_(std::make_shared<Listener>(loop_, attr)),
       interfaceName_(sockaddrToInterfaceName(attr_)),
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
-      pciBusID_(interfaceToBusID(interfaceName_)) {
-}
+      pciBusID_(interfaceToBusID(interfaceName_)) {}
 
-Device::~Device() {
-}
+Device::~Device() {}
 
 std::string Device::str() const {
   std::stringstream ss;
@@ -245,8 +236,7 @@ int Device::getInterfaceSpeed() const {
   return interfaceSpeedMbps_;
 }
 
-std::shared_ptr<transport::Context> Device::createContext(
-    int rank, int size) {
+std::shared_ptr<transport::Context> Device::createContext(int rank, int size) {
   return std::shared_ptr<transport::Context>(
       new tcp::Context(shared_from_this(), rank, size));
 }
@@ -263,9 +253,7 @@ Address Device::nextAddress() {
   return listener_->nextAddress();
 }
 
-bool Device::isInitiator(
-    const Address& local,
-    const Address& remote) const {
+bool Device::isInitiator(const Address& local, const Address& remote) const {
   int rv = 0;
   // The remote side of a pair will be called with the same
   // addresses, but in reverse. There should only be a single

@@ -9,8 +9,5 @@
 #include "gloo/rendezvous/store.h"
 
 namespace gloo {
-namespace rendezvous {
-
-
-} // namespace rendezvous
+namespace rendezvous {} // namespace rendezvous
 } // namespace gloo

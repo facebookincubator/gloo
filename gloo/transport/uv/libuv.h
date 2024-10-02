@@ -19,6 +19,7 @@
 // * No way to pass externally managed memory to the read functions.
 //
 
+#include <stdio.h>
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -31,7 +32,6 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <stdio.h>
 
 #include <uv.h>
 
@@ -554,15 +554,11 @@ class TCP final : public Handle<TCP, uv_tcp_t> {
 
   static void uv__connection_cb(uv_stream_t* server, int status);
 
-  static void uv__alloc_cb(
-      uv_handle_t* handle,
-      size_t suggested_size,
-      uv_buf_t* buf);
+  static void
+  uv__alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
-  static void uv__read_cb(
-      uv_stream_t* stream,
-      ssize_t nread,
-      const uv_buf_t* buf);
+  static void
+  uv__read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
 
   static void uv__write_cb(uv_write_t* req, int status) {}
 

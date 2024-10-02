@@ -29,12 +29,10 @@
 
 int main(void) {
   // Unrelated to the example: perform some sanity checks.
-  if (getenv("PREFIX") == nullptr ||
-      getenv("SIZE") == nullptr ||
+  if (getenv("PREFIX") == nullptr || getenv("SIZE") == nullptr ||
       getenv("RANK") == nullptr) {
-    std::cerr
-      << "Please set environment variables PREFIX, SIZE, and RANK."
-      << std::endl;
+    std::cerr << "Please set environment variables PREFIX, SIZE, and RANK."
+              << std::endl;
     return 1;
   }
 
@@ -51,8 +49,8 @@ int main(void) {
   // name, for example.
   //
   gloo::transport::tcp::attr attr;
-  //attr.iface = "eth0";
-  //attr.iface = "ib0";
+  // attr.iface = "eth0";
+  // attr.iface = "ib0";
   attr.iface = "lo";
 
   // attr.ai_family = AF_INET; // Force IPv4
@@ -124,8 +122,7 @@ int main(void) {
 
   // Instantiate the collective algorithm.
   auto allreduce =
-    std::make_shared<gloo::AllreduceRing<int>>(
-      context, ptrs, count);
+      std::make_shared<gloo::AllreduceRing<int>>(context, ptrs, count);
 
   // Run the algorithm.
   allreduce->run();

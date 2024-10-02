@@ -88,8 +88,10 @@ class AlltoallvOptions {
       size_t elementSize);
 
   // Untemplated implementation of setOutput on opaque pointer.
-  void
-  setOutput(void* ptr, std::vector<int64_t> elementsPerRank, size_t elementSize);
+  void setOutput(
+      void* ptr,
+      std::vector<int64_t> elementsPerRank,
+      size_t elementSize);
 
   // End-to-end timeout for this operation.
   std::chrono::milliseconds timeout;

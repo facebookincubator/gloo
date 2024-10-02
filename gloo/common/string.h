@@ -42,7 +42,9 @@ std::string MakeString(const Args&... args) {
 }
 
 template <typename T>
-std::string MakeString(const std::vector<T>& v, const std::string& delim=" ") {
+std::string MakeString(
+    const std::vector<T>& v,
+    const std::string& delim = " ") {
   std::stringstream ss;
   for (auto it = v.begin(); it < v.end(); it++) {
     if (it != v.begin()) {

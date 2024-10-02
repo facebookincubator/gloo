@@ -23,8 +23,8 @@ class IStore {
   virtual std::vector<char> get(const std::string& key) = 0;
 
   virtual void wait(
-    const std::vector<std::string>& keys,
-    const std::chrono::milliseconds& timeout) = 0;
+      const std::vector<std::string>& keys,
+      const std::chrono::milliseconds& timeout) = 0;
 };
 
 } // namespace gloo

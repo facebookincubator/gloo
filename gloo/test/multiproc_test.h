@@ -33,8 +33,10 @@ class MultiProcTest : public ::testing::Test {
 
   // Forks numRanks child processes that create a context of the defined
   // transport and run the provided lambda function.
-  void spawnAsync(Transport transport, int numRanks,
-                  std::function<void(std::shared_ptr<Context>)> fn);
+  void spawnAsync(
+      Transport transport,
+      int numRanks,
+      std::function<void(std::shared_ptr<Context>)> fn);
 
   // Waits on each forked child process.
   void wait();
@@ -52,7 +54,10 @@ class MultiProcTest : public ::testing::Test {
   // A single function that encapsulates spawnAsync to run the specified number
   // of child processes, waiting for their completion, and asserting correct
   // exit statuses.
-  void spawn(Transport transport, int size, std::function<void(std::shared_ptr<Context>)> fn);
+  void spawn(
+      Transport transport,
+      int size,
+      std::function<void(std::shared_ptr<Context>)> fn);
 
  private:
   // Creates a MultiProcWorker to run the specified lambda.

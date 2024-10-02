@@ -39,15 +39,12 @@ class EnforceNotMet : public std::exception {
   std::string full_msg_;
 };
 
-#define GLOO_ENFORCE(condition, ...)        \
-  do {                                      \
-    if (!(condition)) {                     \
-      throw ::gloo::EnforceNotMet(          \
-          __FILE__,                         \
-          __LINE__,                         \
-          #condition,                       \
-          ::gloo::MakeString(__VA_ARGS__)); \
-    }                                       \
+#define GLOO_ENFORCE(condition, ...)                                        \
+  do {                                                                      \
+    if (!(condition)) {                                                     \
+      throw ::gloo::EnforceNotMet(                                          \
+          __FILE__, __LINE__, #condition, ::gloo::MakeString(__VA_ARGS__)); \
+    }                                                                       \
   } while (false)
 
 /**
@@ -141,7 +138,7 @@ BINARY_COMP_HELPER(LessEquals, <=)
           r.get_message_and_free(MakeString(__VA_ARGS__))); \
     }                                                       \
   } while (false)
-}
+} // namespace enforce_detail
 
 #define GLOO_ENFORCE_THAT(condition, ...) \
   GLOO_ENFORCE_THAT_IMPL((condition), #condition, __VA_ARGS__)

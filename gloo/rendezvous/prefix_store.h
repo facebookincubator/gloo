@@ -35,9 +35,13 @@ class PrefixStore : public Store {
       const std::chrono::milliseconds& timeout) override;
 
   virtual bool has_v2_support() override;
-  virtual std::vector<std::vector<char>> multi_get(const std::vector<std::string>& keys) override;
-  virtual void multi_set(const std::vector<std::string>& keys, const std::vector<std::vector<char>>& values) override;
-  virtual void append(const std::string& key, const std::vector<char>& data) override;
+  virtual std::vector<std::vector<char>> multi_get(
+      const std::vector<std::string>& keys) override;
+  virtual void multi_set(
+      const std::vector<std::string>& keys,
+      const std::vector<std::vector<char>>& values) override;
+  virtual void append(const std::string& key, const std::vector<char>& data)
+      override;
   virtual int64_t add(const std::string& key, int64_t value) override;
 
  protected:

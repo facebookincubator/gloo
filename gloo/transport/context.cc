@@ -6,8 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#include "gloo/common/utils.h"
 #include "gloo/transport/context.h"
+#include "gloo/common/utils.h"
 
 namespace gloo {
 namespace transport {
@@ -89,13 +89,15 @@ void Context::createAndConnectAllPairs(IStore& store) {
 }
 
 std::vector<char> Context::extractAddress(
-    const std::vector<char>& allAddrs, int i) const {
+    const std::vector<char>& allAddrs,
+    int i) const {
   // Extract address from the list of all addresses
   int adjRank = (rank > i ? rank - 1 : rank);
   // Adjust for the fact that nodes do not store address for themselves
   int addrSize = allAddrs.size() / (size - 1);
-  return std::vector<char>(allAddrs.begin() + adjRank * addrSize,
-                           allAddrs.begin() + (adjRank + 1) * addrSize);
+  return std::vector<char>(
+      allAddrs.begin() + adjRank * addrSize,
+      allAddrs.begin() + (adjRank + 1) * addrSize);
 }
 
 Context::LazyTally::LazyTally(std::vector<Tally>& vec, slot_t slot)

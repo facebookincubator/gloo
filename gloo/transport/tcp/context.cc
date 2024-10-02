@@ -32,7 +32,7 @@ Context::~Context() {
   device_.reset();
 }
 
-void Context::createAndConnectAllPairs(IStore &store) {
+void Context::createAndConnectAllPairs(IStore& store) {
   // Here instead of sending N addresses to store,
   // we send only 1 device address (since they are all the same)
   // and N sequence numbers to differentiate them.
@@ -159,7 +159,7 @@ std::vector<int> Context::getUnConnectedPeerRanks() const {
 
 void Context::printConnectivityInfo() const {
   int numConnectedPeers = getConnectedPeerRanks().size();
-  std::cout << "[Gloo] Rank "  << rank << " is connected to "
+  std::cout << "[Gloo] Rank " << rank << " is connected to "
             << numConnectedPeers << " peer ranks. "
             << "Expected number of connected peer ranks is : " << size - 1
             << std::endl;
@@ -311,7 +311,8 @@ Rank::Rank(const std::vector<char>& bytes) {
       "Remaining bytes do not map to entire chunk of pair identifiers");
   size_t numPairs = pairIdChunkSz / sizeof(ssize_t);
   pairIdentifiers.resize(numPairs);
-  std::memcpy(pairIdentifiers.data(), bytes.data() + bytesOffset, pairIdChunkSz);
+  std::memcpy(
+      pairIdentifiers.data(), bytes.data() + bytesOffset, pairIdChunkSz);
 }
 
 std::vector<char> Rank::bytes() const {
@@ -320,8 +321,8 @@ std::vector<char> Rank::bytes() const {
   size_t numPairIds = pairIdentifiers.size();
   size_t pairIdSz = sizeof(ssize_t);
   size_t pairIdChunkSz = pairIdSz * numPairIds;
-  size_t totalSz = sizeof(hostnameSz) + hostnameSz + sizeof(addrSz) + addrSz +
-      pairIdChunkSz;
+  size_t totalSz =
+      sizeof(hostnameSz) + hostnameSz + sizeof(addrSz) + addrSz + pairIdChunkSz;
   std::vector<char> buf(totalSz);
   auto bufOffset = buf.data();
   // hostname

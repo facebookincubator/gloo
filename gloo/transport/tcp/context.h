@@ -30,7 +30,7 @@ class Pair;
 class UnboundBuffer;
 
 class Context : public ::gloo::transport::Context,
-                      public std::enable_shared_from_this<Context> {
+                public std::enable_shared_from_this<Context> {
  public:
   Context(std::shared_ptr<Device> device, int rank, int size);
 

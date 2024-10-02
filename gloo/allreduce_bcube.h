@@ -11,11 +11,11 @@
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
+#include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <unordered_map>
-#include <algorithm>
 
 #include "gloo/algorithm.h"
 #include "gloo/common/error.h"
@@ -291,7 +291,8 @@ class AllreduceBcube : public Algorithm {
             getNumElemsPerStep(destRank, step));
         auto& pair = this->context_->getPair(destRank);
         auto slot = slotOffset_ +
-            2 * (std::min(myRank_, destRank) * nodes_ +
+            2 *
+                (std::min(myRank_, destRank) * nodes_ +
                  std::max(myRank_, destRank));
         sendDataBufs_[destRank] =
             pair->createSendBuffer(slot, ptrs_[0], bytes_);
@@ -588,9 +589,8 @@ class AllreduceBcube : public Algorithm {
       int count,
       int start = 0) {
     if (printCheck(myRank_)) {
-      std::cout << stage << ": step (" << step << ") "
-                << "srcRank (" << srcRank << ") -> "
-                << "destRank (" << destRank << "): ";
+      std::cout << stage << ": step (" << step << ") " << "srcRank (" << srcRank
+                << ") -> " << "destRank (" << destRank << "): ";
       printElems(p, count, start);
       std::cout << std::endl;
     }

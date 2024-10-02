@@ -39,7 +39,7 @@ class Loop;
 // Functions can be deferred to the epoll(2) thread through the this
 // class. It uses readability of a pipe to wake up the event loop.
 class Deferrables final : public Handler {
-public:
+ public:
   using function_t = std::function<void()>;
 
   Deferrables();
@@ -50,7 +50,7 @@ public:
 
   void handleEvents(int events) override;
 
-private:
+ private:
   int rfd_;
   int wfd_;
 
@@ -69,7 +69,7 @@ class Loop final : public std::enable_shared_from_this<Loop> {
 
   void registerDescriptor(int fd, int events, Handler* h);
 
-  void unregisterDescriptor(int fd, Handler *h);
+  void unregisterDescriptor(int fd, Handler* h);
 
   void defer(std::function<void()> fn);
 

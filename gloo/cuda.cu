@@ -38,9 +38,7 @@ static std::mutex defaultCudaMutex;
 std::atomic<std::mutex*> CudaShared::mutex_(&defaultCudaMutex);
 
 CudaStream::CudaStream(int deviceId, cudaStream_t stream)
-    : deviceId_(deviceId),
-      stream_(stream),
-      streamOwner_(false) {
+    : deviceId_(deviceId), stream_(stream), streamOwner_(false) {
   CudaDeviceScope scope(deviceId_);
 
   // Create new stream if it wasn't specified
@@ -48,8 +46,8 @@ CudaStream::CudaStream(int deviceId, cudaStream_t stream)
 #ifndef __HIP_PLATFORM_HCC__
     int loPri, hiPri;
     CUDA_CHECK(cudaDeviceGetStreamPriorityRange(&loPri, &hiPri));
-    CUDA_CHECK(cudaStreamCreateWithPriority(
-                 &stream_, cudaStreamNonBlocking, hiPri));
+    CUDA_CHECK(
+        cudaStreamCreateWithPriority(&stream_, cudaStreamNonBlocking, hiPri));
 #else
     // hipStreamCreateWithPriority is a new API introduced in ROCm 2.0
     // it hangs on some distributed runs
@@ -89,32 +87,20 @@ CudaStream::~CudaStream() noexcept(false) {
 }
 
 template <typename T>
-void CudaStream::copyAsync(
-    CudaHostPointer<T>& dst,
-    CudaDevicePointer<T>& src) {
+void CudaStream::copyAsync(CudaHostPointer<T>& dst, CudaDevicePointer<T>& src) {
   CudaDeviceScope scope(deviceId_);
   GLOO_ENFORCE_LE(dst.getCount(), src.getCount());
   CUDA_CHECK(cudaMemcpyAsync(
-                 *dst,
-                 *src,
-                 dst.getCount() * sizeof(T),
-                 cudaMemcpyDeviceToHost,
-                 stream_));
+      *dst, *src, dst.getCount() * sizeof(T), cudaMemcpyDeviceToHost, stream_));
   CUDA_CHECK(cudaEventRecord(event_, stream_));
 }
 
 template <typename T>
-void CudaStream::copyAsync(
-    CudaHostPointer<T>& dst,
-    CudaHostPointer<T>& src) {
+void CudaStream::copyAsync(CudaHostPointer<T>& dst, CudaHostPointer<T>& src) {
   CudaDeviceScope scope(deviceId_);
   GLOO_ENFORCE_LE(dst.getCount(), src.getCount());
   CUDA_CHECK(cudaMemcpyAsync(
-                 *dst,
-                 *src,
-                 dst.getCount() * sizeof(T),
-                 cudaMemcpyHostToHost,
-                 stream_));
+      *dst, *src, dst.getCount() * sizeof(T), cudaMemcpyHostToHost, stream_));
   CUDA_CHECK(cudaEventRecord(event_, stream_));
 }
 
@@ -125,26 +111,20 @@ void CudaStream::copyAsync(
   CudaDeviceScope scope(deviceId_);
   GLOO_ENFORCE_LE(dst.getCount(), src.getCount());
   CUDA_CHECK(cudaMemcpyAsync(
-                 *dst,
-                 *src,
-                 dst.getCount() * sizeof(T),
-                 cudaMemcpyDeviceToDevice,
-                 stream_));
+      *dst,
+      *src,
+      dst.getCount() * sizeof(T),
+      cudaMemcpyDeviceToDevice,
+      stream_));
   CUDA_CHECK(cudaEventRecord(event_, stream_));
 }
 
 template <typename T>
-void CudaStream::copyAsync(
-    CudaDevicePointer<T>& dst,
-    CudaHostPointer<T>& src) {
+void CudaStream::copyAsync(CudaDevicePointer<T>& dst, CudaHostPointer<T>& src) {
   CudaDeviceScope scope(deviceId_);
   GLOO_ENFORCE_LE(dst.getCount(), src.getCount());
   CUDA_CHECK(cudaMemcpyAsync(
-                 *dst,
-                 *src,
-                 dst.getCount() * sizeof(T),
-                 cudaMemcpyHostToDevice,
-                 stream_));
+      *dst, *src, dst.getCount() * sizeof(T), cudaMemcpyHostToDevice, stream_));
   CUDA_CHECK(cudaEventRecord(event_, stream_));
 }
 
@@ -158,8 +138,7 @@ void CudaStream::wait() {
 }
 
 template <typename T>
-CudaDevicePointer<T> CudaDevicePointer<T>::alloc(
-    size_t count) {
+CudaDevicePointer<T> CudaDevicePointer<T>::alloc(size_t count) {
   T* ptr = nullptr;
   size_t bytes = count * sizeof(T);
   {
@@ -171,23 +150,20 @@ CudaDevicePointer<T> CudaDevicePointer<T>::alloc(
   return p;
 }
 
-template<typename T>
-CudaDevicePointer<T> CudaDevicePointer<T>::create(
-    T* ptr,
-    size_t count) {
+template <typename T>
+CudaDevicePointer<T> CudaDevicePointer<T>::create(T* ptr, size_t count) {
   CudaDevicePointer p(ptr, count, false);
   return p;
 }
 
-template<typename T>
+template <typename T>
 CudaDevicePointer<T>::CudaDevicePointer(T* ptr, size_t count, bool owner)
     : device_(ptr),
       count_(count),
       owner_(owner),
-      deviceId_(getGPUIDForPointer(device_)) {
-}
+      deviceId_(getGPUIDForPointer(device_)) {}
 
-template<typename T>
+template <typename T>
 CudaDevicePointer<T>::CudaDevicePointer(CudaDevicePointer<T>&& other) noexcept
     : device_(other.device_),
       count_(other.count_),
@@ -199,7 +175,7 @@ CudaDevicePointer<T>::CudaDevicePointer(CudaDevicePointer<T>&& other) noexcept
   other.deviceId_ = kInvalidDeviceId;
 }
 
-template<typename T>
+template <typename T>
 CudaDevicePointer<T>& CudaDevicePointer<T>::operator=(
     CudaDevicePointer<T>&& other) {
   device_ = other.device_;
@@ -215,7 +191,7 @@ CudaDevicePointer<T>& CudaDevicePointer<T>::operator=(
   return *this;
 }
 
-template<typename T>
+template <typename T>
 CudaDevicePointer<T>::~CudaDevicePointer() noexcept(false) {
   if (deviceId_ == kInvalidDeviceId) {
     return;
@@ -240,21 +216,17 @@ CudaHostPointer<T> CudaHostPointer<T>::alloc(size_t count) {
 
 template <typename T>
 CudaHostPointer<T>::CudaHostPointer(T* ptr, size_t count, bool owner)
-    : host_(ptr),
-      count_(count),
-      owner_(owner) {}
+    : host_(ptr), count_(count), owner_(owner) {}
 
 template <typename T>
 CudaHostPointer<T>::CudaHostPointer(CudaHostPointer&& other) noexcept
-    : host_(other.host_),
-      count_(other.count_),
-      owner_(other.owner_) {
+    : host_(other.host_), count_(other.count_), owner_(other.owner_) {
   other.host_ = nullptr;
   other.count_ = 0;
   other.owner_ = false;
 }
 
-template<typename T>
+template <typename T>
 CudaHostPointer<T>& CudaHostPointer<T>::operator=(CudaHostPointer<T>&& other) {
   host_ = other.host_;
   count_ = other.count_;
@@ -265,7 +237,7 @@ CudaHostPointer<T>& CudaHostPointer<T>::operator=(CudaHostPointer<T>&& other) {
   return *this;
 }
 
-template<typename T>
+template <typename T>
 CudaHostPointer<T>::~CudaHostPointer() noexcept(false) {
   if (owner_) {
     std::lock_guard<std::mutex> lock(CudaShared::getMutex());
@@ -274,25 +246,21 @@ CudaHostPointer<T>::~CudaHostPointer() noexcept(false) {
 }
 
 // Instantiate templates
-#define INSTANTIATE_COPY_ASYNC(T)                                       \
-  template class CudaDevicePointer<T>;                                  \
-  template class CudaHostPointer<T>;                                    \
-                                                                        \
-  template void CudaStream::copyAsync<T>(                               \
-      CudaHostPointer<T>& dst,                                          \
-      CudaDevicePointer<T>& src);                                       \
-                                                                        \
-  template void CudaStream::copyAsync<T>(                               \
-      CudaHostPointer<T>& dst,                                          \
-      CudaHostPointer<T>& src);                                         \
-                                                                        \
-  template void CudaStream::copyAsync<T>(                               \
-      CudaDevicePointer<T>& dst,                                        \
-      CudaDevicePointer<T>& src);                                       \
-                                                                        \
-  template void CudaStream::copyAsync<T>(                               \
-      CudaDevicePointer<T>& dst,                                        \
-      CudaHostPointer<T>& src);
+#define INSTANTIATE_COPY_ASYNC(T)                              \
+  template class CudaDevicePointer<T>;                         \
+  template class CudaHostPointer<T>;                           \
+                                                               \
+  template void CudaStream::copyAsync<T>(                      \
+      CudaHostPointer<T> & dst, CudaDevicePointer<T> & src);   \
+                                                               \
+  template void CudaStream::copyAsync<T>(                      \
+      CudaHostPointer<T> & dst, CudaHostPointer<T> & src);     \
+                                                               \
+  template void CudaStream::copyAsync<T>(                      \
+      CudaDevicePointer<T> & dst, CudaDevicePointer<T> & src); \
+                                                               \
+  template void CudaStream::copyAsync<T>(                      \
+      CudaDevicePointer<T> & dst, CudaHostPointer<T> & src);
 
 INSTANTIATE_COPY_ASYNC(int8_t);
 INSTANTIATE_COPY_ASYNC(uint8_t);
@@ -308,31 +276,26 @@ constexpr static int kCudaNumThreads = 512;
 constexpr static int kCudaMaximumNumBlocks = 4096;
 
 static inline int cudaGetBlocks(const int N) {
-  return std::min((N + kCudaNumThreads - 1) / kCudaNumThreads,
-                  kCudaMaximumNumBlocks);
+  return std::min(
+      (N + kCudaNumThreads - 1) / kCudaNumThreads, kCudaMaximumNumBlocks);
 }
 
-#define DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(T, Funcname, op)           \
-  __global__                                                            \
-  void _Kernel_##T##_##Funcname(T* dst, const T* src, const int n) {    \
-    for (int i = blockIdx.x * blockDim.x + threadIdx.x;                 \
-         i < (n);                                                       \
-         i += blockDim.x * gridDim.x) {                                 \
-      dst[i] = dst[i] op src[i];                                        \
-    }                                                                   \
-  }                                                                     \
-  template <>                                                           \
-  void Funcname<T>(                                                     \
-    T* dst,                                                             \
-    const T* src,                                                       \
-    size_t n,                                                           \
-    const cudaStream_t stream) {                                        \
-    _Kernel_##T##_##Funcname<<<                                         \
-      cudaGetBlocks(n),                                                 \
-      kCudaNumThreads,                                                  \
-      0,                                                                \
-      stream>>>(                                                        \
-        dst, src, n);                                                   \
+#define DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(T, Funcname, op)       \
+  __global__ void _Kernel_##T##_##Funcname(                         \
+      T* dst, const T* src, const int n) {                          \
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n);    \
+         i += blockDim.x * gridDim.x) {                             \
+      dst[i] = dst[i] op src[i];                                    \
+    }                                                               \
+  }                                                                 \
+  template <>                                                       \
+  void Funcname<T>(                                                 \
+      T * dst, const T* src, size_t n, const cudaStream_t stream) { \
+    _Kernel_##T##_##Funcname<<<                                     \
+        cudaGetBlocks(n),                                           \
+        kCudaNumThreads,                                            \
+        0,                                                          \
+        stream>>>(dst, src, n);                                     \
   }
 
 #define DELEGATE_HALF_PRECISION_CUDA_BINARY_OPERATOR(Funcname, op)             \
@@ -346,7 +309,7 @@ static inline int cudaGetBlocks(const int N) {
   }                                                                            \
   template <>                                                                  \
   void Funcname<float16>(                                                      \
-      float16* dst,                                                            \
+      float16 * dst,                                                           \
       const float16* src,                                                      \
       size_t n,                                                                \
       const cudaStream_t stream) {                                             \
@@ -371,29 +334,24 @@ DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(double, cudaProduct, *);
 DELEGATE_HALF_PRECISION_CUDA_BINARY_OPERATOR(cudaSum, +);
 DELEGATE_HALF_PRECISION_CUDA_BINARY_OPERATOR(cudaProduct, *);
 
-#define DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(T, Funcname, op)            \
-  __global__                                                            \
-  void _Kernel_##T##_##Funcname(T* dst, const T* src, const int n) {    \
-    for (int i = blockIdx.x * blockDim.x + threadIdx.x;                 \
-         i < (n);                                                       \
-         i += blockDim.x * gridDim.x) {                                 \
-      if (src[i] op dst[i]) {                                           \
-        dst[i] = src[i];                                                \
-      }                                                                 \
-    }                                                                   \
-  }                                                                     \
-  template <>                                                           \
-  void Funcname<T>(                                                     \
-    T* dst,                                                             \
-    const T* src,                                                       \
-    size_t n,                                                           \
-    const cudaStream_t stream) {                                        \
-    _Kernel_##T##_##Funcname<<<                                         \
-      cudaGetBlocks(n),                                                 \
-      kCudaNumThreads,                                                  \
-      0,                                                                \
-      stream>>>(                                                        \
-        dst, src, n);                                                   \
+#define DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(T, Funcname, op)        \
+  __global__ void _Kernel_##T##_##Funcname(                         \
+      T* dst, const T* src, const int n) {                          \
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n);    \
+         i += blockDim.x * gridDim.x) {                             \
+      if (src[i] op dst[i]) {                                       \
+        dst[i] = src[i];                                            \
+      }                                                             \
+    }                                                               \
+  }                                                                 \
+  template <>                                                       \
+  void Funcname<T>(                                                 \
+      T * dst, const T* src, size_t n, const cudaStream_t stream) { \
+    _Kernel_##T##_##Funcname<<<                                     \
+        cudaGetBlocks(n),                                           \
+        kCudaNumThreads,                                            \
+        0,                                                          \
+        stream>>>(dst, src, n);                                     \
   }
 
 #define DELEGATE_HALF_PRECISION_CUDA_BINARY_COMPARE(Funcname, op)              \
@@ -408,7 +366,7 @@ DELEGATE_HALF_PRECISION_CUDA_BINARY_OPERATOR(cudaProduct, *);
   }                                                                            \
   template <>                                                                  \
   void Funcname<float16>(                                                      \
-      float16* dst,                                                            \
+      float16 * dst,                                                           \
       const float16* src,                                                      \
       size_t n,                                                                \
       const cudaStream_t stream) {                                             \

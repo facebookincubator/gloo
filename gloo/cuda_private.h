@@ -22,18 +22,18 @@
 
 namespace gloo {
 
-#define CUDA_CHECK(condition)                   \
-  do {                                          \
-    cudaError_t error = condition;              \
-    GLOO_ENFORCE_EQ(                            \
-      error,                                    \
-      cudaSuccess,                              \
-      "Error at: ",                             \
-      __FILE__,                                 \
-      ":",                                      \
-      __LINE__,                                 \
-      ": ",                                     \
-      cudaGetErrorString(error));               \
+#define CUDA_CHECK(condition)       \
+  do {                              \
+    cudaError_t error = condition;  \
+    GLOO_ENFORCE_EQ(                \
+        error,                      \
+        cudaSuccess,                \
+        "Error at: ",               \
+        __FILE__,                   \
+        ":",                        \
+        __LINE__,                   \
+        ": ",                       \
+        cudaGetErrorString(error)); \
   } while (0)
 
 inline int getCurrentGPUID() {
@@ -56,9 +56,9 @@ inline int getDeviceCount() {
 
 const std::string& getCudaPCIBusID(int device);
 
-template<typename T>
+template <typename T>
 int findCudaDevicePointerClosestToDevice(
-    std::vector<CudaDevicePointer<T> >& ptrs,
+    std::vector<CudaDevicePointer<T>>& ptrs,
     std::shared_ptr<transport::Device>& dev) {
   // Compute distance between every pointer
   auto devBusID = dev->getPCIBusID();
@@ -96,8 +96,7 @@ int findCudaDevicePointerClosestToDevice(
 
 class CudaDeviceGuard {
  public:
-  CudaDeviceGuard() : previous_(getCurrentGPUID()) {
-  }
+  CudaDeviceGuard() : previous_(getCurrentGPUID()) {}
 
   ~CudaDeviceGuard() noexcept(false) {
     CUDA_CHECK(cudaSetDevice(previous_));
@@ -119,7 +118,7 @@ class CudaDeviceScope {
 
 // Managed chunk of GPU memory.
 // Convenience class used for tests and benchmarks.
-template<typename T>
+template <typename T>
 class CudaMemory {
  public:
   explicit CudaMemory(size_t elements);

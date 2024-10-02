@@ -28,8 +28,7 @@ namespace tcp {
 
 struct attr CreateDeviceAttr(const struct attr& src);
 
-std::shared_ptr<::gloo::transport::Device> CreateDevice(
-    const struct attr&);
+std::shared_ptr<::gloo::transport::Device> CreateDevice(const struct attr&);
 
 // Forward declarations
 class Pair;
@@ -48,16 +47,15 @@ class Device : public ::gloo::transport::Device,
   virtual int getInterfaceSpeed() const override;
 
   virtual std::shared_ptr<::gloo::transport::Context> createContext(
-      int rank, int size) override;
+      int rank,
+      int size) override;
 
   void registerDescriptor(int fd, int events, Handler* h);
   void unregisterDescriptor(int fd, Handler* h);
 
   // TCP is bidirectional so when we connect two ends of a pair,
   // one side is the connection initiator and the other is the listener.
-  bool isInitiator(
-      const Address& local,
-      const Address& remote) const;
+  bool isInitiator(const Address& local, const Address& remote) const;
 
  protected:
   const struct attr attr_;
