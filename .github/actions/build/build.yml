@@ -1,0 +1,67 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+jobs:
+  windows_build:
+    runs-on: windows-latest
+    env:
+      gtest_lib_path: c:/googletest
+      libuv_path: c:/libuv
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup build environment
+        run: |
+          PATH=$PATH:"C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin"
+          eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+          conda create -n py376_build python=3.7.6
+          conda activate py376_build
+          conda install cmake
+      - name: Install libuv
+        run: |
+          eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+          conda activate py376_build
+          curl https://dist.libuv.org/dist/v1.38.0/libuv-v1.38.0.tar.gz \
+            --output libuv-v1.38.0.tar.gz
+          tar xzvf libuv-v1.38.0.tar.gz
+          cd libuv-v1.38.0
+          mkdir -p build
+          cd build
+          mkdir << ${{ env.gtest_lib_path >>
+          cmake .. -DCMAKE_INSTALL_PREFIX=<< ${{ env.libuv_path >>
+          msbuild.exe INSTALL.vcxproj
+      - name: Install googletest
+        run: |
+          eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+          conda activate py376_build
+          curl https://codeload.github.com/google/googletest/tar.gz/release-1.10.0 \
+            --output googletest-release-1.10.0.tar.gz
+          tar xzvf googletest-release-1.10.0.tar.gz
+          cd googletest-release-1.10.0
+          mkdir -p build
+          cd build
+          mkdir << ${{ env.gtest_lib_path >>
+          cmake .. \
+            -DCMAKE_INSTALL_PREFIX=<< ${{ env.gtest_lib_path >> \
+            -Dgtest_force_shared_crt=ON
+          msbuild.exe INSTALL.vcxproj
+      - name: Build
+        run: |
+          eval "$('/C/tools/miniconda3/Scripts/conda.exe' 'shell.bash' 'hook')"
+          conda activate py376_build
+          git submodule sync
+          git submodule update --init --recursive
+          mkdir build
+          cd build
+          cmake .. \
+            -DBUILD_TEST=ON \
+            -Dlibuv_ROOT=<< ${{ env.libuv_path >> \
+            -DGTEST_LIBRARY=<< ${{ env.gtest_lib_path >>/lib/gtestd.lib \
+            -DGTEST_INCLUDE_DIR=<< ${{ env.gtest_lib_path >>/include \
+            -DGTEST_MAIN_LIBRARY=<< ${{ env.gtest_lib_path >>/lib/gtest_maind.lib
+          msbuild.exe ALL_BUILD.vcxproj
+      - name: Test
+        run: |
+          build/gloo/test/Debug/gloo_test.exe
