@@ -10,12 +10,12 @@ However, if you believe you have found a security vulnerability in Gloo, we enco
 
 Vulnerabilities that are exploitable via the network such as remote code execution should be reported. Issues that require access to the sending/receiving machine or are caused by incorrectly using the API are not considered vulnerabilities in Gloo.
 
-Please report security issues via https://www.facebook.com/whitehat or by filing an issue for low risk vulnerabilities.
+Please report security issues via https://bugbounty.meta.com or by filing an issue for low risk vulnerabilities.
 
 Please refer to the following page for our responsible disclosure policy, reward guidelines, and those things that should not be reported:
 
-https://www.facebook.com/whitehat
-
+https://bugbounty.meta.com
+ 
 ## Using Gloo Securely
 
 The only way to guarantee safety with Gloo is to run it in a trusted environment with trusted inputs. Gloo has not been security hardened and bugs as well as misusages of Gloo may result in remote code execution and data leakage.
