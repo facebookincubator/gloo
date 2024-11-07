@@ -19,54 +19,6 @@ namespace gloo {
 namespace test {
 namespace {
 
-// Function to instantiate and run algorithm.
-using Func = void(std::shared_ptr<::gloo::Context>);
-
-// Test parameterization.
-using Param = std::tuple<Transport, int, std::function<Func>>;
-
-// Test fixture.
-class BarrierTest : public BaseTest,
-                    public ::testing::WithParamInterface<Param> {};
-
-TEST_P(BarrierTest, SinglePointer) {
-  const auto transport = std::get<0>(GetParam());
-  const auto contextSize = std::get<1>(GetParam());
-  const auto fn = std::get<2>(GetParam());
-
-  spawn(transport, contextSize, [&](std::shared_ptr<Context> context) {
-    fn(context);
-  });
-}
-
-static std::function<Func> barrierAllToAll =
-    [](std::shared_ptr<::gloo::Context> context) {
-      ::gloo::BarrierAllToAll algorithm(context);
-      algorithm.run();
-    };
-
-INSTANTIATE_TEST_CASE_P(
-    BarrierAllToAll,
-    BarrierTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(kTransportsForClassAlgorithms),
-        ::testing::Range(2, 16),
-        ::testing::Values(barrierAllToAll)));
-
-static std::function<Func> barrierAllToOne =
-    [](std::shared_ptr<::gloo::Context> context) {
-      ::gloo::BarrierAllToOne algorithm(context);
-      algorithm.run();
-    };
-
-INSTANTIATE_TEST_CASE_P(
-    BarrierAllToOne,
-    BarrierTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(kTransportsForClassAlgorithms),
-        ::testing::Range(2, 16),
-        ::testing::Values(barrierAllToOne)));
-
 // Synchronized version of std::chrono::clock::now().
 // All processes participating in the specified context will
 // see the same value.
@@ -83,10 +35,10 @@ std::chrono::time_point<clock> syncNow(std::shared_ptr<Context> context) {
 
 using NewParam = std::tuple<Transport, int>;
 
-class BarrierNewTest : public BaseTest,
-                       public ::testing::WithParamInterface<NewParam> {};
+class AbortBarrierTest : public BaseTest,
+                         public ::testing::WithParamInterface<NewParam> {};
 
-TEST_P(BarrierNewTest, Default) {
+TEST_P(AbortBarrierTest, Default) {
   const auto transport = std::get<0>(GetParam());
   const auto contextSize = std::get<1>(GetParam());
 
@@ -96,49 +48,32 @@ TEST_P(BarrierNewTest, Default) {
     // Run barrier to synchronize processes after starting.
     barrier(opts);
 
-    // Take turns in sleeping for a bit and checking that all processes
-    // saw that artificial delay through the barrier.
-    auto singleProcessDelay = std::chrono::milliseconds(1000);
-    for (size_t i = 0; i < context->size; i++) {
-      const auto start = syncNow<std::chrono::high_resolution_clock>(context);
-      if (i == context->rank) {
-        /* sleep override */
-        std::this_thread::sleep_for(singleProcessDelay);
-      }
-
+    auto timeout = std::chrono::milliseconds(context->getTimeout());
+    const auto start = syncNow<std::chrono::high_resolution_clock>(context);
+    // Run barrier on all ranks but 0 so it hangs
+    if (context->rank != 0) {
       barrier(opts);
-      abort();
-
-      // Expect all processes to have taken less than the sleep, as abort was called
-      auto stop = std::chrono::high_resolution_clock::now();
-      auto delta = std::chrono::duration_cast<decltype(singleProcessDelay)>(
-          stop - start);
-      ASSERT_LE(delta.count(), singleProcessDelay.count());
     }
+
+    // Abort should unhang the barrier
+    try {
+      abort();
+    } catch (const Exception &e) {
+      EXPECT_TRUE(strstr(e.what(), "GLOO ABORTED") != NULL);
+    }
+
+    // Expect all processes to have taken less than the timeout, as abort was
+    // called
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto delta = std::chrono::duration_cast<decltype(timeout)>(stop - start);
+    ASSERT_LE(delta.count(), timeout.count() / 4);
   });
 }
 
 INSTANTIATE_TEST_CASE_P(
-    BarrierNewDefault,
-    BarrierNewTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(kTransportsForFunctionAlgorithms),
-        ::testing::Values(1, 2, 4, 7)));
-
-TEST_F(BarrierNewTest, TestTimeout) {
-  spawn(Transport::TCP, 2, [&](std::shared_ptr<Context> context) {
-    BarrierOptions opts(context);
-    opts.setTimeout(std::chrono::milliseconds(10));
-    if (context->rank == 0) {
-      try {
-        barrier(opts);
-        FAIL() << "Expected exception to be thrown";
-      } catch (::gloo::IoException& e) {
-        ASSERT_NE(std::string(e.what()).find("Timed out"), std::string::npos);
-      }
-    }
-  });
-}
+    AbortBarrier, AbortBarrierTest,
+    ::testing::Combine(::testing::ValuesIn(kTransportsForFunctionAlgorithms),
+                       ::testing::Values(1, 2, 4, 7)));
 
 } // namespace
 } // namespace test
