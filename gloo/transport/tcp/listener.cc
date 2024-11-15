@@ -8,10 +8,8 @@
 
 #include <gloo/transport/tcp/listener.h>
 
-#include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <gloo/common/common.h>
 #include <gloo/common/logging.h>
