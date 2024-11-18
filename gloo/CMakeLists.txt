@@ -94,13 +94,12 @@ else()
   set(GLOO_HAVE_TRANSPORT_IBVERBS 0)
 endif()
 
-# TODO: turn ths back on once tests are passing again.
 # Compile uv transport if libuv is available
-#if(USE_LIBUV)
-# set(GLOO_HAVE_TRANSPORT_UV 1)
-#else()
-#  set(GLOO_HAVE_TRANSPORT_UV 0)
-#endif()
+if(USE_LIBUV)
+  set(GLOO_HAVE_TRANSPORT_UV 1)
+else()
+  set(GLOO_HAVE_TRANSPORT_UV 0)
+endif()
 
 add_subdirectory(common)
 add_subdirectory(mpi)
