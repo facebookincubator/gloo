@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include <algorithm>
-#include <array>
 
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
