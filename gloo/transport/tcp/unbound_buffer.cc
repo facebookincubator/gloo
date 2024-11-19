@@ -199,6 +199,12 @@ void UnboundBuffer::throwIfException() {
     std::rethrow_exception(ex_);
   }
 }
+bool UnboundBuffer::testRecv() {
+  return recvCompletions_ != 0;
+}
+bool UnboundBuffer::testSend() {
+  return sendCompletions_ != 0;
+}
 
 } // namespace tcp
 } // namespace transport
