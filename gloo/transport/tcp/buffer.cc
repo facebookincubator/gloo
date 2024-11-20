@@ -9,6 +9,7 @@
 #include "gloo/transport/tcp/buffer.h"
 
 #include <string.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include <iostream>
