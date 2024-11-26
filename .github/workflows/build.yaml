@@ -68,7 +68,7 @@ jobs:
           git submodule update --init --recursive
           mkdir -p build
           cd build
-          cmake ..  -DBUILD_TEST=ON -Dlibuv_ROOT=${{ env.libuv_path }} -DGTEST_LIBRARY=${{ env.gtest_lib_path }}/lib/gtestd.lib -DGTEST_INCLUDE_DIR=${{ env.gtest_lib_path }}/include -DGTEST_MAIN_LIBRARY=${{ env.gtest_lib_path }}/lib/gtest_maind.lib
+          cmake ..  -DBUILD_TEST=ON -Dlibuv_ROOT=${{ env.libuv_path }} -DGTEST_LIBRARY=${{ env.gtest_lib_path }}/lib/gtestd.lib -DGLOO_HAVE_TRANSPORT_UV=OFF -DGTEST_INCLUDE_DIR=${{ env.gtest_lib_path }}/include -DGTEST_MAIN_LIBRARY=${{ env.gtest_lib_path }}/lib/gtest_maind.lib
           msbuild ALL_BUILD.vcxproj
       - name: Test
         run: |
