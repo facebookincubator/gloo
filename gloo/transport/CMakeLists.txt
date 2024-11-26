@@ -24,10 +24,9 @@ if(GLOO_HAVE_TRANSPORT_IBVERBS)
   add_subdirectory(ibverbs)
 endif()
 
-# TODO: skip UV for now until CI is revived.
-#if(GLOO_HAVE_TRANSPORT_UV)
-#  add_subdirectory(uv)
-#endif()
+if(GLOO_HAVE_TRANSPORT_UV)
+  add_subdirectory(uv)
+endif()
 
 list(APPEND GLOO_SRCS ${GLOO_TRANSPORT_SRCS})
 list(APPEND GLOO_HDRS ${GLOO_TRANSPORT_HDRS})
