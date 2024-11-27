@@ -30,7 +30,7 @@ if(MSVC)
     )
   list(APPEND GLOO_COMMON_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/win.cc"
-    )
+   )
 endif()
 
 list(APPEND GLOO_SRCS ${GLOO_COMMON_SRCS})
