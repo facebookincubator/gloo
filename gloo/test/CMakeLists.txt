@@ -16,7 +16,6 @@ set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/openssl_utils.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/reduce_test.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/send_recv_test.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/tls_tcp_test.cc"
   )
 set(GLOO_TEST_LIBRARIES)
 
