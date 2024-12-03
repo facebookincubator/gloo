@@ -127,7 +127,7 @@ void Buffer::send(size_t offset, size_t length, size_t roffset) {
   GLOO_ENFORCE_LE(offset + length, size_);
 
   if (debug_) {
-    std::cout << "[" << getpid() << ": " << syscall(__NR_gettid) << "] ";
+    std::cout << "[" << getpid() << ": " << syscall(SYS_gettid) << "] ";
     std::cout << "send " << length << " bytes";
     std::cout << " to " << pair_->peer().str();
     std::cout << std::endl;
