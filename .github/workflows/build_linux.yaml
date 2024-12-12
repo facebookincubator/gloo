@@ -1,0 +1,35 @@
+name: CI-Linux
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-linux:
+    name: build on ubuntu
+    runs-on: ubuntu latest
+    strategy:
+      matrix:
+        openssl: [true, false]
+
+    steps:
+      - name: Checkout code
+        uses: action/checkout@v4
+      - name: Setup environment
+        run: |
+          if [ "$OPENSSL" = "true" ]; then
+            sudo apt-get install -y libssl-dev
+          fi
+      - name: Install libuv
+        run: |
+          apt-get install -y wget pkg-config
+          wget -q -O libuv-v1.26.0.tar.gz https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
+          tar xf libuv-v1.26.0.tar.gz
+          cd libuv-v1.26.0
+          mkdir -p build
+          cd build
+          cmake ../ -DCMAKE_INSTALL_PREFIX=/usr/local
+          make install
