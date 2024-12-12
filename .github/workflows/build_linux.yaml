@@ -14,22 +14,42 @@ jobs:
     strategy:
       matrix:
         openssl: [true, false]
+        gcc-version: [5, 7]
 
     steps:
       - name: Checkout code
         uses: action/checkout@v4
       - name: Setup environment
         run: |
-          if [ "$OPENSSL" = "true" ]; then
+          if [ {{ matrix.openssl }} = "true" ]; then
             sudo apt-get install -y libssl-dev
           fi
       - name: Install libuv
         run: |
           apt-get install -y wget pkg-config
-          wget -q -O libuv-v1.26.0.tar.gz https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
-          tar xf libuv-v1.26.0.tar.gz
-          cd libuv-v1.26.0
+          wget -q -O libuv-v1.49.2.tar.gz https://dist.libuv.org/dist/v1.26.0/libuv-v1.26.0.tar.gz
+          tar xf libuv-v1.49.2.tar.gz
+          cd libuv-v1.49.2
           mkdir -p build
           cd build
           cmake ../ -DCMAKE_INSTALL_PREFIX=/usr/local
           make install
+      - name: Install googletest
+        run: |
+          wget -q -O googletest-release-1.15.2.tar.gz googletest-1.15.2.tar.gz
+          tar xf googletest-release-1.15.2.tar.gz
+          cd googletest-release-1.15.2
+          mkdir -p build
+          cd build
+          cmake ../ -DCMAKE_INSTALL_PREFIX=/usr/local
+          make install
+      - name: Build
+        run: |
+          export CC=gcc-${{ matrix.gcc-version }}
+          export CXX=g++-${{ matrix.gcc-version }}
+          mkdir -p build
+          cd build
+          cmake ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TEST=ON
+      - name: Test
+        run: |
+          build/gloo/test/gloo_test
