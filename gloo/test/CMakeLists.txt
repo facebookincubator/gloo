@@ -1,4 +1,4 @@
-find_package(OpenSSL 1.1 REQUIRED EXACT)
+find_package(OpenSSL 1.1.1 REQUIRED EXACT)
 
 set(GLOO_TEST_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_test.cc"
