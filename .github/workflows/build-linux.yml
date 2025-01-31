@@ -1,5 +1,7 @@
+---
 name: CI-Linux
-on:
+
+on: # yamllint disable-line rule:truthy
   push:
     branches:
       - main
@@ -7,13 +9,18 @@ on:
     branches:
       - main
 
+permissions: read-all
+
 jobs:
   build-linux:
     name: build on ubuntu
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cmake_args: ["", "-DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL_LINK=ON", "-DUSE_TCP_OPENSSL_LOAD=ON"]
+        cmake_args:
+          - ""
+          - "-DUSE_IBVERBS=ON -DUSE_LIBUV=ON -DUSE_TCP_OPENSSL_LINK=ON"
+          - "-DUSE_TCP_OPENSSL_LOAD=ON"
 
     steps:
       - name: Checkout code
@@ -24,7 +31,8 @@ jobs:
       - name: Install apt packages
         run: |
           sudo apt-get install -y wget perl build-essential cmake libibverbs-dev libssl-dev
-      - name: Install openssl # TODO: upgrade to latest
+      # TODO: upgrade to latest
+      - name: Install openssl
         run: |
           sudo wget -q https://www.openssl.org/source/openssl-1.1.1b.tar.gz
           sudo tar -xzf openssl-1.1.1b.tar.gz
@@ -44,7 +52,8 @@ jobs:
           sudo make install
       - name: Install googletest
         run: |
-          wget -q -O googletest-release-1.15.2.tar.gz https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
+          wget -q -O googletest-release-1.15.2.tar.gz \
+            https://github.com/google/googletest/releases/download/v1.15.2/googletest-1.15.2.tar.gz
           tar xf googletest-release-1.15.2.tar.gz
           cd googletest-1.15.2
           mkdir -p build
@@ -57,8 +66,6 @@ jobs:
           sudo apt-get update
           sudo apt install build-essential
           sudo apt-get install -y gcc g++
-          # export CC=gcc-${{ matrix.gcc-version }}
-          # export CXX=g++-${{ matrix.gcc-version }}
           mkdir -p build
           cd build
           cmake ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_TEST=ON ${{matrix.cmake_args}} -DOPENSSL_ROOT_DIR=/opt/openssl/
