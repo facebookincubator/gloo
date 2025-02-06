@@ -2,32 +2,45 @@
  * Copyright (c) Facebook, Inc. and its affiliates.
  */
 
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
 
-#include "gloo/allreduce_ring.h"
+#include "gloo/reduce.h"
 #include "gloo/rendezvous/context.h"
 #include "gloo/rendezvous/file_store.h"
 #include "gloo/rendezvous/prefix_store.h"
-#include "gloo/transport/tcp/device.h"
+#include "gloo/transport/uv/device.h"
 
 // Usage:
 //
 // Open two terminals. Run the same program in both terminals, using
 // a different RANK in each. For example:
 //
-// A: PREFIX=test1 SIZE=2 RANK=0 example1
-// B: PREFIX=test1 SIZE=2 RANK=1 example1
+// A: PREFIX=test1 SIZE=2 RANK=0 example_reduce
+// B: PREFIX=test1 SIZE=2 RANK=1 example_reduce
 //
 // Expected output:
 //
 //   data[0] = 0
-//   data[1] = 2
-//   data[2] = 4
-//   data[3] = 6
+//   data[1] = 3
+//   data[2] = 6
+//   data[3] = 9
 //
+
+void mysum(void* c_, const void* a_, const void* b_, int n) {
+  printf("n=%d\r\n", n);
+  int* c = static_cast<int*>(c_);
+  const int* a = static_cast<const int*>(a_);
+  const int* b = static_cast<const int*>(b_);
+  for (auto i = 0; i < n; i++) {
+    printf("a[%d]=%d\r\n", i, a[i]);
+    printf("b[%d]=%d\r\n", i, b[i]);
+    c[i] = a[i] + b[i];
+    printf("c[%d]=%d\r\n", i, c[i]);
+  }
+}
 
 int main(void) {
   // Unrelated to the example: perform some sanity checks.
@@ -50,12 +63,12 @@ int main(void) {
   // multi-homed machines that all share the same network interface
   // name, for example.
   //
-  gloo::transport::tcp::attr attr;
+  gloo::transport::uv::attr attr;
   // attr.iface = "eth0";
   // attr.iface = "ib0";
-  attr.iface = "lo";
+  // attr.iface = "Wi-Fi";
 
-  // attr.ai_family = AF_INET; // Force IPv4
+  // attr.ai_family = AF_INET;  // Force IPv4
   // attr.ai_family = AF_INET6; // Force IPv6
   // Use either (default)
   attr.ai_family = AF_UNSPEC;
@@ -72,7 +85,7 @@ int main(void) {
   //   auto dev = gloo::transport::tcp::CreateDevice("localhost");
   //
 
-  auto dev = gloo::transport::tcp::CreateDevice(attr);
+  auto dev = gloo::transport::uv::CreateDevice(attr);
 
   // Now that we have a device, we can connect all participating
   // processes. We call this process "rendezvous". It can be performed
@@ -85,7 +98,7 @@ int main(void) {
   // Below, we instantiate rendezvous using the filesystem, given that
   // this example uses multiple processes on a single machine.
   //
-  auto fileStore = gloo::rendezvous::FileStore("/tmp");
+  auto fileStore = gloo::rendezvous::FileStore("/libtmp");
 
   // To be able to reuse the same store over and over again and not have
   // interference between runs, we scope it to a unique prefix with the
@@ -106,34 +119,30 @@ int main(void) {
 
   // All connections are now established. We can now initialize some
   // test data, instantiate the collective algorithm, and run it.
-  std::array<int, 4> data;
-  std::cout << "Input: " << std::endl;
-  for (int i = 0; i < data.size(); i++) {
-    data[i] = i;
-    std::cout << "data[" << i << "] = " << data[i] << std::endl;
+  int* inputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
+  int* outputPointers = reinterpret_cast<int*>(malloc(sizeof(int) * 4));
+  gloo::ReduceOptions opts(context);
+  opts.setInput(inputPointers, 4);
+  opts.setOutput(outputPointers, 4);
+  for (int i = 0; i < 4; i++) {
+    inputPointers[i] = i * (rank + 1);
+    outputPointers[i] = 0;
   }
 
-  // Allreduce operates on memory that is already managed elsewhere.
-  // Every instance can take multiple pointers and perform reduction
-  // across local buffers as well. If you have a single buffer only,
-  // you must pass a std::vector with a single pointer.
-  std::vector<int*> ptrs;
-  ptrs.push_back(&data[0]);
+  void (*fn)(void*, const void*, const void*, int) = &mysum;
+  opts.setReduceFunction(fn);
 
-  // The number of elements at the specified pointer.
-  int count = data.size();
-
-  // Instantiate the collective algorithm.
-  auto allreduce =
-      std::make_shared<gloo::AllreduceRing<int>>(context, ptrs, count);
-
-  // Run the algorithm.
-  allreduce->run();
+  // A small maximum segment size triggers code paths where we'll
+  // have a number of segments larger than the lower bound of
+  // twice the context size.
+  opts.setMaxSegmentSize(128);
+  opts.setRoot(size - 1);
+  reduce(opts);
 
   // Print the result.
   std::cout << "Output: " << std::endl;
-  for (int i = 0; i < data.size(); i++) {
-    std::cout << "data[" << i << "] = " << data[i] << std::endl;
+  for (int i = 0; i < 4; i++) {
+    std::cout << "data = " << outputPointers[i] << std::endl;
   }
 
   return 0;
