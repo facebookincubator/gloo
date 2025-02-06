@@ -214,8 +214,11 @@ class Group {
    * @count The total number of elements to be processed by this node
    * @return The number of elements to be processed by this group
    */
-  static int
-  computeNumElems(int step, const Node& firstNode, int peers, int count) {
+  static int computeNumElems(
+      int step,
+      const Node& firstNode,
+      int peers,
+      int count) {
     int groupCount =
         (0 == step) ? count : firstNode.getNumElemsPerStep(step - 1);
     return std::max(groupCount, peers);
@@ -226,8 +229,11 @@ class Group {
    *   group
    * @return List of ranks of nodes in the group
    */
-  std::vector<int>
-  getNodeRanks(int firstNodeRank, int peerDistance, int base, int nodes) const {
+  std::vector<int> getNodeRanks(
+      int firstNodeRank,
+      int peerDistance,
+      int base,
+      int nodes) const {
     std::vector<int> groupPeers;
     for (int i = 0; i < base; ++i) {
       int peerRank = firstNodeRank + i * peerDistance;

@@ -296,8 +296,10 @@ class Fixture<float16> {
     }
   }
 
-  void
-  checkBroadcastResult(Fixture<float16>& fixture, int root, int rootPointer) {
+  void checkBroadcastResult(
+      Fixture<float16>& fixture,
+      int root,
+      int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices
@@ -407,8 +409,10 @@ class Fixture<float> {
     }
   }
 
-  void
-  checkBroadcastResult(Fixture<float>& fixture, int root, int rootPointer) {
+  void checkBroadcastResult(
+      Fixture<float>& fixture,
+      int root,
+      int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
     // Stride is difference between values at subsequent indices

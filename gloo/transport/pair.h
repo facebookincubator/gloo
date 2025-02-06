@@ -30,11 +30,15 @@ class Pair {
 
   virtual void setSync(bool enable, bool busyPoll) = 0;
 
-  virtual std::unique_ptr<Buffer>
-  createSendBuffer(int slot, void* ptr, size_t size) = 0;
+  virtual std::unique_ptr<Buffer> createSendBuffer(
+      int slot,
+      void* ptr,
+      size_t size) = 0;
 
-  virtual std::unique_ptr<Buffer>
-  createRecvBuffer(int slot, void* ptr, size_t size) = 0;
+  virtual std::unique_ptr<Buffer> createRecvBuffer(
+      int slot,
+      void* ptr,
+      size_t size) = 0;
 
   virtual bool isConnected() = 0;
 

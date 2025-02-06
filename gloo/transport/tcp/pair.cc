@@ -384,8 +384,10 @@ void Pair::writeComplete(
 // buffer this message is intended for has not yet been registered (this can
 // only be the case for unbound buffers).
 //
-ssize_t
-Pair::prepareRead(Op& op, NonOwningPtr<UnboundBuffer>& buf, struct iovec& iov) {
+ssize_t Pair::prepareRead(
+    Op& op,
+    NonOwningPtr<UnboundBuffer>& buf,
+    struct iovec& iov) {
   iov.iov_base = nullptr;
   iov.iov_len = 0;
 
@@ -863,14 +865,18 @@ void Pair::recv() {
   }
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createSendBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createSendBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   auto buffer = new Buffer(this, slot, ptr, size);
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createRecvBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   auto buffer = new Buffer(this, slot, ptr, size);
   registerBuffer(buffer);
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);

@@ -389,16 +389,22 @@ class Group {
    * @count The total number of elements to be processed by this node
    * @return The number of elements to be processed by this group
    */
-  static int
-  computeNumElems(int step, const Node& firstNode, int peers, int count);
+  static int computeNumElems(
+      int step,
+      const Node& firstNode,
+      int peers,
+      int count);
   /**
    * Determines all the nodes in a group in a particular step
    * @param peerDistance This is the distance between rank of each peer in the
    *   group
    * @return List of ranks of nodes in the group
    */
-  std::vector<int>
-  getNodeRanks(int firstNodeRank, int peerDistance, int base, int nodes) const;
+  std::vector<int> getNodeRanks(
+      int firstNodeRank,
+      int peerDistance,
+      int base,
+      int nodes) const;
 };
 
 } // namespace bcube
