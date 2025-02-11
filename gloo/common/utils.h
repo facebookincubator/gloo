@@ -16,4 +16,6 @@ std::string getHostname();
 
 bool useRankAsSeqNumber();
 
+bool isStoreExtendedApiEnabled();
+
 } // namespace gloo

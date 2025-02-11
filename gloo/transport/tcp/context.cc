@@ -8,10 +8,12 @@
 
 #include "gloo/transport/tcp/context.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <string>
 
-#include "gloo/common/error.h"
 #include "gloo/common/logging.h"
 #include "gloo/common/utils.h"
 #include "gloo/transport/tcp/device.h"
@@ -21,6 +23,8 @@
 namespace gloo {
 namespace transport {
 namespace tcp {
+
+constexpr int kDefaultBatchSize = 128;
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
     : ::gloo::transport::Context(rank, size), device_(std::move(device)) {}
@@ -78,11 +82,35 @@ void Context::createAndConnectAllPairs(IStore& store) {
   // which does not have the rank info hosted at a higher `Pair` level).
   // So better safe than sorry for now we try to minimize the changeset needed.
   const auto& currentRankPair = getPair(rank);
-  auto deviceAddress = Address(
+  const auto& deviceAddress = Address(
       static_cast<const Pair*>(currentRankPair.get())->address().getSockaddr());
   Rank currentRankInfo(
       localHostName, deviceAddress.bytes(), std::move(pairIdentifiers));
   store.set(std::to_string(rank), currentRankInfo.bytes());
+
+  std::vector<std::vector<char>> remoteRankInfos;
+  int key = 0;
+  if (isStoreExtendedApiEnabled() && store.has_v2_support()) {
+    auto sizeRemaining = size;
+    while (sizeRemaining > 0) {
+      const auto batchKeys = std::min(kDefaultBatchSize, sizeRemaining);
+      std::vector<std::string> keys(batchKeys);
+      std::generate_n(
+          keys.begin(), batchKeys, [&] { return std::to_string(key++); });
+      const auto& batchRemoteInfos = store.multi_get(keys);
+      remoteRankInfos.insert(
+          remoteRankInfos.end(),
+          batchRemoteInfos.begin(),
+          batchRemoteInfos.end());
+      sizeRemaining -= batchKeys;
+    }
+  } else {
+    std::generate_n(std::back_inserter(remoteRankInfos), size, [&] {
+      const auto& keyStr = std::to_string(key++);
+      store.wait({keyStr.c_str()}, getTimeout());
+      return store.get(keyStr);
+    });
+  }
 
   // Connect every pair
   for (int i = 0; i < size; i++) {
@@ -95,16 +123,9 @@ void Context::createAndConnectAllPairs(IStore& store) {
       continue;
     }
 
-    // Wait for address of other side of this pair to become available
-    std::ostringstream key;
-    key << i;
-    store.wait({key.str()}, getTimeout());
+    Rank remoteRankInfo(remoteRankInfos[i]);
 
-    // Connect to other side of this pair
-    std::vector<char> rankInfoBytes = store.get(key.str());
-    Rank remoteRankInfo(rankInfoBytes);
-    const auto& remoteHostname = remoteRankInfo.hostname;
-    if (!localRankSet && remoteHostname == localHostName) {
+    if (!localRankSet && remoteRankInfo.hostname == localHostName) {
       ++localRank;
     }
 
@@ -112,7 +133,8 @@ void Context::createAndConnectAllPairs(IStore& store) {
     auto remoteDeviceAddr = Address(remoteRankInfo.addressBytes).getSockaddr();
     auto remoteAddr = Address(
         remoteDeviceAddr,
-        useRankAsSeqNum ? (ssize_t)rank : remoteRankInfo.pairIdentifiers[rank]);
+        useRankAsSeqNum ? (sequence_number_t)rank
+                        : remoteRankInfo.pairIdentifiers[rank]);
     pair->connect(remoteAddr.bytes());
   }
 
