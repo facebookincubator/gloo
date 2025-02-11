@@ -68,6 +68,15 @@ class Device : public ::gloo::transport::Device,
   //
   Address nextAddress();
 
+  // Return a new `Address` instance using the provided sequence number.
+  //
+  // This is called by the constructor of the `Pair` class. It gives
+  // the pair a uniquely identifying address even though the device
+  // uses a shared listening socket. Caller must provide a unique sequence
+  // number
+  //
+  Address nextAddress(int);
+
   // Connect a pair to a remote.
   //
   // This is performed by the device instance because we use a single

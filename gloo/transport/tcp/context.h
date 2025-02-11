@@ -39,6 +39,9 @@ class Context : public ::gloo::transport::Context,
   virtual void createAndConnectAllPairs(IStore& store) override;
 
   std::unique_ptr<transport::Pair>& createPair(int rank) override;
+  std::unique_ptr<transport::Pair>& createPair(
+      int rank,
+      bool useRankAsSeqNumber);
 
   std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
       void* ptr,
