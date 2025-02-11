@@ -25,6 +25,21 @@ class IStore {
   virtual void wait(
       const std::vector<std::string>& keys,
       const std::chrono::milliseconds& timeout) = 0;
+
+  // Extended 2.0 API support
+  virtual bool has_v2_support() = 0;
+
+  virtual std::vector<std::vector<char>> multi_get(
+      const std::vector<std::string>& keys) = 0;
+
+  virtual void multi_set(
+      const std::vector<std::string>& keys,
+      const std::vector<std::vector<char>>& values) = 0;
+
+  virtual void append(
+      const std::string& key,
+      const std::vector<char>& value) = 0;
+  virtual int64_t add(const std::string& key, int64_t value) = 0;
 };
 
 } // namespace gloo
