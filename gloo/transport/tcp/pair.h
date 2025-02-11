@@ -95,7 +95,8 @@ class Pair : public ::gloo::transport::Pair, public Handler {
       Context* context,
       Device* device,
       int rank,
-      std::chrono::milliseconds timeout);
+      std::chrono::milliseconds timeout,
+      bool useRankAsSeqNumber = false);
 
   virtual ~Pair();
 

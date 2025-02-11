@@ -49,15 +49,20 @@ void Context::createAndConnectAllPairs(IStore& store) {
   int localRank = 0;
   bool localRankSet = false;
   auto localHostName = getHostname();
+  bool useRankAsSeqNum = useRankAsSeqNumber();
 
   // We will create all the pairs including self
   // the self pair will not be connected
   // it's just to keep the later seq num matching logic simple
   std::vector<ssize_t> pairIdentifiers;
   for (int i = 0; i < size; i++) {
-    auto& pair = createPair(i);
-    pairIdentifiers.emplace_back(
-        static_cast<Pair*>(pair.get())->address().getSeq());
+    const auto& pair = createPair(i, useRankAsSeqNum);
+    if (!useRankAsSeqNum) {
+      // Need to preserve the order of the pair identifiers if we are not using
+      // the rank as seq number
+      pairIdentifiers.emplace_back(
+          static_cast<Pair*>(pair.get())->address().getSeq());
+    }
   }
 
   // Obtain the pair object for this rank
@@ -105,8 +110,9 @@ void Context::createAndConnectAllPairs(IStore& store) {
 
     const auto& pair = getPair(i);
     auto remoteDeviceAddr = Address(remoteRankInfo.addressBytes).getSockaddr();
-    auto remoteAddr =
-        Address(remoteDeviceAddr, remoteRankInfo.pairIdentifiers[rank]);
+    auto remoteAddr = Address(
+        remoteDeviceAddr,
+        useRankAsSeqNum ? (ssize_t)rank : remoteRankInfo.pairIdentifiers[rank]);
     pair->connect(remoteAddr.bytes());
   }
 
@@ -124,7 +130,15 @@ void Context::createAndConnectAllPairs(IStore& store) {
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
   pairs_[rank] = std::unique_ptr<transport::Pair>(
-      new tcp::Pair(this, device_.get(), rank, getTimeout()));
+      new tcp::Pair(this, device_.get(), rank, getTimeout(), false));
+  return pairs_[rank];
+}
+
+std::unique_ptr<transport::Pair>& Context::createPair(
+    int rank,
+    bool useRankAsSeqNumber = false) {
+  pairs_[rank] = std::unique_ptr<transport::Pair>(new tcp::Pair(
+      this, device_.get(), rank, getTimeout(), useRankAsSeqNumber));
   return pairs_[rank];
 }
 
@@ -305,14 +319,16 @@ Rank::Rank(const std::vector<char>& bytes) {
   bytesOffset += sizeof(addrSz) + addrSz;
   // pair identifiers
   size_t pairIdChunkSz = bytes.size() - bytesOffset;
-  GLOO_ENFORCE_EQ(
-      pairIdChunkSz % sizeof(ssize_t),
-      0,
-      "Remaining bytes do not map to entire chunk of pair identifiers");
-  size_t numPairs = pairIdChunkSz / sizeof(ssize_t);
-  pairIdentifiers.resize(numPairs);
-  std::memcpy(
-      pairIdentifiers.data(), bytes.data() + bytesOffset, pairIdChunkSz);
+  if (pairIdChunkSz) {
+    GLOO_ENFORCE_EQ(
+        pairIdChunkSz % sizeof(ssize_t),
+        0,
+        "Remaining bytes do not map to entire chunk of pair identifiers");
+    size_t numPairs = pairIdChunkSz / sizeof(ssize_t);
+    pairIdentifiers.resize(numPairs);
+    std::memcpy(
+        pairIdentifiers.data(), bytes.data() + bytesOffset, pairIdChunkSz);
+  }
 }
 
 std::vector<char> Rank::bytes() const {
@@ -336,7 +352,9 @@ std::vector<char> Rank::bytes() const {
   std::memcpy(bufOffset, addressBytes.data(), addressBytes.size());
   bufOffset += addrSz;
   // pair identifiers
-  std::memcpy(bufOffset, pairIdentifiers.data(), pairIdChunkSz);
+  if (pairIdChunkSz) {
+    std::memcpy(bufOffset, pairIdentifiers.data(), pairIdChunkSz);
+  }
   return buf;
 }
 

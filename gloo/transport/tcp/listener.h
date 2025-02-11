@@ -42,6 +42,8 @@ class Listener final : public Handler {
 
   Address nextAddress();
 
+  Address nextAddress(int);
+
   // Wait for connection with sequence number `seq`. The callback is
   // always called from a different thread (the event loop thread),
   // even if the connection is already available.
@@ -67,6 +69,12 @@ class Listener final : public Handler {
 
   // Sockets by sequence number (while waiting for a pair to call).
   std::unordered_map<sequence_number_t, std::shared_ptr<Socket>> seqToSocket_;
+
+  // Option to use rank as sequence number and avoid pair identifiers
+  // to the store during rendezvous. Experimental, disabled by default.
+  // Can be enabled by setting the environment variable
+  // GLOO_ENABLE_RANK_AS_SEQUENCE_NUMBER=1.
+  bool useRankAsSeqNumber_{false};
 };
 
 } // namespace tcp

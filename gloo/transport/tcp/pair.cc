@@ -46,7 +46,8 @@ Pair::Pair(
     Context* context,
     Device* device,
     int rank,
-    std::chrono::milliseconds timeout)
+    std::chrono::milliseconds timeout,
+    bool useRankAsSeqNumber)
     : context_(context),
       device_(device),
       rank_(rank),
@@ -56,7 +57,9 @@ Pair::Pair(
       busyPoll_(false),
       fd_(FD_INVALID),
       sendBufferSize_(0),
-      self_(device_->nextAddress()),
+      self_(
+          useRankAsSeqNumber ? device_->nextAddress(rank)
+                             : device_->nextAddress()),
       ex_(nullptr) {}
 
 // Destructor performs a "soft" close.

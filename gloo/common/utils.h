@@ -14,4 +14,6 @@ namespace gloo {
 
 std::string getHostname();
 
+bool useRankAsSeqNumber();
+
 } // namespace gloo
