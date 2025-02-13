@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "gloo/rendezvous/store.h"
+#include "store.h"
 
 #include <condition_variable>
 #include <mutex>
@@ -16,14 +16,12 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-using namespace gloo;
-
 namespace gloo
 {
   namespace rendezvous
   {
 
-    class TCPStore : public gloo::rendezvous::Store
+    class TCPStore : public Store
     {
     public:
       explicit TCPStore(const std::string &hostname, int port, int world_size, bool is_master, int timeout = 30);
@@ -71,7 +69,7 @@ namespace gloo
     protected:
       std::string hostname_;
       std::string host_ip_;
-      int port_;
+      uint16_t port_;
       int world_size_;
       bool is_master_;
       int timeout_;
