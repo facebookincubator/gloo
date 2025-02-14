@@ -53,8 +53,8 @@ namespace gloo
           timeout_(timeout),
           data_({})
     {
-      std::cout << "hostname: " << hostname_ << ", " << host_ip_ << ", port: " << port << ", world_size: " << world_size
-                << ", is_master: " << is_master << std::endl;
+      // std::cout << "hostname: " << hostname_ << ", " << host_ip_ << ", port: " << port << ", world_size: " << world_size
+      //           << ", is_master: " << is_master << std::endl;
       if (is_master)
       {
         // 创建 socket
@@ -106,7 +106,7 @@ namespace gloo
           GLOO_THROW(err);
         }
 
-        std::cout << "Connection established with client." << std::endl;
+        // std::cout << "Connection established with client." << std::endl;
 
         // 读取客户端消息
         char act_buffer[ACTION_SIZE + 1] = {0};
@@ -114,33 +114,31 @@ namespace gloo
         std::string action = std::string(act_buffer);
         if (action == POST_ACTION_SET)
         {
-          std::cout << "Set request received." << std::endl;
 
           // read key size
           char key_size_buffer[SIZE_OF_SIZE + 1] = {0};
           int valread = read(new_socket, key_size_buffer, SIZE_OF_SIZE);
           int key_size = atoi(key_size_buffer);
-          std::cout << "key size: " << key_size << std::endl;
+          // std::cout << "key size: " << key_size << std::endl;
 
           // read key
           char key_buffer[key_size + 1] = {0};
           valread = read(new_socket, key_buffer, key_size);
           std::string key = std::string(key_buffer);
-          std::cout << "key: " << key << std::endl;
+          // std::cout << "key: " << key << std::endl;
 
           // read data size
           char data_size_buffer[SIZE_OF_SIZE + 1] = {0};
           valread = read(new_socket, data_size_buffer, SIZE_OF_SIZE);
           int data_size = atoi(data_size_buffer);
-          std::cout << "data size: " << data_size << std::endl;
+          // std::cout << "data size: " << data_size << std::endl;
 
           // read data
           char data_buffer[data_size + 1] = {0};
           valread = read(new_socket, data_buffer, data_size);
           std::string value = std::string(data_buffer);
           std::vector<char> value_vec(data_buffer, data_buffer + data_size);
-          std::cout << "data_buffer: <" << data_buffer << ">" << std::endl;
-          std::cout << "value read: " << valread << "value: <" << value << ">" << std::endl;
+          // std::cout << "value read: " << valread << "value: <" << value << ">" << std::endl;
 
           mtx.lock();
           data_[key] = value_vec;
@@ -153,7 +151,6 @@ namespace gloo
         }
         else if (action == POST_ACTION_GET)
         {
-          std::cout << "Get request received." << std::endl;
           // read key size
           char key_size_buffer[SIZE_OF_SIZE + 1] = {0};
           int valread = read(new_socket, key_size_buffer, SIZE_OF_SIZE);
@@ -163,7 +160,7 @@ namespace gloo
           char key_buffer[key_size + 1] = {0};
           valread = read(new_socket, key_buffer, key_size);
           std::string key = std::string(key_buffer);
-          std::cout << "get key: " << key << std::endl;
+          // std::cout << "get key: " << key << std::endl;
 
           bool found = false;
           std::vector<char> value = {};
@@ -191,7 +188,6 @@ namespace gloo
           // 向客户端发送响应
           const char *response = "OK";
           send(new_socket, response, strlen(response), 0);
-          std::cout << "Response sent to client." << std::endl;
         }
 
         close(new_socket);
@@ -245,12 +241,12 @@ namespace gloo
         len_str = std::string(SIZE_OF_SIZE - len_str.length(), '0') + len_str;
         message = len_str.c_str();
         send(new_server_fd, message, strlen(message), 0);
-        std::cout << "key size: " << len_str << std::endl;
+        // std::cout << "key size: " << len_str << std::endl;
 
         // send key
         message = key.c_str();
         send(new_server_fd, message, strlen(message), 0);
-        std::cout << "key: " << key << std::endl;
+        // std::cout << "key: " << key << std::endl;
 
         // send data size
         len = data.size();
@@ -258,7 +254,7 @@ namespace gloo
         len_str = std::string(SIZE_OF_SIZE - len_str.length(), '0') + len_str;
         message = len_str.c_str();
         send(new_server_fd, message, strlen(message), 0);
-        std::cout << "data size: " << len_str << std::endl;
+        // std::cout << "data size: " << len_str << std::endl;
 
         // send data
         void *data_ptr = static_cast<void *>(const_cast<char *>(data.data()));
@@ -267,7 +263,7 @@ namespace gloo
         // 读取服务器响应
         char buffer[RESPONSE_SIZE] = {0};
         int valread = read(new_server_fd, buffer, RESPONSE_SIZE);
-        std::cout << key << " set request, server response: " << buffer << std::endl;
+        // std::cout << key << " set request, server response: " << buffer << std::endl;
 
         close(new_server_fd);
       }
@@ -343,7 +339,7 @@ namespace gloo
         if (valread > 0)
         {
           std::string buffer_str = std::string(buffer);
-          std::cout << key << " get request, server response: " << buffer_str << std::endl;
+          // std::cout << key << " get request, server response: " << buffer_str << std::endl;
 
           return std::vector<char>(buffer, buffer + valread);
         }
@@ -367,7 +363,7 @@ namespace gloo
         {
           auto data = get(key);
           std::string buffer_str(data.begin(), data.end());
-          std::cout << "key: " << key << ", data: <" << buffer_str << ">" << std::endl;
+          // std::cout << "key: " << key << ", data: <" << buffer_str << ">" << std::endl;
           if (buffer_str == NOT_FOUND)
           {
             return false;
