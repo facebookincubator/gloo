@@ -12,7 +12,6 @@ namespace gloo
 {
     namespace rendezvous
     {
-        // 定义静态成员变量
         constexpr std::chrono::milliseconds Store::kDefaultTimeout;
     } // namespace rendezvous
 } // namespace gloo
