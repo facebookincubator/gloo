@@ -44,26 +44,14 @@ namespace gloo
 
       virtual void accept_func();
 
+      virtual int create_server_fd();
+
       std::string host_to_ip(const std::string &host)
       {
         hostent *hostname = gethostbyname(host.c_str());
         if (hostname)
           return std::string(inet_ntoa(**(in_addr **)hostname->h_addr_list));
         return {};
-      }
-
-      std::vector<std::string> str_split(const std::string &str, char delimiter)
-      {
-        std::vector<std::string> tokens;
-        std::stringstream ss(str);
-        std::string token;
-
-        while (std::getline(ss, token, delimiter))
-        {
-          tokens.push_back(token);
-        }
-
-        return tokens;
       }
 
     protected:
@@ -77,7 +65,6 @@ namespace gloo
       std::mutex mtx;
 
       int server_fd;
-      struct sockaddr_in server_address;
       std::map<std::string, std::vector<char>> data_;
     };
 

@@ -28,7 +28,7 @@
 
 #define BUFFER_SIZE 1024
 #define ACTION_SIZE 3
-#define SIZE_OF_SIZE 16
+#define LENGTH_OF_DATA_SIZE 16
 #define RESPONSE_SIZE 2
 
 const std::string POST_ACTION_SET = "set";
@@ -53,11 +53,9 @@ namespace gloo
           timeout_(timeout),
           data_({})
     {
-      // std::cout << "hostname: " << hostname_ << ", " << host_ip_ << ", port: " << port << ", world_size: " << world_size
-      //           << ", is_master: " << is_master << std::endl;
       if (is_master)
       {
-        // 创建 socket
+        // create socket
         server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd == -1)
         {
@@ -65,20 +63,20 @@ namespace gloo
           GLOO_THROW(err);
         }
 
-        // 设置服务器地址信息
+        // config server address
         struct sockaddr_in address;
         address.sin_family = AF_INET;
-        address.sin_addr.s_addr = INADDR_ANY; // 监听所有的网络接口
+        address.sin_addr.s_addr = INADDR_ANY; // listening on all interfaces
         address.sin_port = htons(port_);
 
-        // 绑定 socket 到地址
+        // bind socket to address
         if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
         {
           auto err = std::string("Socket bind failed: ") + strerror(errno);
           GLOO_THROW(err);
         }
 
-        // 开始监听
+        // start listening
         if (listen(server_fd, 3) < 0)
         {
           auto err = std::string("Socket listen failed: ") + strerror(errno);
@@ -91,11 +89,8 @@ namespace gloo
 
     void TCPStore::accept_func()
     {
-
-      // 服务器进入循环，持续接受客户端连接
       while (true)
       {
-        // 接受客户端连接
         int new_socket;
         struct sockaddr_in client_address;
         socklen_t addr_len = sizeof(client_address);
@@ -108,7 +103,7 @@ namespace gloo
 
         // std::cout << "Connection established with client." << std::endl;
 
-        // 读取客户端消息
+        // read action
         char act_buffer[ACTION_SIZE + 1] = {0};
         int valread = read(new_socket, act_buffer, ACTION_SIZE);
         std::string action = std::string(act_buffer);
@@ -116,8 +111,8 @@ namespace gloo
         {
 
           // read key size
-          char key_size_buffer[SIZE_OF_SIZE + 1] = {0};
-          int valread = read(new_socket, key_size_buffer, SIZE_OF_SIZE);
+          char key_size_buffer[LENGTH_OF_DATA_SIZE + 1] = {0};
+          int valread = read(new_socket, key_size_buffer, LENGTH_OF_DATA_SIZE);
           int key_size = atoi(key_size_buffer);
           // std::cout << "key size: " << key_size << std::endl;
 
@@ -128,23 +123,22 @@ namespace gloo
           // std::cout << "key: " << key << std::endl;
 
           // read data size
-          char data_size_buffer[SIZE_OF_SIZE + 1] = {0};
-          valread = read(new_socket, data_size_buffer, SIZE_OF_SIZE);
+          char data_size_buffer[LENGTH_OF_DATA_SIZE + 1] = {0};
+          valread = read(new_socket, data_size_buffer, LENGTH_OF_DATA_SIZE);
           int data_size = atoi(data_size_buffer);
           // std::cout << "data size: " << data_size << std::endl;
 
           // read data
           char data_buffer[data_size + 1] = {0};
           valread = read(new_socket, data_buffer, data_size);
-          std::string value = std::string(data_buffer);
           std::vector<char> value_vec(data_buffer, data_buffer + data_size);
-          // std::cout << "value read: " << valread << "value: <" << value << ">" << std::endl;
+          // std::cout << "value read: " << valread << "value: <" << data_buffer << ">" << std::endl;
 
+          // update server data_
           mtx.lock();
           data_[key] = value_vec;
           mtx.unlock();
 
-          // 向客户端发送响应
           const char *response = "OK";
           send(new_socket, response, strlen(response), 0);
           // std::cout << "Response sent to client." << std::endl;
@@ -152,8 +146,8 @@ namespace gloo
         else if (action == POST_ACTION_GET)
         {
           // read key size
-          char key_size_buffer[SIZE_OF_SIZE + 1] = {0};
-          int valread = read(new_socket, key_size_buffer, SIZE_OF_SIZE);
+          char key_size_buffer[LENGTH_OF_DATA_SIZE + 1] = {0};
+          int valread = read(new_socket, key_size_buffer, LENGTH_OF_DATA_SIZE);
           int key_size = atoi(key_size_buffer);
 
           // read key
@@ -185,13 +179,44 @@ namespace gloo
         }
         else
         {
-          // 向客户端发送响应
           const char *response = "OK";
           send(new_socket, response, strlen(response), 0);
         }
 
         close(new_socket);
       }
+    }
+
+    int TCPStore::create_server_fd()
+    {
+      // create socket
+      int new_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+      if (new_server_fd == -1)
+      {
+        auto err = std::string("Socket creation failed: ") + strerror(errno);
+        GLOO_THROW(err);
+      }
+
+      // config server address
+      struct sockaddr_in server_address;
+      server_address.sin_family = AF_INET;
+      server_address.sin_port = htons(port_);
+
+      // set server address ip
+      if (inet_pton(AF_INET, host_ip_.c_str(), &server_address.sin_addr) <= 0)
+      {
+        auto err = std::string("Invalid address: ") + strerror(errno);
+        GLOO_THROW(err);
+      }
+
+      // connect to server
+      if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+      {
+        auto err = std::string("Connection to server failed: ") + strerror(errno);
+        GLOO_THROW(err);
+      }
+
+      return new_server_fd;
     }
 
     void TCPStore::set(const std::string &key, const std::vector<char> &data)
@@ -204,31 +229,8 @@ namespace gloo
       }
       else
       {
-        // 创建 socket
-        int new_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (new_server_fd == -1)
-        {
-          auto err = std::string("Socket creation failed: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
-
-        // 设置服务器地址信息
-        server_address.sin_family = AF_INET;
-        server_address.sin_port = htons(port_);
-
-        // 将 IP 地址从文本转换为二进制形式
-        if (inet_pton(AF_INET, host_ip_.c_str(), &server_address.sin_addr) <= 0)
-        {
-          auto err = std::string("Invalid address: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
-
-        // 连接服务器
-        if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
-        {
-          auto err = std::string("Connection to server failed: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
+        // create socket
+        int new_server_fd = create_server_fd();
 
         // send action
         std::string act_data = POST_ACTION_SET;
@@ -238,7 +240,7 @@ namespace gloo
         // send key size
         size_t len = key.length();
         std::string len_str = std::to_string(len);
-        len_str = std::string(SIZE_OF_SIZE - len_str.length(), '0') + len_str;
+        len_str = std::string(LENGTH_OF_DATA_SIZE - len_str.length(), '0') + len_str;
         message = len_str.c_str();
         send(new_server_fd, message, strlen(message), 0);
         // std::cout << "key size: " << len_str << std::endl;
@@ -251,7 +253,7 @@ namespace gloo
         // send data size
         len = data.size();
         len_str = std::to_string(len);
-        len_str = std::string(SIZE_OF_SIZE - len_str.length(), '0') + len_str;
+        len_str = std::string(LENGTH_OF_DATA_SIZE - len_str.length(), '0') + len_str;
         message = len_str.c_str();
         send(new_server_fd, message, strlen(message), 0);
         // std::cout << "data size: " << len_str << std::endl;
@@ -260,7 +262,7 @@ namespace gloo
         void *data_ptr = static_cast<void *>(const_cast<char *>(data.data()));
         send(new_server_fd, data_ptr, len, 0);
 
-        // 读取服务器响应
+        // get response
         char buffer[RESPONSE_SIZE] = {0};
         int valread = read(new_server_fd, buffer, RESPONSE_SIZE);
         // std::cout << key << " set request, server response: " << buffer << std::endl;
@@ -290,31 +292,8 @@ namespace gloo
       }
       else
       {
-        // 创建 socket
-        int new_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (new_server_fd == -1)
-        {
-          auto err = std::string("Socket creation failed: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
-
-        // 设置服务器地址信息
-        server_address.sin_family = AF_INET;
-        server_address.sin_port = htons(port_);
-
-        // 将 IP 地址从文本转换为二进制形式
-        if (inet_pton(AF_INET, host_ip_.c_str(), &server_address.sin_addr) <= 0)
-        {
-          auto err = std::string("Invalid address: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
-
-        // 连接服务器
-        if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
-        {
-          auto err = std::string("Connection to server failed: ") + strerror(errno);
-          GLOO_THROW(err);
-        }
+        // create socket
+        int new_server_fd = create_server_fd();
 
         // send action
         std::string act_data = POST_ACTION_GET;
@@ -325,7 +304,7 @@ namespace gloo
         // send key size
         size_t len = key.length();
         std::string len_str = std::to_string(len);
-        len_str = std::string(SIZE_OF_SIZE - len_str.length(), '0') + len_str;
+        len_str = std::string(LENGTH_OF_DATA_SIZE - len_str.length(), '0') + len_str;
         message = len_str.c_str();
         send(new_server_fd, message, strlen(message), 0);
 
@@ -333,22 +312,19 @@ namespace gloo
         message = key.c_str();
         send(new_server_fd, message, strlen(message), 0);
 
-        // 读取服务器响应
+        // get response
         char buffer[BUFFER_SIZE] = {0};
         int valread = read(new_server_fd, buffer, BUFFER_SIZE);
+        close(new_server_fd);
         if (valread > 0)
         {
           std::string buffer_str = std::string(buffer);
-          // std::cout << key << " get request, server response: " << buffer_str << std::endl;
-
           return std::vector<char>(buffer, buffer + valread);
         }
         else
         {
           GLOO_THROW("Server response failed!");
         }
-
-        close(new_server_fd);
       }
     }
 
@@ -363,7 +339,6 @@ namespace gloo
         {
           auto data = get(key);
           std::string buffer_str(data.begin(), data.end());
-          // std::cout << "key: " << key << ", data: <" << buffer_str << ">" << std::endl;
           if (buffer_str == NOT_FOUND)
           {
             return false;
