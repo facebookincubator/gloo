@@ -13,7 +13,9 @@
 
 #include <gloo/common/common.h>
 #include <gloo/common/logging.h>
+#include <gloo/common/utils.h>
 #include <gloo/transport/tcp/helpers.h>
+#
 
 namespace gloo {
 namespace transport {
@@ -26,6 +28,7 @@ Listener::Listener(std::shared_ptr<Loop> loop, const attr& attr)
   listener_->bind(attr.ai_addr);
   listener_->listen(kBacklog);
   addr_ = listener_->sockName();
+  useRankAsSeqNumber_ = useRankAsSeqNumber();
 
   // Register with loop for readability events.
   loop_->registerDescriptor(listener_->fd(), EPOLLIN, this);
@@ -76,7 +79,17 @@ void Listener::handleEvents(int /* unused */) {
 
 Address Listener::nextAddress() {
   std::lock_guard<std::mutex> guard(mutex_);
+  GLOO_ENFORCE(
+      !useRankAsSeqNumber_,
+      "Listener cannot use internal sequence with enabled option to use rank as sequence number");
   return Address(addr_.getSockaddr(), seq_++);
+}
+
+Address Listener::nextAddress(int seq) {
+  GLOO_ENFORCE(
+      useRankAsSeqNumber_,
+      "Listener must be setup to use rank as sequence number");
+  return Address(addr_.getSockaddr(), seq);
 }
 
 void Listener::waitForConnection(sequence_number_t seq, connect_callback_t fn) {

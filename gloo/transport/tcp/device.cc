@@ -253,6 +253,10 @@ Address Device::nextAddress() {
   return listener_->nextAddress();
 }
 
+Address Device::nextAddress(int seq) {
+  return listener_->nextAddress(seq);
+}
+
 bool Device::isInitiator(const Address& local, const Address& remote) const {
   int rv = 0;
   // The remote side of a pair will be called with the same
