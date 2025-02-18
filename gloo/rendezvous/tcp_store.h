@@ -16,6 +16,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#define SOCKET_INIT_TIMEOUT_SECONDS 30
+
 namespace gloo
 {
   namespace rendezvous
@@ -24,7 +26,7 @@ namespace gloo
     class TCPStore : public Store
     {
     public:
-      explicit TCPStore(const std::string &hostname, int port, int world_size, bool is_master, int timeout = 30);
+      explicit TCPStore(const std::string &hostname, int port, int world_size, bool is_master, int timeout = SOCKET_INIT_TIMEOUT_SECONDS);
       virtual ~TCPStore();
 
       virtual void set(const std::string &key, const std::vector<char> &data)
@@ -64,7 +66,7 @@ namespace gloo
 
       std::mutex mtx;
 
-      int server_fd;
+      int server_fd = -1;
       std::map<std::string, std::vector<char>> data_;
     };
 

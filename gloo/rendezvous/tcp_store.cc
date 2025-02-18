@@ -16,6 +16,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <stdexcept>
+#include <signal.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -209,11 +210,26 @@ namespace gloo
         GLOO_THROW(err);
       }
 
-      // connect to server
-      if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+      const auto start = std::chrono::steady_clock::now();
+      auto timeout = std::chrono::seconds(timeout_);
+      while (true)
       {
-        auto err = std::string("Connection to server failed: ") + strerror(errno);
-        GLOO_THROW(err);
+        // connect to server
+        if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) == 0)
+        {
+          break;
+        }
+
+        // check timeout
+        const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - start);
+        if (timeout != kNoTimeout && elapsed > timeout)
+        {
+          GLOO_THROW_IO_EXCEPTION(GLOO_ERROR_MSG(
+              "Connection to master timeout for " + std::to_string(timeout_) + " seconds"));
+        }
+        /* sleep override */
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
 
       return new_server_fd;
@@ -358,7 +374,6 @@ namespace gloo
         }
         /* sleep override */
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       }
     }
 
