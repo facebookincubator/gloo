@@ -34,3 +34,5 @@ jobs:
           DEFAULT_BRANCH: "main"
           # disable JSCPD (copy-paste checker)
           VALIDATE_JSCPD: false
+          # disable CPP
+          VALIDATE_CPP: false
