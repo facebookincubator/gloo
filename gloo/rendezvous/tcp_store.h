@@ -16,12 +16,42 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#else
+#include <io.h>
+#endif
+
 #define SOCKET_INIT_TIMEOUT_SECONDS 30
 
 namespace gloo
 {
   namespace rendezvous
   {
+    class Socket
+    {
+    public:
+      explicit Socket(int fd) : fd_(fd) {}
+      ~Socket()
+      {
+        if (fd_ != -1)
+        {
+          close(fd_);
+        }
+      }
+      int get() const { return fd_; }
+      void reset(int fd = -1)
+      {
+        if (fd_ != -1)
+        {
+          close(fd_);
+        }
+        fd_ = fd;
+      }
+
+    private:
+      int fd_;
+    };
 
     class TCPStore : public Store
     {
@@ -66,7 +96,7 @@ namespace gloo
 
       std::mutex mtx;
 
-      int server_fd = -1;
+      Socket server_fd_;
       std::map<std::string, std::vector<char>> data_;
     };
 

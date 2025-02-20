@@ -42,7 +42,6 @@ namespace gloo
   {
     TCPStore::~TCPStore()
     {
-      close(server_fd);
     }
 
     TCPStore::TCPStore(const std::string &hostname, int port, int world_size, bool is_master, int timeout)
@@ -52,13 +51,15 @@ namespace gloo
           world_size_(world_size),
           is_master_(is_master),
           timeout_(timeout),
-          data_({})
+          data_({}),
+          server_fd_(-1)
     {
       if (is_master)
       {
         // create socket
-        server_fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (server_fd == -1)
+        int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+        server_fd_.reset(server_fd);
+        if (server_fd_.get() == -1)
         {
           auto err = std::string("Socket creation failed: ") + strerror(errno);
           GLOO_THROW(err);
@@ -71,14 +72,14 @@ namespace gloo
         address.sin_port = htons(port_);
 
         // bind socket to address
-        if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+        if (bind(server_fd_.get(), (struct sockaddr *)&address, sizeof(address)) < 0)
         {
           auto err = std::string("Socket bind failed: ") + strerror(errno);
           GLOO_THROW(err);
         }
 
         // start listening
-        if (listen(server_fd, 3) < 0)
+        if (listen(server_fd_.get(), 3) < 0)
         {
           auto err = std::string("Socket listen failed: ") + strerror(errno);
           GLOO_THROW(err);
@@ -95,7 +96,8 @@ namespace gloo
         int new_socket;
         struct sockaddr_in client_address;
         socklen_t addr_len = sizeof(client_address);
-        new_socket = accept(server_fd, (struct sockaddr *)&client_address, &addr_len);
+        std::cout << "server fd: <" << server_fd_.get() << ">" << std::endl;
+        new_socket = accept(server_fd_.get(), (struct sockaddr *)&client_address, &addr_len);
         if (new_socket < 0)
         {
           auto err = std::string("Accept client connection failed: ") + strerror(errno);
@@ -190,35 +192,44 @@ namespace gloo
 
     int TCPStore::create_server_fd()
     {
-      // create socket
-      int new_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-      if (new_server_fd == -1)
-      {
-        auto err = std::string("Socket creation failed: ") + strerror(errno);
-        GLOO_THROW(err);
-      }
-
-      // config server address
-      struct sockaddr_in server_address;
-      server_address.sin_family = AF_INET;
-      server_address.sin_port = htons(port_);
-
-      // set server address ip
-      if (inet_pton(AF_INET, host_ip_.c_str(), &server_address.sin_addr) <= 0)
-      {
-        auto err = std::string("Invalid address: ") + strerror(errno);
-        GLOO_THROW(err);
-      }
-
-      const auto start = std::chrono::steady_clock::now();
-      auto timeout = std::chrono::seconds(timeout_);
       while (true)
       {
+        // create socket
+        int new_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (new_server_fd == -1)
+        {
+          auto err = std::string("Socket creation failed: ") + strerror(errno);
+          GLOO_THROW(err);
+        }
+
+        // config server address
+        struct sockaddr_in server_address;
+        server_address.sin_family = AF_INET;
+        server_address.sin_port = htons(port_);
+
+        // set server address ip
+        if (inet_pton(AF_INET, host_ip_.c_str(), &server_address.sin_addr) <= 0)
+        {
+          close(new_server_fd);
+          auto err = std::string("Invalid address: ") + strerror(errno);
+          GLOO_THROW(err);
+        }
+
+        const auto start = std::chrono::steady_clock::now();
+        auto timeout = std::chrono::seconds(timeout_);
+
         // connect to server
         if (connect(new_server_fd, (struct sockaddr *)&server_address, sizeof(server_address)) == 0)
         {
-          break;
+          struct linger so_linger;
+          so_linger.l_onoff = 1;  // enable LINGER
+          so_linger.l_linger = 0; // send RST to close the connection immediately
+          setsockopt(new_server_fd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger));
+
+          return new_server_fd;
         }
+
+        close(new_server_fd);
 
         // check timeout
         const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
@@ -231,8 +242,6 @@ namespace gloo
         /* sleep override */
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
-
-      return new_server_fd;
     }
 
     void TCPStore::set(const std::string &key, const std::vector<char> &data)
