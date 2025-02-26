@@ -141,7 +141,7 @@ void Pair::connect(const std::vector<char>& bytes) {
   waitUntilConnected(lock, true);
 }
 
-void Pair::connectCallback(std::shared_ptr<Socket> socket, Error error) {
+void Pair::connectCallback(std::shared_ptr<Socket> socket, const Error& error) {
   std::lock_guard<std::mutex> lock(m_);
   if (error) {
     signalException(GLOO_ERROR_MSG(error.what()));
