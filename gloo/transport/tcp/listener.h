@@ -30,7 +30,7 @@ namespace tcp {
 class Listener final : public Handler {
  public:
   using connect_callback_t =
-      std::function<void(std::shared_ptr<Socket> socket, Error error)>;
+      std::function<void(std::shared_ptr<Socket> socket, const Error& error)>;
 
   static constexpr int kBacklog = -1; // allow somaxconn
 

@@ -91,7 +91,7 @@ class Device : public ::gloo::transport::Device,
   // connection is cached in a map, using the sequence number.
   //
   using connect_callback_t =
-      std::function<void(std::shared_ptr<Socket> socket, Error error)>;
+      std::function<void(std::shared_ptr<Socket> socket, const Error& error)>;
 
   void connect(
       const Address& local,

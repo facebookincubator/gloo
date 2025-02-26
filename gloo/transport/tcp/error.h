@@ -23,6 +23,10 @@ class Error {
 
   virtual ~Error() = default;
 
+  // Don't allow Error to be copied or moved to avoid losing the error message.
+  Error(const Error&) = delete;
+  Error& operator=(const Error&) = delete;
+
   // Converting to boolean means checking if there is an error. This
   // means we don't need to use an `std::optional` and allows for a
   // snippet like the following:

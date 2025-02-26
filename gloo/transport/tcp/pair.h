@@ -190,7 +190,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   void sendNotifyRecvReady(uint64_t slot, size_t nbytes);
   void sendNotifySendReady(uint64_t slot, size_t nbytes);
 
-  void connectCallback(std::shared_ptr<Socket> socket, Error error);
+  void connectCallback(std::shared_ptr<Socket> socket, const Error& error);
 
   Buffer* getBuffer(int slot);
   void registerBuffer(Buffer* buf);
