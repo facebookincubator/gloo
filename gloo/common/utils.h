@@ -18,4 +18,6 @@ bool useRankAsSeqNumber();
 
 bool isStoreExtendedApiEnabled();
 
+bool disableConnectionRetries();
+
 } // namespace gloo

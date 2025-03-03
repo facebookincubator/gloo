@@ -7,6 +7,7 @@ else()
       "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/device.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/error.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/helpers.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/listener.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/loop.cc"
       "${CMAKE_CURRENT_SOURCE_DIR}/pair.cc"
