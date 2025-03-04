@@ -11,6 +11,7 @@
 #include <climits>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <vector>
 
@@ -155,5 +156,8 @@ BINARY_COMP_HELPER(LessEquals, <=)
   GLOO_ENFORCE_THAT_IMPL(GreaterEquals((x), (y)), #x " >= " #y, __VA_ARGS__)
 #define GLOO_ENFORCE_GT(x, y, ...) \
   GLOO_ENFORCE_THAT_IMPL(Greater((x), (y)), #x " > " #y, __VA_ARGS__)
+
+#define GLOO_ERROR(...) \
+  std::cerr << "Gloo error: " << ::gloo::MakeString(__VA_ARGS__) << std::endl
 
 } // namespace gloo

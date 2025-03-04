@@ -17,6 +17,7 @@
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
 #include "gloo/common/logging.h"
+#include "gloo/common/utils.h"
 #include "gloo/transport/tcp/context.h"
 #include "gloo/transport/tcp/helpers.h"
 #include "gloo/transport/tcp/pair.h"
@@ -334,20 +335,39 @@ void Device::connectAsListener(
 //
 void Device::connectAsInitiator(
     const Address& remote,
-    std::chrono::milliseconds /* unused */,
+    std::chrono::milliseconds timeout,
     connect_callback_t fn) {
-  const auto& sockaddr = remote.getSockaddr();
+  auto writeSeq = [loop = loop_, seq = remote.getSeq()](
+                      std::shared_ptr<Socket> socket, connect_callback_t fn) {
+    // Write sequence number for peer to new socket.
+    write<sequence_number_t>(loop, std::move(socket), seq, std::move(fn));
+  };
 
-  // Create new socket to connect to peer.
-  auto socket = Socket::createForFamily(sockaddr.ss_family);
-  socket->reuseAddr(true);
-  socket->noDelay(true);
-  socket->connect(sockaddr);
+  if (disableConnectionRetries()) {
+    const auto& sockaddr = remote.getSockaddr();
 
-  // Write sequence number for peer to new socket.
-  // TODO(pietern): Use timeout.
-  write<sequence_number_t>(
-      loop_, std::move(socket), remote.getSeq(), std::move(fn));
+    // Create new socket to connect to peer.
+    auto socket = Socket::createForFamily(sockaddr.ss_family);
+    socket->reuseAddr(true);
+    socket->noDelay(true);
+    socket->connect(sockaddr);
+
+    writeSeq(std::move(socket), std::move(fn));
+  } else {
+    connectLoop(
+        loop_,
+        remote,
+        timeout,
+        [loop = loop_, fn = std::move(fn), writeSeq = std::move(writeSeq)](
+            std::shared_ptr<Socket> socket, const Error& error) {
+          if (error) {
+            fn(socket, error);
+            return;
+          }
+
+          writeSeq(std::move(socket), std::move(fn));
+        });
+  }
 }
 
 } // namespace tcp

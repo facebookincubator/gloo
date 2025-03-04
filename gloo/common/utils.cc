@@ -42,4 +42,14 @@ bool isStoreExtendedApiEnabled() {
       (std::string(res) == "True" || std::string(res) == "1");
 }
 
+bool disableConnectionRetries() {
+  // use meyer singleton to only compute this exactly once.
+  static bool disable = []() {
+    const auto& res = std::getenv("GLOO_DISABLE_CONNECTION_RETRIES");
+    return res != nullptr &&
+        (std::string(res) == "True" || std::string(res) == "1");
+  }();
+  return disable;
+}
+
 } // namespace gloo
