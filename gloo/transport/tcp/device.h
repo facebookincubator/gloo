@@ -96,6 +96,8 @@ class Device : public ::gloo::transport::Device,
   void connect(
       const Address& local,
       const Address& remote,
+      const int rank,
+      const int size,
       std::chrono::milliseconds timeout,
       connect_callback_t fn);
 
@@ -106,6 +108,8 @@ class Device : public ::gloo::transport::Device,
 
   void connectAsInitiator(
       const Address& remote,
+      const int rank,
+      const int size,
       std::chrono::milliseconds timeout,
       connect_callback_t fn);
 

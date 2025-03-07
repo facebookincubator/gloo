@@ -12,9 +12,11 @@
 #include <memory>
 
 #include <gloo/common/logging.h>
+#include <gloo/transport/tcp/debug_data.h>
 #include <gloo/transport/tcp/error.h>
 #include <gloo/transport/tcp/loop.h>
 #include <gloo/transport/tcp/socket.h>
+#include "gloo/transport/tcp/debug_logger.h" // @manual=//gloo:debug_logger
 
 namespace gloo {
 namespace transport {
@@ -180,9 +182,13 @@ class ConnectOperation final
   ConnectOperation(
       std::shared_ptr<Loop> loop,
       const Address& remote,
+      const int rank,
+      const int size,
       std::chrono::milliseconds timeout,
       callback_t fn)
       : remote_(remote),
+        rank_(rank),
+        size_(size),
         deadline_(std::chrono::steady_clock::now() + timeout),
         loop_(std::move(loop)),
         fn_(std::move(fn)) {}
@@ -230,15 +236,18 @@ class ConnectOperation final
       SystemError e("SO_ERROR", result, remote_);
       bool willRetry = std::chrono::steady_clock::now() < deadline_ &&
           retry_++ < maxRetries_;
-      GLOO_ERROR(
-          "failed to connect, willRetry=",
-          willRetry,
-          ", retry=",
+
+      auto debugData = ConnectDebugData{
           retry_,
-          ", remote=",
+          maxRetries_,
+          willRetry,
+          rank_,
+          size_,
+          e.what(),
           remote_.str(),
-          ", error=",
-          e.what());
+          socket_->sockName().str(),
+      };
+      DebugLogger::log(debugData);
       // check deadline
       if (willRetry) {
         run();
@@ -253,6 +262,8 @@ class ConnectOperation final
 
  private:
   const Address remote_;
+  const int rank_;
+  const int size_;
   const std::chrono::time_point<std::chrono::steady_clock> deadline_;
   const int maxRetries_{3};
 
@@ -269,6 +280,8 @@ class ConnectOperation final
 void connectLoop(
     std::shared_ptr<Loop> loop,
     const Address& remote,
+    const int rank,
+    const int size,
     std::chrono::milliseconds timeout,
     typename ConnectOperation::callback_t fn);
 

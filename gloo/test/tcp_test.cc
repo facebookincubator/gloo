@@ -25,7 +25,7 @@ TEST(TcpTest, ConnectTimeout) {
     EXPECT_TRUE(e);
     EXPECT_TRUE(dynamic_cast<const TimeoutError*>(&e));
   };
-  connectLoop(loop, remote, timeout, std::move(fn));
+  connectLoop(loop, remote, 0, 5, timeout, std::move(fn));
 
   std::unique_lock<std::mutex> lock(m);
   cv.wait(lock, [&] { return done; });

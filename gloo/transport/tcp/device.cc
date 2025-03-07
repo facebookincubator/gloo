@@ -299,12 +299,14 @@ bool Device::isInitiator(const Address& local, const Address& remote) const {
 void Device::connect(
     const Address& local,
     const Address& remote,
+    const int rank,
+    const int size,
     std::chrono::milliseconds timeout,
     connect_callback_t fn) {
   auto initiator = isInitiator(local, remote);
 
   if (initiator) {
-    connectAsInitiator(remote, timeout, std::move(fn));
+    connectAsInitiator(remote, rank, size, timeout, std::move(fn));
     return;
   }
   connectAsListener(local, timeout, std::move(fn));
@@ -335,6 +337,8 @@ void Device::connectAsListener(
 //
 void Device::connectAsInitiator(
     const Address& remote,
+    const int rank,
+    const int size,
     std::chrono::milliseconds timeout,
     connect_callback_t fn) {
   auto writeSeq = [loop = loop_, seq = remote.getSeq()](
@@ -357,6 +361,8 @@ void Device::connectAsInitiator(
     connectLoop(
         loop_,
         remote,
+        rank,
+        size,
         timeout,
         [loop = loop_, fn = std::move(fn), writeSeq = std::move(writeSeq)](
             std::shared_ptr<Socket> socket, const Error& error) {
