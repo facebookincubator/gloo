@@ -123,6 +123,8 @@ void Pair::connect(const std::vector<char>& bytes) {
   device_->connect(
       self_,
       peer,
+      context_->rank,
+      context_->size,
       timeout_,
       std::bind(
           &Pair::connectCallback,
