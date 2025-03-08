@@ -36,13 +36,13 @@ class CudaBroadcastOneToAll : public Algorithm {
   void init(
       typename std::enable_if<
           std::is_same<U, CudaHostWorkspace<T>>::value,
-          typename U::Pointer>::type* = 0);
+          typename U::Pointer>::type* = NULL);
 
   template <typename U = W>
   void init(
       typename std::enable_if<
           std::is_same<U, CudaDeviceWorkspace<T>>::value,
-          typename U::Pointer>::type* = 0);
+          typename U::Pointer>::type* = NULL);
 
   std::vector<CudaDevicePointer<T>> devicePtrs_;
   std::vector<CudaStream> streams_;

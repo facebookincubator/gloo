@@ -60,7 +60,7 @@ class CudaAllreduceHalvingDoubling : public Algorithm {
   void initReductionsAndBroadcasts(
       typename std::enable_if<
           std::is_same<U, CudaDeviceWorkspace<T>>::value,
-          typename U::Pointer>::type* = 0);
+          typename U::Pointer>::type* = NULL);
 
   std::vector<CudaDevicePointer<T>> devicePtrs_;
   std::vector<CudaStream> streams_;
