@@ -101,6 +101,8 @@ class Device : public ::gloo::transport::Device,
       std::chrono::milliseconds timeout,
       connect_callback_t fn);
 
+  void cancelConnect(const Address& local);
+
   void connectAsListener(
       const Address& local,
       std::chrono::milliseconds timeout,

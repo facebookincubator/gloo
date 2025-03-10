@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include <array>
+#include <iostream>
 
 #include <gloo/common/error.h>
 #include <gloo/common/logging.h>
@@ -106,11 +107,16 @@ Loop::Loop() {
   registerDescriptor(deferrables_.rfd_, EPOLLIN, &deferrables_);
 }
 
+void Loop::shutdown() {}
+
 Loop::~Loop() {
   if (loop_) {
     done_ = true;
-    loop_->join();
+    if (std::this_thread::get_id() != loop_->get_id()) {
+      loop_->join();
+    }
   }
+
   if (fd_ >= 0) {
     close(fd_);
   }
@@ -131,6 +137,16 @@ void Loop::registerDescriptor(int fd, int events, Handler* h) {
 void Loop::unregisterDescriptor(int fd, Handler* h) {
   auto rv = epoll_ctl(fd_, EPOLL_CTL_DEL, fd, nullptr);
   GLOO_ENFORCE_NE(rv, -1, "epoll_ctl: ", strerror(errno));
+
+  // Wait for loop to tick before returning, to make sure the handler
+  // for this fd is not called once this function returns.
+  if (std::this_thread::get_id() != loop_->get_id()) {
+    std::unique_lock<std::mutex> lock(m_);
+    cv_.wait(lock);
+    TSAN_ANNOTATE_HAPPENS_AFTER(h);
+  }
+
+  defer([] {});
 
   // Wait for loop to tick before returning, to make sure the handler
   // for this fd is not called once this function returns.

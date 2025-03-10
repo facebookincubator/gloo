@@ -45,7 +45,7 @@ class Pair : public ::gloo::transport::tcp::Pair {
       std::unique_lock<std::mutex>& lock,
       bool useTimeout);
 
-  void verifyConnected() override;
+  void verifyConnected(std::unique_lock<std::mutex>& lock) override;
 
   void changeState(state nextState) noexcept override;
 
