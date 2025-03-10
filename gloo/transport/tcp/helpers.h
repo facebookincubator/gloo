@@ -45,13 +45,19 @@ class ReadValueOperation final
         fn_(std::move(fn)) {}
 
   void run() {
+    auto loop = loop_.lock();
+    if (!loop) {
+      return;
+    }
+
     // Cannot initialize leak until after the object has been
     // constructed, because the std::make_shared initialization
     // doesn't run after construction of the underlying object.
     leak_ = this->shared_from_this();
+
     // Register with loop only after we've leaked the shared_ptr,
     // because we unleak it when the event loop thread calls.
-    loop_->registerDescriptor(socket_->fd(), EPOLLIN | EPOLLONESHOT, this);
+    loop->registerDescriptor(socket_->fd(), EPOLLIN | EPOLLONESHOT, this);
   }
 
   void handleEvents(int events) override {
@@ -80,7 +86,7 @@ class ReadValueOperation final
   }
 
  private:
-  std::shared_ptr<Loop> loop_;
+  std::weak_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
   std::shared_ptr<ReadValueOperation<T>> leak_;

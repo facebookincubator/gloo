@@ -298,8 +298,8 @@ void Pair::waitUntilConnected(
   }
 }
 
-void Pair::verifyConnected() {
-  ::gloo::transport::tcp::Pair::verifyConnected();
+void Pair::verifyConnected(std::unique_lock<std::mutex>& lock) {
+  ::gloo::transport::tcp::Pair::verifyConnected(lock);
   GLOO_ENFORCE(
       is_ssl_connected_,
       "Pair is not SSL connected (",

@@ -35,6 +35,7 @@ Listener::Listener(std::shared_ptr<Loop> loop, const attr& attr)
 }
 
 Listener::~Listener() {
+  *closed_ = true;
   if (listener_) {
     loop_->unregisterDescriptor(listener_->fd(), this);
   }
@@ -61,7 +62,7 @@ void Listener::handleEvents(int /* unused */) {
     read<sequence_number_t>(
         loop_,
         sock,
-        [this](
+        [this, closed = closed_](
             std::shared_ptr<Socket> socket,
             const Error& error,
             sequence_number_t&& seq) {
@@ -69,6 +70,10 @@ void Listener::handleEvents(int /* unused */) {
           // sequence number will be bogus, and we can't route it to
           // the right callback. Ignore it.
           if (error) {
+            return;
+          }
+
+          if (*closed) {
             return;
           }
 
@@ -106,6 +111,19 @@ void Listener::waitForConnection(sequence_number_t seq, connect_callback_t fn) {
   auto socket = std::move(it->second);
   seqToSocket_.erase(it);
   loop_->defer([fn, socket]() { fn(socket, Error::kSuccess); });
+}
+
+void Listener::cancelConnect(sequence_number_t seq) {
+  std::unique_lock<std::mutex> lock(mutex_);
+
+  // If we don't yet have a callback for this sequence number, do nothing.
+  auto it = seqToCallback_.find(seq);
+  if (it == seqToCallback_.end()) {
+    return;
+  }
+
+  // If we already have a callback for this sequence number, cancel it.
+  seqToCallback_.erase(it);
 }
 
 void Listener::haveConnection(

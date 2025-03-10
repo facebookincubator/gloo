@@ -16,6 +16,7 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <tuple>
@@ -175,6 +176,8 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   std::condition_variable cv_;
   std::map<int, Buffer*> buffers_;
 
+  std::shared_ptr<std::atomic<bool>> closed_;
+
   // Tuple captures pointer to unbound buffer, byte offset, and byte count.
   using UnboundBufferOp =
       std::tuple<WeakNonOwningPtr<UnboundBuffer>, size_t, size_t>;
@@ -313,7 +316,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
       bool useTimeout);
 
   // Helper function to assert the current state is `CONNECTED`.
-  virtual void verifyConnected();
+  virtual void verifyConnected(std::unique_lock<std::mutex>& lock);
 
   // Throws if an exception if set.
   void throwIfException();

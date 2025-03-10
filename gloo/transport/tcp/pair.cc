@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iostream>
 #include <sstream>
 
 #include <errno.h>
@@ -66,8 +67,9 @@ Pair::Pair(
 Pair::~Pair() {
   // Needs lock so that this doesn't race with read/write of the
   // underlying file descriptor on the device thread.
-  std::lock_guard<std::mutex> lock(m_);
+  std::unique_lock<std::mutex> lock(m_);
   if (state_ != CLOSED) {
+    // waitUntilConnected(lock, true);
     Pair::changeState(CLOSED);
   }
 }
@@ -106,6 +108,10 @@ void Pair::connect(const std::vector<char>& bytes) {
   GLOO_ENFORCE_EQ(state_, INITIALIZING);
   state_ = CONNECTING;
 
+  // peer_ = peer;
+
+  closed_ = std::make_shared<std::atomic<bool>>(false);
+
   // Both processes call the `Pair::connect` function with the address
   // of the other. The device instance associated with both `Pair`
   // instances is responsible for establishing the actual connection,
@@ -126,11 +132,12 @@ void Pair::connect(const std::vector<char>& bytes) {
       context_->rank,
       context_->size,
       timeout_,
-      std::bind(
-          &Pair::connectCallback,
-          this,
-          std::placeholders::_1,
-          std::placeholders::_2));
+      [this, closed = closed_](std::shared_ptr<Socket> socket, Error error) {
+        if (*closed) {
+          return;
+        }
+        connectCallback(socket, error);
+      });
 
   // Wait for connection to be made.
   //
@@ -140,7 +147,7 @@ void Pair::connect(const std::vector<char>& bytes) {
   // requires a change to the base class though, so let's so it after
   // this new transport has been merged.
   //
-  waitUntilConnected(lock, true);
+  // waitUntilConnected(lock, true);
 }
 
 void Pair::connectCallback(std::shared_ptr<Socket> socket, const Error& error) {
@@ -731,6 +738,12 @@ void Pair::unregisterBuffer(Buffer* buf) {
 // changeState must only be called when holding lock.
 void Pair::changeState(state nextState) noexcept {
   if (nextState == CLOSED) {
+    // Unregister any pending operations.
+    device_->cancelConnect(self_);
+    if (closed_ != nullptr) {
+      *closed_ = true;
+    }
+
     switch (state_) {
       case INITIALIZING:
         // Initial state upon construction.
@@ -772,7 +785,11 @@ void Pair::waitUntilConnected(
   waitUntil(pred, lock, useTimeout);
 }
 
-void Pair::verifyConnected() {
+void Pair::verifyConnected(std::unique_lock<std::mutex>& lock) {
+  if (state_ == CONNECTING) {
+    waitUntilConnected(lock, true);
+  }
+
   // This code path should only be called after reaching the connected state
   GLOO_ENFORCE_GE(
       state_,
@@ -831,7 +848,7 @@ void Pair::sendAsyncMode(Op& op) {
 void Pair::send(Op& op) {
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
-  verifyConnected();
+  verifyConnected(lock);
 
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
@@ -858,7 +875,7 @@ void Pair::send(Op& op) {
 void Pair::recv() {
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
-  verifyConnected();
+  verifyConnected(lock);
 
   auto rv = read();
   if (!rv) {
@@ -896,6 +913,7 @@ void Pair::send(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // Execute this send if there is a remote pending receive.
   Context::Mutator mutator(*context_, slot, rank_);
@@ -929,6 +947,7 @@ void Pair::recv(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // If this recv happens before the send notification,
   // we are still owed a send notification. Because this recv
@@ -958,6 +977,7 @@ bool Pair::tryRecv(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // Return early if there is no remote pending send.
   Context::Mutator mutator(*context_, slot, rank_);

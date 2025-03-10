@@ -9,12 +9,13 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace gloo {
 
-class IStore {
+class IStore : public std::enable_shared_from_this<IStore> {
  public:
   virtual ~IStore() = default;
 

@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <array>
+#include <iostream>
 
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
@@ -217,7 +218,9 @@ Device::Device(const struct attr& attr)
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
       pciBusID_(interfaceToBusID(interfaceName_)) {}
 
-Device::~Device() {}
+Device::~Device() {
+  loop_->shutdown();
+}
 
 std::string Device::str() const {
   std::stringstream ss;
@@ -326,6 +329,10 @@ void Device::connectAsListener(
     connect_callback_t fn) {
   // TODO(pietern): Use timeout.
   listener_->waitForConnection(local.getSeq(), std::move(fn));
+}
+
+void Device::cancelConnect(const Address& local) {
+  listener_->cancelConnect(local.getSeq());
 }
 
 // Connecting as initiator is active.
