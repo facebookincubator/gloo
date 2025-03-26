@@ -75,6 +75,8 @@ class Loop final : public std::enable_shared_from_this<Loop> {
 
   void run();
 
+  void shutdown();
+
  private:
   static constexpr auto capacity_ = 64;
 
