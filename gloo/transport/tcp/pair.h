@@ -139,7 +139,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
       size_t offset,
       size_t nbytes);
 
-  void handleEvents(int events) override;
+  void handleEvents(Loop& loop, int events) override;
 
   void close() override;
 

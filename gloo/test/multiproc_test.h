@@ -101,14 +101,14 @@ class MultiProcWorker {
     auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
     auto device = createDevice(transport);
     context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
-    context->connectFullMesh(*store_, device);
+    context->connectFullMesh(store_, device);
     device.reset();
     sem_post(semaphore_);
     fn(std::move(context));
   }
 
  protected:
-  std::unique_ptr<::gloo::rendezvous::Store> store_;
+  std::shared_ptr<::gloo::rendezvous::Store> store_;
   sem_t* semaphore_;
 };
 

@@ -187,8 +187,10 @@ void Runner::rendezvousRedis() {
     return;
   }
 
-  rendezvous::RedisStore redisStore(options_.redisHost, options_.redisPort);
-  rendezvous::PrefixStore prefixStore(options_.prefix, redisStore);
+  auto redisStore = std::make_shared<rendezvous::RedisStore>(
+      options_.redisHost, options_.redisPort);
+  auto prefixStore =
+      std::make_shared<rendezvous::PrefixStore>(options_.prefix, redisStore);
   auto backingContext = std::make_shared<rendezvous::Context>(
       options_.contextRank, options_.contextSize);
   backingContext->connectFullMesh(prefixStore, transportDevices_.front());
@@ -221,14 +223,15 @@ void Runner::rendezvousFileSystem() {
     return;
   }
 
-  rendezvous::FileStore fileStore(options_.sharedPath);
-  rendezvous::PrefixStore prefixStore(options_.prefix, fileStore);
+  auto fileStore = std::make_shared<rendezvous::FileStore>(options_.sharedPath);
+  auto prefixStore =
+      std::make_shared<rendezvous::PrefixStore>(options_.prefix, fileStore);
   auto backingContext = std::make_shared<rendezvous::Context>(
       options_.contextRank, options_.contextSize);
   backingContext->connectFullMesh(prefixStore, transportDevices_.front());
   // After connectFullMesh is called, the rendezvous files will have been
   // generated so we need to fetch them from the FileStore
-  keyFilePaths_ = fileStore.getAllKeyFilePaths();
+  keyFilePaths_ = fileStore->getAllKeyFilePaths();
   contextFactory_ =
       std::make_shared<rendezvous::ContextFactory>(backingContext);
 }

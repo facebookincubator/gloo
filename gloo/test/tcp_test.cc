@@ -17,7 +17,7 @@ TEST(TcpTest, ConnectTimeout) {
   // Use bad address
   auto remote = Address("::1", 10);
   auto timeout = std::chrono::milliseconds(100);
-  auto fn = [&](std::shared_ptr<Socket>, const Error& e) {
+  auto fn = [&](Loop&, std::shared_ptr<Socket>, const Error& e) {
     std::lock_guard<std::mutex> lock(m);
     done = true;
     cv.notify_all();
@@ -25,7 +25,7 @@ TEST(TcpTest, ConnectTimeout) {
     EXPECT_TRUE(e);
     EXPECT_TRUE(dynamic_cast<const TimeoutError*>(&e));
   };
-  connectLoop(loop, remote, 0, 5, timeout, std::move(fn));
+  connectLoop(*loop, remote, 0, 5, timeout, std::move(fn));
 
   std::unique_lock<std::mutex> lock(m);
   cv.wait(lock, [&] { return done; });

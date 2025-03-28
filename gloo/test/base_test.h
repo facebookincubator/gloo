@@ -106,7 +106,7 @@ class BaseTest : public ::testing::Test {
       std::function<void(std::shared_ptr<Context>)> fn,
       int base = 2) {
     Barrier barrier(size);
-    ::gloo::rendezvous::HashStore store;
+    auto store = std::make_shared<::gloo::rendezvous::HashStore>();
 
     spawnThreads(size, [&](int rank) {
       auto context =

@@ -40,7 +40,7 @@ Listener::~Listener() {
   }
 }
 
-void Listener::handleEvents(int /* unused */) {
+void Listener::handleEvents(Loop& loop, int /* unused */) {
   std::lock_guard<std::mutex> guard(mutex_);
 
   for (;;) {
@@ -59,7 +59,7 @@ void Listener::handleEvents(int /* unused */) {
 
     // Read sequence number.
     read<sequence_number_t>(
-        loop_,
+        loop,
         sock,
         [this](
             std::shared_ptr<Socket> socket,

@@ -26,8 +26,6 @@ namespace tcp {
 // socket specified at construction. Upon completion or error, the
 // callback is called. Its lifetime is coupled with completion of the
 // operation, so the called doesn't need to hold on to the instance.
-// It does so by storing a shared_ptr to itself (effectively a leak)
-// until the event loop calls back.
 template <typename T>
 class ReadValueOperation final
     : public Handler,
@@ -36,29 +34,15 @@ class ReadValueOperation final
   using callback_t =
       std::function<void(std::shared_ptr<Socket>, const Error& error, T&& t)>;
 
-  ReadValueOperation(
-      std::shared_ptr<Loop> loop,
-      std::shared_ptr<Socket> socket,
-      callback_t fn)
-      : loop_(std::move(loop)),
-        socket_(std::move(socket)),
-        fn_(std::move(fn)) {}
+  ReadValueOperation(std::shared_ptr<Socket> socket, callback_t fn)
+      : socket_(std::move(socket)), fn_(std::move(fn)) {}
 
-  void run() {
-    // Cannot initialize leak until after the object has been
-    // constructed, because the std::make_shared initialization
-    // doesn't run after construction of the underlying object.
-    leak_ = this->shared_from_this();
-    // Register with loop only after we've leaked the shared_ptr,
-    // because we unleak it when the event loop thread calls.
-    loop_->registerDescriptor(socket_->fd(), EPOLLIN | EPOLLONESHOT, this);
+  void run(Loop& loop) {
+    loop.registerDescriptor(
+        socket_->fd(), EPOLLIN | EPOLLONESHOT, this->shared_from_this());
   }
 
-  void handleEvents(int events) override {
-    // Move leaked shared_ptr to the stack so that this object
-    // destroys itself once this function returns.
-    auto self = std::move(this->leak_);
-
+  void handleEvents(Loop&, int /*events*/) override {
     // Read T.
     auto rv = socket_->read(&t_, sizeof(t_));
     if (rv == -1) {
@@ -80,30 +64,26 @@ class ReadValueOperation final
   }
 
  private:
-  std::shared_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
-  std::shared_ptr<ReadValueOperation<T>> leak_;
 
   T t_;
 };
 
 template <typename T>
 void read(
-    std::shared_ptr<Loop> loop,
+    Loop& loop,
     std::shared_ptr<Socket> socket,
     typename ReadValueOperation<T>::callback_t fn) {
-  auto x = std::make_shared<ReadValueOperation<T>>(
-      std::move(loop), std::move(socket), std::move(fn));
-  x->run();
+  auto x =
+      std::make_shared<ReadValueOperation<T>>(std::move(socket), std::move(fn));
+  x->run(loop);
 }
 
 // WriteValueOperation asynchronously writes a value of type T to the
 // socket specified at construction. Upon completion or error, the
 // callback is called. Its lifetime is coupled with completion of the
 // operation, so the called doesn't need to hold on to the instance.
-// It does so by storing a shared_ptr to itself (effectively a leak)
-// until the event loop calls back.
 template <typename T>
 class WriteValueOperation final
     : public Handler,
@@ -112,31 +92,15 @@ class WriteValueOperation final
   using callback_t =
       std::function<void(std::shared_ptr<Socket>, const Error& error)>;
 
-  WriteValueOperation(
-      std::shared_ptr<Loop> loop,
-      std::shared_ptr<Socket> socket,
-      T t,
-      callback_t fn)
-      : loop_(std::move(loop)),
-        socket_(std::move(socket)),
-        fn_(std::move(fn)),
-        t_(std::move(t)) {}
+  WriteValueOperation(std::shared_ptr<Socket> socket, T t, callback_t fn)
+      : socket_(std::move(socket)), fn_(std::move(fn)), t_(std::move(t)) {}
 
-  void run() {
-    // Cannot initialize leak until after the object has been
-    // constructed, because the std::make_shared initialization
-    // doesn't run after construction of the underlying object.
-    leak_ = this->shared_from_this();
-    // Register with loop only after we've leaked the shared_ptr,
-    // because we unleak it when the event loop thread calls.
-    loop_->registerDescriptor(socket_->fd(), EPOLLOUT | EPOLLONESHOT, this);
+  void run(Loop& loop) {
+    loop.registerDescriptor(
+        socket_->fd(), EPOLLOUT | EPOLLONESHOT, this->shared_from_this());
   }
 
-  void handleEvents(int events) override {
-    // Move leaked shared_ptr to the stack so that this object
-    // destroys itself once this function returns.
-    auto leak = std::move(this->leak_);
-
+  void handleEvents(Loop&, int /*events*/) override {
     // Write T.
     auto rv = socket_->write(&t_, sizeof(t_));
     if (rv == -1) {
@@ -154,33 +118,30 @@ class WriteValueOperation final
   }
 
  private:
-  std::shared_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
-  std::shared_ptr<WriteValueOperation<T>> leak_;
 
   T t_;
 };
 
 template <typename T>
 void write(
-    std::shared_ptr<Loop> loop,
+    Loop& loop,
     std::shared_ptr<Socket> socket,
     T t,
     typename WriteValueOperation<T>::callback_t fn) {
   auto x = std::make_shared<WriteValueOperation<T>>(
-      std::move(loop), std::move(socket), std::move(t), std::move(fn));
-  x->run();
+      std::move(socket), std::move(t), std::move(fn));
+  x->run(loop);
 }
 
 class ConnectOperation final
     : public Handler,
       public std::enable_shared_from_this<ConnectOperation> {
  public:
-  using callback_t =
-      std::function<void(std::shared_ptr<Socket>, const Error& error)>;
+  using callback_t = std::function<
+      void(Loop& loop, std::shared_ptr<Socket>, const Error& error)>;
   ConnectOperation(
-      std::shared_ptr<Loop> loop,
       const Address& remote,
       const int rank,
       const int size,
@@ -190,15 +151,9 @@ class ConnectOperation final
         rank_(rank),
         size_(size),
         deadline_(std::chrono::steady_clock::now() + timeout),
-        loop_(std::move(loop)),
         fn_(std::move(fn)) {}
 
-  void run() {
-    // Cannot initialize leak until after the object has been
-    // constructed, because the std::make_shared initialization
-    // doesn't run after construction of the underlying object.
-    leak_ = this->shared_from_this();
-
+  void run(Loop& loop) {
     const auto& sockaddr = remote_.getSockaddr();
 
     // Create new socket to connect to peer.
@@ -207,29 +162,26 @@ class ConnectOperation final
     socket_->noDelay(true);
     socket_->connect(sockaddr);
 
-    // Register with loop only after we've leaked the shared_ptr,
-    // because we unleak it when the event loop thread calls.
     // Register for EPOLLOUT, because we want to be notified when
     // the connect completes. EPOLLERR is also necessary because
     // connect() can fail.
-    if (auto loop = loop_.lock()) {
-      loop->registerDescriptor(
-          socket_->fd(), EPOLLOUT | EPOLLERR | EPOLLONESHOT, this);
-    } else {
-      fn_(socket_, LoopError("loop is gone"));
-    }
+    loop.registerDescriptor(
+        socket_->fd(),
+        EPOLLOUT | EPOLLERR | EPOLLONESHOT,
+        this->shared_from_this());
   }
 
-  void handleEvents(int events) override {
-    // Move leaked shared_ptr to the stack so that this object
-    // destroys itself once this function returns.
-    auto leak = std::move(this->leak_);
+  void handleEvents(Loop& loop, int /*events*/) override {
+    // Hold a reference to this object to keep it alive until the
+    // callback is called.
+    auto leak = shared_from_this();
+    loop.unregisterDescriptor(socket_->fd(), this);
 
     int result;
     socklen_t result_len = sizeof(result);
     if (getsockopt(socket_->fd(), SOL_SOCKET, SO_ERROR, &result, &result_len) <
         0) {
-      fn_(socket_, SystemError("getsockopt", errno, remote_));
+      fn_(loop, socket_, SystemError("getsockopt", errno, remote_));
       return;
     }
     if (result != 0) {
@@ -248,16 +200,18 @@ class ConnectOperation final
           socket_->sockName().str(),
       };
       DebugLogger::log(debugData);
+
       // check deadline
       if (willRetry) {
-        run();
+        run(loop);
       } else {
-        fn_(socket_, TimeoutError("timed out connecting: " + e.what()));
+        fn_(loop, socket_, TimeoutError("timed out connecting: " + e.what()));
       }
+
       return;
     }
 
-    fn_(socket_, Error::kSuccess);
+    fn_(loop, socket_, Error::kSuccess);
   }
 
  private:
@@ -269,16 +223,12 @@ class ConnectOperation final
 
   int retry_{0};
 
-  // We use a weak_ptr to the loop to avoid a reference cycle when an error
-  // occurs.
-  std::weak_ptr<Loop> loop_;
   std::shared_ptr<Socket> socket_;
   callback_t fn_;
-  std::shared_ptr<ConnectOperation> leak_;
 };
 
 void connectLoop(
-    std::shared_ptr<Loop> loop,
+    Loop& loop,
     const Address& remote,
     const int rank,
     const int size,
