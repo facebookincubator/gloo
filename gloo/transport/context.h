@@ -49,7 +49,7 @@ class Context {
 
   virtual std::unique_ptr<Pair>& createPair(int rank) = 0;
 
-  virtual void createAndConnectAllPairs(IStore& store);
+  virtual void createAndConnectAllPairs(std::shared_ptr<IStore> store);
 
   // Creates unbound buffer to be used with the ranks in this context.
   // It is not bound to a specific rank, but still bound to this
