@@ -5,15 +5,15 @@ namespace transport {
 namespace tcp {
 
 void connectLoop(
-    std::shared_ptr<Loop> loop,
+    Loop& loop,
     const Address& remote,
     const int rank,
     const int size,
     std::chrono::milliseconds timeout,
     typename ConnectOperation::callback_t fn) {
   auto x = std::make_shared<ConnectOperation>(
-      std::move(loop), remote, rank, size, timeout, std::move(fn));
-  x->run();
+      remote, rank, size, timeout, std::move(fn));
+  x->run(loop);
 }
 
 } // namespace tcp
