@@ -341,11 +341,12 @@ void Device::connectAsInitiator(
     const int size,
     std::chrono::milliseconds timeout,
     connect_callback_t fn) {
-  auto writeSeq = [loop = loop_, seq = remote.getSeq()](
-                      std::shared_ptr<Socket> socket, connect_callback_t fn) {
-    // Write sequence number for peer to new socket.
-    write<sequence_number_t>(loop, std::move(socket), seq, std::move(fn));
-  };
+  auto writeSeq =
+      [seq = remote.getSeq()](
+          Loop& loop, std::shared_ptr<Socket> socket, connect_callback_t fn) {
+        // Write sequence number for peer to new socket.
+        write<sequence_number_t>(loop, std::move(socket), seq, std::move(fn));
+      };
 
   if (disableConnectionRetries()) {
     const auto& sockaddr = remote.getSockaddr();
@@ -356,22 +357,22 @@ void Device::connectAsInitiator(
     socket->noDelay(true);
     socket->connect(sockaddr);
 
-    writeSeq(std::move(socket), std::move(fn));
+    writeSeq(*loop_, std::move(socket), std::move(fn));
   } else {
     connectLoop(
-        loop_,
+        *loop_,
         remote,
         rank,
         size,
         timeout,
-        [loop = loop_, fn = std::move(fn), writeSeq = std::move(writeSeq)](
-            std::shared_ptr<Socket> socket, const Error& error) {
+        [fn = std::move(fn), writeSeq = std::move(writeSeq)](
+            Loop& loop, std::shared_ptr<Socket> socket, const Error& error) {
           if (error) {
             fn(socket, error);
             return;
           }
 
-          writeSeq(std::move(socket), std::move(fn));
+          writeSeq(loop, std::move(socket), fn);
         });
   }
 }

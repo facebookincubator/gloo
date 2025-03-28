@@ -635,7 +635,7 @@ void Pair::handleRemotePendingRecv(const Op& op) {
   mutator.pushRemotePendingRecv();
 }
 
-void Pair::handleEvents(int events) {
+void Pair::handleEvents(Loop& /*loop*/, int events) {
   // Try to acquire the pair's lock so the device thread (the thread
   // that ends up calling handleEvents) can mutate the tx and rx op
   // fields of this instance. If the lock cannot be acquired that
