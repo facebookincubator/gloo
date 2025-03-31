@@ -38,7 +38,7 @@ class Listener final : public Handler {
 
   ~Listener() override;
 
-  void handleEvents(int events) override;
+  void handleEvents(Loop& loop, int events) override;
 
   Address nextAddress();
 
