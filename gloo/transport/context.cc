@@ -23,7 +23,7 @@ std::unique_ptr<transport::Pair>& Context::getPair(int rank_2) {
   return pairs_.at(rank_2);
 }
 
-void Context::createAndConnectAllPairs(IStore& store) {
+void Context::createAndConnectAllPairs(std::shared_ptr<IStore> store) {
   // this is the default un-optimized version of the rendezvous protocol
   // where each rank would write N pairs to the store
   // and then for each remote peer load the N addresses
@@ -40,7 +40,7 @@ void Context::createAndConnectAllPairs(IStore& store) {
   // hostname mapping to compute local ranks.
   std::string localKey("rank_" + std::to_string(rank));
   const std::vector<char> value(localHostName.begin(), localHostName.end());
-  store.set(localKey, value);
+  store->set(localKey, value);
 
   for (int i = 0; i < size; i++) {
     if (i == rank) {
@@ -48,7 +48,7 @@ void Context::createAndConnectAllPairs(IStore& store) {
     }
 
     std::string key("rank_" + std::to_string(i));
-    auto val = store.get(key);
+    auto val = store->get(key);
     auto hostName = std::string((const char*)val.data(), val.size());
 
     if (hostName == localHostName) {
@@ -68,7 +68,7 @@ void Context::createAndConnectAllPairs(IStore& store) {
     allBytes.insert(allBytes.end(), addrBytes.begin(), addrBytes.end());
   }
 
-  store.set(std::to_string(rank), allBytes);
+  store->set(std::to_string(rank), allBytes);
 
   // Connect every pair
   for (int i = 0; i < size; i++) {
@@ -79,10 +79,10 @@ void Context::createAndConnectAllPairs(IStore& store) {
     // Wait for address of other side of this pair to become available
     std::ostringstream key;
     key << i;
-    store.wait({key.str()}, getTimeout());
+    store->wait({key.str()}, getTimeout());
 
     // Connect to other side of this pair
-    auto allAddrs = store.get(key.str());
+    auto allAddrs = store->get(key.str());
     auto addr = extractAddress(allAddrs, i);
     getPair(i)->connect(addr);
   }

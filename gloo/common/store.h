@@ -9,8 +9,11 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
+
+#define GLOO_SHARED_STORE
 
 namespace gloo {
 
@@ -21,6 +24,13 @@ class IStore {
   virtual void set(const std::string& key, const std::vector<char>& data) = 0;
 
   virtual std::vector<char> get(const std::string& key) = 0;
+
+  virtual std::vector<char> wait_get(
+      const std::string& key,
+      const std::chrono::milliseconds& timeout) {
+    wait({key}, timeout);
+    return get(key);
+  }
 
   virtual void wait(
       const std::vector<std::string>& keys,

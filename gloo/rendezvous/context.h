@@ -29,7 +29,9 @@ class Context : public ::gloo::Context {
   Context(int rank, int size, int base = 2);
   virtual ~Context();
 
-  void connectFullMesh(Store& store, std::shared_ptr<transport::Device>& dev);
+  void connectFullMesh(
+      std::shared_ptr<Store> store,
+      std::shared_ptr<transport::Device>& dev);
 
  protected:
   friend class ContextFactory;

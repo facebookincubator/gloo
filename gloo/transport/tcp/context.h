@@ -36,7 +36,7 @@ class Context : public ::gloo::transport::Context,
 
   virtual ~Context();
 
-  virtual void createAndConnectAllPairs(IStore& store) override;
+  virtual void createAndConnectAllPairs(std::shared_ptr<IStore> store) override;
 
   std::unique_ptr<transport::Pair>& createPair(int rank) override;
   std::unique_ptr<transport::Pair>& createPair(

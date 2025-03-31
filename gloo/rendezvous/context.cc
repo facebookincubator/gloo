@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "gloo/common/logging.h"
+#include "gloo/rendezvous/store.h"
 #include "gloo/transport/address.h"
 
 namespace gloo {
@@ -22,12 +23,12 @@ Context::Context(int rank, int size, int base)
 Context::~Context() {}
 
 void Context::connectFullMesh(
-    rendezvous::Store& store,
+    std::shared_ptr<rendezvous::Store> store,
     std::shared_ptr<transport::Device>& dev) {
   auto transportContext = dev->createContext(rank, size);
   transportContext->setTimeout(getTimeout());
 
-  transportContext->createAndConnectAllPairs(store);
+  transportContext->createAndConnectAllPairs(std::move(store));
 
   device_ = dev;
   transportContext_ = std::move(transportContext);
