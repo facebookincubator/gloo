@@ -36,7 +36,7 @@ Context::~Context() {
   device_.reset();
 }
 
-void Context::createAndConnectAllPairs(IStore& store) {
+void Context::createAndConnectAllPairs(std::shared_ptr<IStore> store) {
   // Here instead of sending N addresses to store,
   // we send only 1 device address (since they are all the same)
   // and N sequence numbers to differentiate them.
@@ -86,18 +86,18 @@ void Context::createAndConnectAllPairs(IStore& store) {
       static_cast<const Pair*>(currentRankPair.get())->address().getSockaddr());
   Rank currentRankInfo(
       localHostName, deviceAddress.bytes(), std::move(pairIdentifiers));
-  store.set(std::to_string(rank), currentRankInfo.bytes());
+  store->set(std::to_string(rank), currentRankInfo.bytes());
 
   std::vector<std::vector<char>> remoteRankInfos;
   int key = 0;
-  if (isStoreExtendedApiEnabled() && store.has_v2_support()) {
+  if (isStoreExtendedApiEnabled() && store->has_v2_support()) {
     auto sizeRemaining = size;
     while (sizeRemaining > 0) {
       const auto batchKeys = std::min(kDefaultBatchSize, sizeRemaining);
       std::vector<std::string> keys(batchKeys);
       std::generate_n(
           keys.begin(), batchKeys, [&] { return std::to_string(key++); });
-      const auto& batchRemoteInfos = store.multi_get(keys);
+      const auto& batchRemoteInfos = store->multi_get(keys);
       remoteRankInfos.insert(
           remoteRankInfos.end(),
           batchRemoteInfos.begin(),
@@ -107,8 +107,7 @@ void Context::createAndConnectAllPairs(IStore& store) {
   } else {
     std::generate_n(std::back_inserter(remoteRankInfos), size, [&] {
       const auto& keyStr = std::to_string(key++);
-      store.wait({keyStr.c_str()}, getTimeout());
-      return store.get(keyStr);
+      return store->wait_get(keyStr, getTimeout());
     });
   }
 
