@@ -29,6 +29,7 @@ namespace tcp {
 struct attr CreateDeviceAttr(const struct attr& src);
 
 std::shared_ptr<::gloo::transport::Device> CreateDevice(const struct attr&);
+std::shared_ptr<::gloo::transport::Device> CreateLazyDevice(const struct attr&);
 
 // Forward declarations
 class Pair;
@@ -37,7 +38,7 @@ class Buffer;
 class Device : public ::gloo::transport::Device,
                public std::enable_shared_from_this<Device> {
  public:
-  explicit Device(const struct attr& attr);
+  explicit Device(const struct attr& attr, bool lazyInit);
   virtual ~Device();
 
   virtual std::string str() const override;
@@ -57,8 +58,15 @@ class Device : public ::gloo::transport::Device,
   // one side is the connection initiator and the other is the listener.
   bool isInitiator(const Address& local, const Address& remote) const;
 
+  void shutdown();
+
+  bool isLazyInit() {
+    return lazyInit_;
+  }
+
  protected:
   const struct attr attr_;
+  const bool lazyInit_;
 
   // Return a new `Address` instance.
   //

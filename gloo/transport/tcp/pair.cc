@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iostream>
 #include <sstream>
 
 #include <errno.h>
@@ -66,7 +67,7 @@ Pair::Pair(
 Pair::~Pair() {
   // Needs lock so that this doesn't race with read/write of the
   // underlying file descriptor on the device thread.
-  std::lock_guard<std::mutex> lock(m_);
+  std::unique_lock<std::mutex> lock(m_);
   if (state_ != CLOSED) {
     Pair::changeState(CLOSED);
   }
@@ -139,8 +140,10 @@ void Pair::connect(const std::vector<char>& bytes) {
   // them. This should make context initialization a bit faster. It
   // requires a change to the base class though, so let's so it after
   // this new transport has been merged.
-  //
-  waitUntilConnected(lock, true);
+
+  if (!device_->isLazyInit()) {
+    waitUntilConnected(lock, true);
+  }
 }
 
 void Pair::connectCallback(std::shared_ptr<Socket> socket, const Error& error) {
@@ -158,7 +161,7 @@ void Pair::connectCallback(std::shared_ptr<Socket> socket, const Error& error) {
 
   // Reset addresses.
   self_ = socket->sockName();
-  peer_ = socket->peerName();
+  peer_ = socket->safePeerName();
 
   // Take over ownership of the socket's file descriptor. The code in
   // this class works directly with file descriptor directly.
@@ -772,7 +775,11 @@ void Pair::waitUntilConnected(
   waitUntil(pred, lock, useTimeout);
 }
 
-void Pair::verifyConnected() {
+void Pair::verifyConnected(std::unique_lock<std::mutex>& lock) {
+  if (state_ == CONNECTING) {
+    waitUntilConnected(lock, true);
+  }
+
   // This code path should only be called after reaching the connected state
   GLOO_ENFORCE_GE(
       state_,
@@ -831,7 +838,7 @@ void Pair::sendAsyncMode(Op& op) {
 void Pair::send(Op& op) {
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
-  verifyConnected();
+  verifyConnected(lock);
 
   // Try to size the send buffer such that the write below completes
   // synchronously and we don't need to finish the write later.
@@ -858,7 +865,7 @@ void Pair::send(Op& op) {
 void Pair::recv() {
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
-  verifyConnected();
+  verifyConnected(lock);
 
   auto rv = read();
   if (!rv) {
@@ -896,6 +903,7 @@ void Pair::send(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // Execute this send if there is a remote pending receive.
   Context::Mutator mutator(*context_, slot, rank_);
@@ -929,6 +937,7 @@ void Pair::recv(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // If this recv happens before the send notification,
   // we are still owed a send notification. Because this recv
@@ -958,6 +967,7 @@ bool Pair::tryRecv(
 
   std::unique_lock<std::mutex> lock(m_);
   throwIfException();
+  verifyConnected(lock);
 
   // Return early if there is no remote pending send.
   Context::Mutator mutator(*context_, slot, rank_);
