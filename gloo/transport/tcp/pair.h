@@ -16,6 +16,7 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <tuple>
@@ -313,7 +314,7 @@ class Pair : public ::gloo::transport::Pair, public Handler {
       bool useTimeout);
 
   // Helper function to assert the current state is `CONNECTED`.
-  virtual void verifyConnected();
+  virtual void verifyConnected(std::unique_lock<std::mutex>& lock);
 
   // Throws if an exception if set.
   void throwIfException();
