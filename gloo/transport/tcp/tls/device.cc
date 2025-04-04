@@ -36,7 +36,7 @@ Device::Device(
     std::string cert_file,
     std::string ca_file,
     std::string ca_path)
-    : ::gloo::transport::tcp::Device(attr),
+    : ::gloo::transport::tcp::Device(attr, /*lazyInit=*/false),
       pkey_file_(std::move(pkey_file)),
       cert_file_(std::move(cert_file)),
       ca_file_(std::move(ca_file)),

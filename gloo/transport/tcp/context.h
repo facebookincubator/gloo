@@ -43,12 +43,16 @@ class Context : public ::gloo::transport::Context,
       int rank,
       bool useRankAsSeqNumber);
 
+  virtual std::unique_ptr<transport::Pair>& getPair(int rank) override;
+
   std::unique_ptr<transport::UnboundBuffer> createUnboundBuffer(
       void* ptr,
       size_t size) override;
 
  protected:
   std::shared_ptr<Device> device_;
+  std::shared_ptr<IStore> store_{nullptr};
+  std::vector<bool> connecting_;
 
   using pendingRecvTuple = std::tuple<
       WeakNonOwningPtr<UnboundBuffer>,

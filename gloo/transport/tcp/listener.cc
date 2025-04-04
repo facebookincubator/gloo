@@ -34,10 +34,19 @@ Listener::Listener(std::shared_ptr<Loop> loop, const attr& attr)
   loop_->registerDescriptor(listener_->fd(), EPOLLIN, this);
 }
 
-Listener::~Listener() {
+void Listener::shutdown() {
+  if (*closed_) {
+    return;
+  }
+
+  *closed_ = true;
   if (listener_) {
     loop_->unregisterDescriptor(listener_->fd(), this);
   }
+}
+
+Listener::~Listener() {
+  shutdown();
 }
 
 void Listener::handleEvents(Loop& loop, int /* unused */) {
@@ -61,7 +70,7 @@ void Listener::handleEvents(Loop& loop, int /* unused */) {
     read<sequence_number_t>(
         loop,
         sock,
-        [this](
+        [this, closed = closed_](
             std::shared_ptr<Socket> socket,
             const Error& error,
             sequence_number_t&& seq) {
@@ -69,6 +78,10 @@ void Listener::handleEvents(Loop& loop, int /* unused */) {
           // sequence number will be bogus, and we can't route it to
           // the right callback. Ignore it.
           if (error) {
+            return;
+          }
+
+          if (*closed) {
             return;
           }
 

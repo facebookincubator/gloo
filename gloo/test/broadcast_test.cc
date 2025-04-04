@@ -182,6 +182,11 @@ TEST_F(BroadcastTest, TestTimeout) {
     BroadcastOptions opts(context);
     opts.setOutput(output.getPointer(), 1);
     opts.setRoot(0);
+
+    // Run one operation first so we're measuring the operation timeout not
+    // connection timeout.
+    broadcast(opts);
+
     opts.setTimeout(std::chrono::milliseconds(10));
     if (context->rank == 0) {
       try {
