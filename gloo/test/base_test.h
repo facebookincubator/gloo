@@ -59,7 +59,6 @@ class Barrier {
 
 enum Transport {
   TCP,
-  TCP_LAZY,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
   TCP_TLS,
 #endif

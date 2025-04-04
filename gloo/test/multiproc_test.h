@@ -102,29 +102,9 @@ class MultiProcWorker {
     auto device = createDevice(transport);
     context->setTimeout(std::chrono::milliseconds(kMultiProcTimeout));
     context->connectFullMesh(store_, device);
-
-    // Wait for all workers to be ready
-    ringBarrier(context);
-
     device.reset();
     sem_post(semaphore_);
     fn(std::move(context));
-  }
-
-  void ringBarrier(std::shared_ptr<::gloo::rendezvous::Context>& context) {
-    int sendScratch = 0;
-    int recvScratch = 0;
-    auto sendBuf =
-        context->createUnboundBuffer(&sendScratch, sizeof(sendScratch));
-    auto recvBuf =
-        context->createUnboundBuffer(&recvScratch, sizeof(recvScratch));
-    const auto leftRank = (context->size + context->rank - 1) % context->size;
-    const auto rightRank = (context->rank + 1) % context->size;
-
-    sendBuf->send(leftRank, 0);
-    recvBuf->recv(rightRank, 0);
-    sendBuf->waitSend();
-    recvBuf->waitRecv();
   }
 
  protected:
