@@ -17,7 +17,6 @@ const char* kDefaultDevice = "localhost";
 // Transports that instantiated algorithms can be tested against.
 const std::vector<Transport> kTransportsForClassAlgorithms = {
     Transport::TCP,
-    Transport::TCP_LAZY,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
     Transport::TCP_TLS,
 #endif
@@ -28,7 +27,6 @@ const std::vector<Transport> kTransportsForClassAlgorithms = {
 // preferred over the instantiated style.
 const std::vector<Transport> kTransportsForFunctionAlgorithms = {
     Transport::TCP,
-    Transport::TCP_LAZY,
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
     Transport::TCP_TLS,
 #endif
@@ -39,8 +37,6 @@ std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
 #if GLOO_HAVE_TRANSPORT_TCP
   if (transport == Transport::TCP) {
     return ::gloo::transport::tcp::CreateDevice(kDefaultDevice);
-  } else if (transport == Transport::TCP_LAZY) {
-    return ::gloo::transport::tcp::CreateLazyDevice(kDefaultDevice);
   }
 #endif
 #if GLOO_HAVE_TRANSPORT_TCP_TLS

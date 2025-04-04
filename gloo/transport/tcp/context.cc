@@ -27,14 +27,9 @@ namespace tcp {
 constexpr int kDefaultBatchSize = 128;
 
 Context::Context(std::shared_ptr<Device> device, int rank, int size)
-    : ::gloo::transport::Context(rank, size), device_(std::move(device)) {
-  connecting_.resize(size);
-}
+    : ::gloo::transport::Context(rank, size), device_(std::move(device)) {}
 
 Context::~Context() {
-  // We need to shutdown the loop thread prior to freeing the pairs.
-  device_->shutdown();
-
   // Pairs refer to device by raw pointer.
   // Ensure they are destructed before the device.
   pairs_.clear();
@@ -55,6 +50,8 @@ void Context::createAndConnectAllPairs(std::shared_ptr<IStore> store) {
   // it's not super straightforward so left for folks having more bandwidth
   // later on.
 
+  int localRank = 0;
+  bool localRankSet = false;
   auto localHostName = getHostname();
   bool useRankAsSeqNum = useRankAsSeqNumber();
 
@@ -64,7 +61,7 @@ void Context::createAndConnectAllPairs(std::shared_ptr<IStore> store) {
   std::vector<ssize_t> pairIdentifiers;
   for (int i = 0; i < size; i++) {
     const auto& pair = createPair(i, useRankAsSeqNum);
-    if (!useRankAsSeqNum && !device_->isLazyInit()) {
+    if (!useRankAsSeqNum) {
       // Need to preserve the order of the pair identifiers if we are not using
       // the rank as seq number
       pairIdentifiers.emplace_back(
@@ -91,101 +88,65 @@ void Context::createAndConnectAllPairs(std::shared_ptr<IStore> store) {
       localHostName, deviceAddress.bytes(), std::move(pairIdentifiers));
   store->set(std::to_string(rank), currentRankInfo.bytes());
 
-  store_ = store;
+  std::vector<std::vector<char>> remoteRankInfos;
+  int key = 0;
+  if (isStoreExtendedApiEnabled() && store->has_v2_support()) {
+    auto sizeRemaining = size;
+    while (sizeRemaining > 0) {
+      const auto batchKeys = std::min(kDefaultBatchSize, sizeRemaining);
+      std::vector<std::string> keys(batchKeys);
+      std::generate_n(
+          keys.begin(), batchKeys, [&] { return std::to_string(key++); });
+      const auto& batchRemoteInfos = store->multi_get(keys);
+      remoteRankInfos.insert(
+          remoteRankInfos.end(),
+          batchRemoteInfos.begin(),
+          batchRemoteInfos.end());
+      sizeRemaining -= batchKeys;
+    }
+  } else {
+    std::generate_n(std::back_inserter(remoteRankInfos), size, [&] {
+      const auto& keyStr = std::to_string(key++);
+      return store->wait_get(keyStr, getTimeout());
+    });
+  }
 
-  if (!device_->isLazyInit()) {
-    int localRank = 0;
-    bool localRankSet = false;
-    std::vector<std::vector<char>> remoteRankInfos;
-    int key = 0;
-    if (isStoreExtendedApiEnabled() && store->has_v2_support()) {
-      auto sizeRemaining = size;
-      while (sizeRemaining > 0) {
-        const auto batchKeys = std::min(kDefaultBatchSize, sizeRemaining);
-        std::vector<std::string> keys(batchKeys);
-        std::generate_n(
-            keys.begin(), batchKeys, [&] { return std::to_string(key++); });
-        const auto& batchRemoteInfos = store->multi_get(keys);
-        remoteRankInfos.insert(
-            remoteRankInfos.end(),
-            batchRemoteInfos.begin(),
-            batchRemoteInfos.end());
-        sizeRemaining -= batchKeys;
-      }
-    } else {
-      std::generate_n(std::back_inserter(remoteRankInfos), size, [&] {
-        const auto& keyStr = std::to_string(key++);
-        return store->wait_get(keyStr, getTimeout());
-      });
+  // Connect every pair
+  for (int i = 0; i < size; i++) {
+    if (i == rank) {
+      // at this point we have enumerated all the ranks located on this host
+      // up to the current rank, so the current `localRank` number is
+      // what we'll set to the pairs.
+      localRankSet = true;
+      // We are not going to connect self.
+      continue;
     }
 
-    // Connect every pair
-    for (int i = 0; i < size; i++) {
-      if (i == rank) {
-        // at this point we have enumerated all the ranks located on this host
-        // up to the current rank, so the current `localRank` number is
-        // what we'll set to the pairs.
-        localRankSet = true;
-        // We are not going to connect self.
-        continue;
-      }
+    Rank remoteRankInfo(remoteRankInfos[i]);
 
-      Rank remoteRankInfo(remoteRankInfos[i]);
-
-      if (!localRankSet && remoteRankInfo.hostname == localHostName) {
-        ++localRank;
-      }
-
-      const auto& pair = pairs_[i];
-      auto remoteDeviceAddr =
-          Address(remoteRankInfo.addressBytes).getSockaddr();
-      auto remoteAddr = Address(
-          remoteDeviceAddr,
-          useRankAsSeqNum ? (sequence_number_t)rank
-                          : remoteRankInfo.pairIdentifiers[rank]);
-      pair->connect(remoteAddr.bytes());
-      connecting_[i] = true;
+    if (!localRankSet && remoteRankInfo.hostname == localHostName) {
+      ++localRank;
     }
 
-    // Set the local rank info for all mesh pairs involving current rank
-    for (int i = 0; i < size; i++) {
-      if (i == rank) {
-        continue;
-      }
-      const auto& pair = getPair(i);
-      pair->setLocalRank(localRank);
+    const auto& pair = getPair(i);
+    auto remoteDeviceAddr = Address(remoteRankInfo.addressBytes).getSockaddr();
+    auto remoteAddr = Address(
+        remoteDeviceAddr,
+        useRankAsSeqNum ? (sequence_number_t)rank
+                        : remoteRankInfo.pairIdentifiers[rank]);
+    pair->connect(remoteAddr.bytes());
+  }
+
+  // Set the local rank info for all mesh pairs involving current rank
+  for (int i = 0; i < size; i++) {
+    if (i == rank) {
+      continue;
     }
+    const auto& pair = getPair(i);
+    pair->setLocalRank(localRank);
   }
 
   printConnectivityInfo();
-}
-
-std::unique_ptr<transport::Pair>& Context::getPair(int rank) {
-  auto& pair = pairs_[rank];
-
-  if (!store_) {
-    // Manual context creation without store to bootstrap.
-    return pair;
-  }
-
-  // don't connect to self
-  if (rank == this->rank) {
-    return pair;
-  }
-
-  if (!connecting_[rank]) {
-    connecting_[rank] = true;
-
-    const auto& keyStr = std::to_string(rank);
-    auto remoteRankInfoBytes = store_->wait_get(keyStr, getTimeout());
-
-    Rank remoteRankInfo(remoteRankInfoBytes);
-
-    auto remoteDeviceAddr = Address(remoteRankInfo.addressBytes).getSockaddr();
-    auto remoteAddr = Address(remoteDeviceAddr, this->rank);
-    pair->connect(remoteAddr.bytes());
-  }
-  return pair;
 }
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
@@ -258,11 +219,6 @@ void Context::recvFromAny(
     size_t offset,
     size_t nbytes,
     std::vector<int> srcRanks) {
-  // Ensure all connections are established.
-  for (auto rank : srcRanks) {
-    getPair(rank);
-  }
-
   for (;;) {
     // Find rank of pair we can attempt a recv from
     auto rank = recvFromAnyFindRank(buf, slot, offset, nbytes, srcRanks);

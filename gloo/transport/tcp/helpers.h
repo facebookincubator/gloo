@@ -47,7 +47,7 @@ class ReadValueOperation final
     auto rv = socket_->read(&t_, sizeof(t_));
     if (rv == -1) {
       fn_(socket_,
-          SystemError("read", errno, socket_->safePeerName()),
+          SystemError("read", errno, socket_->peerName()),
           std::move(t_));
       return;
     }
@@ -55,7 +55,7 @@ class ReadValueOperation final
     // Check for short read (assume we can read in a single call).
     if (rv < sizeof(t_)) {
       fn_(socket_,
-          ShortReadError(rv, sizeof(t_), socket_->safePeerName()),
+          ShortReadError(rv, sizeof(t_), socket_->peerName()),
           std::move(t_));
       return;
     }
@@ -104,13 +104,13 @@ class WriteValueOperation final
     // Write T.
     auto rv = socket_->write(&t_, sizeof(t_));
     if (rv == -1) {
-      fn_(socket_, SystemError("write", errno, socket_->safePeerName()));
+      fn_(socket_, SystemError("write", errno, socket_->peerName()));
       return;
     }
 
     // Check for short write (assume we can write in a single call).
     if (rv < sizeof(t_)) {
-      fn_(socket_, ShortWriteError(rv, sizeof(t_), socket_->safePeerName()));
+      fn_(socket_, ShortWriteError(rv, sizeof(t_), socket_->peerName()));
       return;
     }
 
