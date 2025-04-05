@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <array>
+#include <iostream>
 
 #include "gloo/common/error.h"
 #include "gloo/common/linux.h"
@@ -156,7 +157,14 @@ struct attr CreateDeviceAttr(const struct attr& src) {
 }
 
 std::shared_ptr<transport::Device> CreateDevice(const struct attr& src) {
-  auto device = std::make_shared<Device>(CreateDeviceAttr(src));
+  auto device =
+      std::make_shared<Device>(CreateDeviceAttr(src), /*lazyInit=*/false);
+  return std::shared_ptr<transport::Device>(device);
+}
+
+std::shared_ptr<transport::Device> CreateLazyDevice(const struct attr& src) {
+  auto device =
+      std::make_shared<Device>(CreateDeviceAttr(src), /*lazyInit=*/true);
   return std::shared_ptr<transport::Device>(device);
 }
 
@@ -209,15 +217,23 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
   return iface;
 }
 
-Device::Device(const struct attr& attr)
+Device::Device(const struct attr& attr, bool lazyInit)
     : attr_(attr),
+      lazyInit_(lazyInit),
       loop_(std::make_shared<Loop>()),
       listener_(std::make_shared<Listener>(loop_, attr)),
       interfaceName_(sockaddrToInterfaceName(attr_)),
       interfaceSpeedMbps_(getInterfaceSpeedByName(interfaceName_)),
       pciBusID_(interfaceToBusID(interfaceName_)) {}
 
-Device::~Device() {}
+void Device::shutdown() {
+  loop_->shutdown();
+  listener_->shutdown();
+}
+
+Device::~Device() {
+  shutdown();
+}
 
 std::string Device::str() const {
   std::stringstream ss;

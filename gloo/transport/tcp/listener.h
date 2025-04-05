@@ -49,10 +49,14 @@ class Listener final : public Handler {
   // even if the connection is already available.
   void waitForConnection(sequence_number_t seq, connect_callback_t fn);
 
+  void shutdown();
+
  private:
   std::mutex mutex_;
   std::shared_ptr<Loop> loop_;
   std::shared_ptr<Socket> listener_;
+  std::shared_ptr<std::atomic<bool>> closed_{
+      std::make_shared<std::atomic<bool>>(false)};
 
   // Address of this listener and the sequence number for the next
   // connection. Sequence numbers are written by a peer right after

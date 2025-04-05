@@ -8,7 +8,7 @@ namespace transport {
 namespace tcp {
 
 TEST(TcpTest, ConnectTimeout) {
-  auto loop = std::make_shared<Loop>();
+  Loop loop;
 
   std::mutex m;
   std::condition_variable cv;
@@ -25,7 +25,7 @@ TEST(TcpTest, ConnectTimeout) {
     EXPECT_TRUE(e);
     EXPECT_TRUE(dynamic_cast<const TimeoutError*>(&e));
   };
-  connectLoop(*loop, remote, 0, 5, timeout, std::move(fn));
+  connectLoop(loop, remote, 0, 5, timeout, std::move(fn));
 
   std::unique_lock<std::mutex> lock(m);
   cv.wait(lock, [&] { return done; });
