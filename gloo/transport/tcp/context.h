@@ -52,6 +52,10 @@ class Context : public ::gloo::transport::Context,
  protected:
   std::shared_ptr<Device> device_;
   std::shared_ptr<IStore> store_{nullptr};
+
+  // Protects the connection states to avoid race conditions.
+  std::mutex m_;
+  // Whether or not connection has been started for this peer.
   std::vector<bool> connecting_;
 
   using pendingRecvTuple = std::tuple<
