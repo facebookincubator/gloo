@@ -95,8 +95,21 @@ static void lookupAddrForHostname(struct attr& attr) {
   int bind_rv = 0;
   int bind_errno = 0;
   std::string bind_addr;
-  auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
-  GLOO_ENFORCE_NE(rv, -1);
+  
+  /* Add a fixed number of retries with exponential backoff */
+  int max_backoff_attempts = 5;
+  for (auto i = 0; i < max_backoff_attempts; i++) {
+    auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
+    GLOO_ENFORCE_NE(rv, -1);
+
+    /* If we get any dns resolution, continue */
+    if (result != nullptr) {
+      break;
+    }
+    /* Back off exponentially. Should take < 32 ms at most */
+    std::this_thread::sleep_for(std::chrono::milliseconds(1 << i));
+  }
+
   struct addrinfo* rp;
   for (rp = result; rp != nullptr; rp = rp->ai_next) {
     auto fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
