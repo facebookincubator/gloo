@@ -12,6 +12,7 @@
 #include <winsock2.h>
 #else
 #include <unistd.h>
+#include <cstdlib>
 #endif
 
 #include "gloo/common/utils.h"
