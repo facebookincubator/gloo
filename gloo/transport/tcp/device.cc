@@ -96,7 +96,7 @@ static void lookupAddrForHostname(struct attr& attr) {
   int bind_errno = 0;
   std::string bind_addr;
   auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
-  GLOO_ENFORCE_NE(rv, -1);
+  GLOO_ENFORCE_EQ(rv, 0);
   struct addrinfo* rp;
   for (rp = result; rp != nullptr; rp = rp->ai_next) {
     auto fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
