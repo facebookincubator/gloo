@@ -10,6 +10,7 @@ Collective communications library with various primitives for multi-machine trai
 </h3>
 
 <p align="center">
+  | <a href="https://github.com/facebookincubator/gloo/tree/main/docs"><b>Gloo Documentation</b></a>
   | <a href="https://pytorch.org/docs/stable/distributed.html"><b>PyTorch Distributed Documentation</b></a>
   | <a href="https://docs.google.com/presentation/d/1BX4o0ggV0-1MLwlLYcFkZHgNThyZX1-IJM3qbm0cmaA/edit?usp=sharing"><b>Introduction to Gloo Presentation</b></a>
   |
