@@ -11,6 +11,7 @@
 #include "gloo/common/error.h"
 #include "gloo/transport/ibverbs/device.h"
 #include "gloo/transport/ibverbs/pair.h"
+#include "gloo/transport/ibverbs/unbound_buffer.h"
 
 namespace gloo {
 namespace transport {
@@ -23,16 +24,26 @@ Context::~Context() {}
 
 std::unique_ptr<transport::Pair>& Context::createPair(int rank) {
   pairs_[rank] = std::unique_ptr<transport::Pair>(
-      new ibverbs::Pair(device_, getTimeout()));
+      new ibverbs::Pair(rank, device_, getTimeout()));
   return pairs_[rank];
 }
 
 std::unique_ptr<transport::UnboundBuffer> Context::createUnboundBuffer(
     void* ptr,
     size_t size) {
-  GLOO_THROW_INVALID_OPERATION_EXCEPTION(
-      "Unbound buffers not supported yet for ibverbs transport");
-  return std::unique_ptr<transport::UnboundBuffer>();
+  return std::make_unique<UnboundBuffer>(this->shared_from_this(), ptr, size);
+}
+
+void Context::signalException(const std::string& msg) {
+  // The `pairs_` vector is logically constant. After the context and
+  // all of its pairs have been created it is not mutated until the
+  // context is destructed. Therefore, we don't need to acquire this
+  // context's instance lock before looping over `pairs_`.
+  for (auto& pair : pairs_) {
+    if (pair) {
+      reinterpret_cast<ibverbs::Pair*>(pair.get())->signalIoFailure(msg);
+    }
+  }
 }
 
 } // namespace ibverbs

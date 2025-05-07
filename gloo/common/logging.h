@@ -15,9 +15,19 @@
 #include <limits>
 #include <vector>
 
+#include "gloo/common/error.h"
 #include "gloo/common/string.h"
 
 namespace gloo {
+
+#define GLOO_LOG_MSG(level, ...)   \
+  std::cerr << ::gloo::MakeString( \
+      "[", __FILE__, ":", __LINE__, "] ", level, " ", __VA_ARGS__, "\n")
+
+#define GLOO_INFO(...) GLOO_LOG_MSG("INFO", __VA_ARGS__)
+#define GLOO_ERROR(...) GLOO_LOG_MSG("ERROR", __VA_ARGS__)
+#define GLOO_WARN(...) GLOO_LOG_MSG("WARN", __VA_ARGS__)
+#define GLOO_DEBUG(...) // GLOO_LOG_MSG("DEBUG", __VA_ARGS__)
 
 class EnforceNotMet : public std::exception {
  public:
@@ -156,8 +166,5 @@ BINARY_COMP_HELPER(LessEquals, <=)
   GLOO_ENFORCE_THAT_IMPL(GreaterEquals((x), (y)), #x " >= " #y, __VA_ARGS__)
 #define GLOO_ENFORCE_GT(x, y, ...) \
   GLOO_ENFORCE_THAT_IMPL(Greater((x), (y)), #x " > " #y, __VA_ARGS__)
-
-#define GLOO_ERROR(...) \
-  std::cerr << "Gloo error: " << ::gloo::MakeString(__VA_ARGS__) << std::endl
 
 } // namespace gloo

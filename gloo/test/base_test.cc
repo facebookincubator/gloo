@@ -21,6 +21,9 @@ const std::vector<Transport> kTransportsForClassAlgorithms = {
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
     Transport::TCP_TLS,
 #endif
+#if GLOO_HAVE_TRANSPORT_IBVERBS
+    Transport::IBVERBS,
+#endif
 };
 
 // Transports that function algorithms can be tested against.
@@ -32,7 +35,12 @@ const std::vector<Transport> kTransportsForFunctionAlgorithms = {
 #if GLOO_HAVE_TRANSPORT_TCP_TLS
     Transport::TCP_TLS,
 #endif
+#if GLOO_HAVE_TRANSPORT_UV
     Transport::UV,
+#endif
+#if GLOO_HAVE_TRANSPORT_IBVERBS
+    Transport::IBVERBS,
+#endif
 };
 
 std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
@@ -58,6 +66,17 @@ std::shared_ptr<::gloo::transport::Device> createDevice(Transport transport) {
 #else
     return ::gloo::transport::uv::CreateDevice(kDefaultDevice);
 #endif
+  }
+#endif
+#if GLOO_HAVE_TRANSPORT_IBVERBS
+  if (transport == Transport::IBVERBS) {
+    gloo::transport::ibverbs::attr attr;
+    attr.port = 1;
+    try {
+      return ::gloo::transport::ibverbs::CreateDevice(attr);
+    } catch (const InvalidOperationException& e) {
+      GLOO_INFO("IBVERBS not available: ", e.what());
+    }
   }
 #endif
   return nullptr;

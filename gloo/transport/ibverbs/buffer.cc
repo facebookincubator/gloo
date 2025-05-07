@@ -30,8 +30,8 @@ Buffer::Buffer(Pair* pair, int slot, void* ptr, size_t size)
       ex_(nullptr) {
   mr_ = ibv_reg_mr(
       pair_->dev_->pd_,
-      ptr_,
-      size_,
+      size == 0 ? static_cast<void*>(&emptyBuf_) : ptr,
+      size == 0 ? sizeof(emptyBuf_) : size,
       IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
 
   // Provide hint if the error is EFAULT and nv_peer_mem is not loaded
@@ -59,7 +59,12 @@ Buffer::Buffer(Pair* pair, int slot, void* ptr, size_t size)
 }
 
 Buffer::~Buffer() {
-  GLOO_ENFORCE_EQ(sendPending_, 0, "Destructing buffer expecting completions");
+  std::lock_guard<std::mutex> lock(m_);
+  if (sendPending_ > 0) {
+    GLOO_WARN(
+        "Destructing buffer with pending sends, sendPending_=", sendPending_);
+  }
+
   ibv_dereg_mr(mr_);
 }
 
@@ -167,36 +172,40 @@ void Buffer::waitSend() {
 }
 
 void Buffer::send(size_t offset, size_t length, size_t roffset) {
-  // Can't assert on roffset, since we don't know the size of
-  // the remote buffer. Refactor of initialization code needed
-  // to support this.
-  GLOO_ENFORCE_LE(offset + length, size_);
-
   {
     std::unique_lock<std::mutex> lock(m_);
+
+    // Can't assert on roffset, since we don't know the size of
+    // the remote buffer. Refactor of initialization code needed
+    // to support this.
+    GLOO_ENFORCE_LE(offset + length, size_);
+
     checkErrorState();
+
+    if (debug_) {
+      std::cout << "[" << getpid() << "] ";
+      std::cout << "send " << length << " bytes";
+      std::cout << std::endl;
+    }
+
+    // Increment number of sends in flight
+    sendPending_++;
   }
 
-  if (debug_) {
-    std::cout << "[" << getpid() << "] ";
-    std::cout << "send " << length << " bytes";
-    std::cout << std::endl;
-  }
-
-  // Increment number of sends in flight
-  sendPending_++;
+  // Release lock before calling into the pair to avoid deadlock.
 
   pair_->send(this, offset, length, roffset);
 }
 
-void Buffer::handleCompletion(struct ibv_wc* wc) {
+void Buffer::handleCompletion(int rank, struct ibv_wc* wc) {
+  std::unique_lock<std::mutex> lock(m_);
+
   if (wc->opcode & IBV_WC_RECV) {
     if (debug_) {
       std::cout << "[" << getpid() << "] ";
       std::cout << "recv " << wc->byte_len << " bytes";
       std::cout << std::endl;
     }
-    std::unique_lock<std::mutex> lock(m_);
     recvCompletions_++;
     recvCv_.notify_one();
   } else if (wc->opcode == IBV_WC_RDMA_WRITE) {
@@ -205,7 +214,6 @@ void Buffer::handleCompletion(struct ibv_wc* wc) {
       std::cout << "send complete";
       std::cout << std::endl;
     }
-    std::unique_lock<std::mutex> lock(m_);
     sendCompletions_++;
     sendPending_--;
     sendCv_.notify_one();
