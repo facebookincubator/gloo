@@ -33,6 +33,10 @@
 #include "gloo/transport/uv/device.h"
 #endif
 
+#if GLOO_HAVE_TRANSPORT_IBVERBS
+#include "gloo/transport/ibverbs/device.h"
+#endif
+
 namespace gloo {
 namespace test {
 
@@ -64,6 +68,7 @@ enum Transport {
   TCP_TLS,
 #endif
   UV,
+  IBVERBS,
 };
 
 extern const std::vector<Transport> kTransportsForClassAlgorithms;
@@ -117,6 +122,7 @@ class BaseTest : public ::testing::Test {
       // socket address.
       auto device = device_creator(transport);
       if (!device) {
+        GTEST_SKIP() << "Skipping test: transport not available";
         return;
       }
       context->connectFullMesh(store, device);

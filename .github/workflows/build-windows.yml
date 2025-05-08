@@ -75,7 +75,8 @@ jobs:
           git submodule update --init --recursive
           mkdir -p build
           cd build
-          cmake ..  -DBUILD_TEST=ON -Dlibuv_ROOT=${{ env.libuv_path }} `
+          cmake ..  -DBUILD_TEST=ON `
+            -DUSE_LIBUV=ON -Dlibuv_ROOT=${{ env.libuv_path }} `
             -DGTEST_LIBRARY=${{ env.gtest_lib_path }}/lib/gtest.lib `
             -DGTEST_INCLUDE_DIR=${{ env.gtest_lib_path }}/include `
             -DGTEST_MAIN_LIBRARY=${{ env.gtest_lib_path }}/lib/gtest_main.lib

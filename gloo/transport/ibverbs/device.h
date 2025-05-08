@@ -76,6 +76,7 @@ class Device : public ::gloo::transport::Device,
 
   friend class Pair;
   friend class Buffer;
+  friend class UnboundBuffer;
 };
 
 } // namespace ibverbs

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#if GLOO_HAVE_TRANSPORT_TCP
+
 #include <gloo/transport/tcp/helpers.h>
 #include <gloo/transport/tcp/loop.h>
 
@@ -34,3 +36,5 @@ TEST(TcpTest, ConnectTimeout) {
 } // namespace tcp
 } // namespace transport
 } // namespace gloo
+
+#endif // GLOO_HAVE_TRANSPORT_TCP
