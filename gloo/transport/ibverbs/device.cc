@@ -24,6 +24,15 @@ namespace gloo {
 namespace transport {
 namespace ibverbs {
 
+namespace {
+bool hasNvPeerMem() {
+  const auto& modules = kernelModules();
+  return modules.count("nv_peer_mem") > 0 ||
+      // Newer nvidia drivers use a different module name
+      modules.count("nvidia_peermem") > 0;
+}
+} // namespace
+
 // Scope guard for ibverbs device list.
 class IbvDevices {
  public:
@@ -112,7 +121,7 @@ std::shared_ptr<::gloo::transport::Device> CreateDevice(
 Device::Device(const struct attr& attr, ibv_context* context)
     : attr_(attr),
       pciBusID_(infinibandToBusID(attr.name)),
-      hasNvPeerMem_(kernelModules().count("nv_peer_mem") > 0),
+      hasNvPeerMem_(hasNvPeerMem()),
       context_(context) {
   int rv;
 
