@@ -20,6 +20,10 @@
 #include "gloo/cuda.h"
 #include "gloo/transport/device.h"
 
+#if GLOO_USE_TORCH_DTYPES
+#include <c10/util/BFloat16.h>
+#endif
+
 namespace gloo {
 
 #define CUDA_CHECK(condition)       \
