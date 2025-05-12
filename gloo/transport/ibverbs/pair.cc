@@ -301,8 +301,10 @@ void Pair::postReceive() {
   }
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createSendBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createSendBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   std::unique_lock<std::mutex> lock(m_);
   GLOO_ENFORCE_EQ(sendCompletionHandlers_.count(slot), 0);
   auto buffer = new Buffer(this, slot, ptr, size);
@@ -313,8 +315,10 @@ Pair::createSendBuffer(int slot, void* ptr, size_t size) {
   return std::unique_ptr<::gloo::transport::Buffer>(buffer);
 }
 
-std::unique_ptr<::gloo::transport::Buffer>
-Pair::createRecvBuffer(int slot, void* ptr, size_t size) {
+std::unique_ptr<::gloo::transport::Buffer> Pair::createRecvBuffer(
+    int slot,
+    void* ptr,
+    size_t size) {
   std::unique_lock<std::mutex> lock(m_);
   GLOO_ENFORCE_EQ(recvCompletionHandlers_.count(slot), 0);
   auto buffer = new Buffer(this, slot, ptr, size);
