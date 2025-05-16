@@ -111,11 +111,15 @@ class Pair : public ::gloo::transport::Pair, public Handler {
 
   virtual void setSync(bool sync, bool busyPoll) override;
 
-  virtual std::unique_ptr<::gloo::transport::Buffer>
-  createSendBuffer(int slot, void* ptr, size_t size) override;
+  virtual std::unique_ptr<::gloo::transport::Buffer> createSendBuffer(
+      int slot,
+      void* ptr,
+      size_t size) override;
 
-  virtual std::unique_ptr<::gloo::transport::Buffer>
-  createRecvBuffer(int slot, void* ptr, size_t size) override;
+  virtual std::unique_ptr<::gloo::transport::Buffer> createRecvBuffer(
+      int slot,
+      void* ptr,
+      size_t size) override;
 
   // Send from the specified buffer to remote side of pair.
   virtual void send(
@@ -252,8 +256,10 @@ class Pair : public ::gloo::transport::Pair, public Handler {
       const Op::Opcode& opcode) const;
 
   // Helper function for the `read` function below.
-  ssize_t
-  prepareRead(Op& op, NonOwningPtr<UnboundBuffer>& buf, struct iovec& iov);
+  ssize_t prepareRead(
+      Op& op,
+      NonOwningPtr<UnboundBuffer>& buf,
+      struct iovec& iov);
 
   // Read operation from socket into member variable (see `rx_`).
   //
@@ -285,8 +291,10 @@ class Pair : public ::gloo::transport::Pair, public Handler {
   virtual void changeState(state nextState) noexcept;
 
   template <typename pred_t>
-  void
-  waitUntil(pred_t pred, std::unique_lock<std::mutex>& lock, bool useTimeout) {
+  void waitUntil(
+      pred_t pred,
+      std::unique_lock<std::mutex>& lock,
+      bool useTimeout) {
     auto timeoutSet = timeout_ != kNoTimeout;
     if (useTimeout && timeoutSet) {
       // Use a longer timeout when waiting for initial connect

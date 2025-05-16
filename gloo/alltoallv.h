@@ -78,8 +78,10 @@ class AlltoallvOptions {
       size_t elementSize);
 
   // Untemplated implementation of setInput on opaque pointer.
-  void
-  setInput(void* ptr, std::vector<int64_t> elementsPerRank, size_t elementSize);
+  void setInput(
+      void* ptr,
+      std::vector<int64_t> elementsPerRank,
+      size_t elementSize);
 
   // Untemplated implementation of setOutput on unbound buffer.
   void setOutput(

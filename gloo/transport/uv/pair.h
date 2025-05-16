@@ -111,13 +111,17 @@ class Pair : public ::gloo::transport::Pair {
     abort();
   }
 
-  virtual std::unique_ptr<::gloo::transport::Buffer>
-  createSendBuffer(int slot, void* ptr, size_t size) override {
+  virtual std::unique_ptr<::gloo::transport::Buffer> createSendBuffer(
+      int slot,
+      void* ptr,
+      size_t size) override {
     abort();
   }
 
-  virtual std::unique_ptr<::gloo::transport::Buffer>
-  createRecvBuffer(int slot, void* ptr, size_t size) override {
+  virtual std::unique_ptr<::gloo::transport::Buffer> createRecvBuffer(
+      int slot,
+      void* ptr,
+      size_t size) override {
     abort();
   }
 

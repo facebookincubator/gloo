@@ -25,7 +25,7 @@ jobs:
           # within `super-linter`
           fetch-depth: 0
       - name: Super-linter
-        uses: super-linter/super-linter@v7.2.1 # x-release-please-version
+        uses: super-linter/super-linter@v7.3.0 # x-release-please-version
         env:
           LINTER_RULES_PATH: .github/config/lint
           # To report GitHub Actions status checks
