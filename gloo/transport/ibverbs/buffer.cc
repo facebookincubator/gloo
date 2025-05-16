@@ -59,13 +59,20 @@ Buffer::Buffer(Pair* pair, int slot, void* ptr, size_t size)
 }
 
 Buffer::~Buffer() {
-  std::lock_guard<std::mutex> lock(m_);
-  if (sendPending_ > 0) {
-    GLOO_WARN(
-        "Destructing buffer with pending sends, sendPending_=", sendPending_);
-  }
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    if (sendPending_ > 0) {
+      GLOO_WARN(
+          "Destructing buffer with pending sends, sendPending_=", sendPending_);
+    }
 
-  ibv_dereg_mr(mr_);
+    ibv_dereg_mr(mr_);
+  }
+  {
+    std::lock_guard<std::mutex> lock(pair_->m_);
+    pair_->sendCompletionHandlers_[slot_].clear();
+    pair_->recvCompletionHandlers_[slot_].clear();
+  }
 }
 
 // Wait for a receive operation to finish.
